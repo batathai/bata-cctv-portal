@@ -1,0 +1,88 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { ShieldAlert } from "lucide-react";
+import { AppDataProvider, useAppData } from "@/components/providers/AppDataProvider";
+import { Sidebar } from "@/components/layout/Sidebar";
+import { TopBar } from "@/components/layout/TopBar";
+import { canAccessRoute, DEFAULT_ROUTE_BY_ROLE } from "@/lib/rbac";
+
+/**
+ * Enforces RBAC at the route level, not just by hiding sidebar links.
+ * Without this, a bkk_manager/country_manager typing "/maintenance" or
+ * "/assets/51101" directly into the address bar would still see the page —
+ * the sidebar lock icon is cosmetic on its own. Waits for the real profile
+ * to load first so it doesn't bounce someone before their role is known.
+ */
+function RouteGuard({ children }: { children: React.ReactNode }) {
+  const { role, profileLoaded } = useAppData();
+  const pathname = usePathname();
+  const router = useRouter();
+  const allowed = profileLoaded && canAccessRoute(pathname, role);
+
+  useEffect(() => {
+    if (profileLoaded && !canAccessRoute(pathname, role)) {
+      router.replace(DEFAULT_ROUTE_BY_ROLE[role]);
+    }
+  }, [profileLoaded, pathname, role, router]);
+
+  if (!allowed) return null;
+  return <>{children}</>;
+}
+
+/**
+ * Shown instead of the whole app shell when someone is genuinely logged in
+ * via Supabase but has no matching `profiles` row. Without this, they'd see
+ * a fully-rendered dashboard with every count silently at zero — Postgres
+ * RLS doesn't error when a policy excludes all rows, it just returns an
+ * empty result, which is easy to mistake for "no data has been imported yet".
+ */
+function AccountNotProvisioned({ email }: { email: string }) {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-surface-muted dark:bg-surface-dark px-4">
+      <div className="max-w-md w-full bg-white dark:bg-surface-dark border border-black/10 dark:border-white/10 rounded-card shadow-card p-8 text-center">
+        <div className="mx-auto w-12 h-12 rounded-full bg-brand-50 text-brand flex items-center justify-center mb-4">
+          <ShieldAlert size={22} />
+        </div>
+        <h1 className="font-display text-lg font-bold text-ink dark:text-white mb-2">บัญชียังไม่ได้ตั้งค่าสิทธิ์การใช้งาน</h1>
+        <p className="text-sm text-ink-soft dark:text-white/60 mb-1">
+          บัญชี <span className="font-mono text-xs">{email}</span> เข้าสู่ระบบสำเร็จ แต่ยังไม่มี profile/role กำหนดไว้
+        </p>
+        <p className="text-sm text-ink-soft dark:text-white/60">
+          กรุณาติดต่อ HQ Admin ให้เพิ่มบัญชีนี้ในตาราง <span className="font-mono text-xs">profiles</span> ของ Supabase พร้อมกำหนด role ที่ถูกต้อง
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function PortalShell({ children, onMenuClick }: { children: React.ReactNode; onMenuClick: () => void }) {
+  const { accountNotProvisioned, unprovisionedEmail, isDemoMode } = useAppData();
+
+  // Demo mode never has a real profiles row (there's no real login), so this
+  // check only applies to genuine Supabase logins.
+  if (!isDemoMode && accountNotProvisioned) {
+    return <AccountNotProvisioned email={unprovisionedEmail ?? "(unknown)"} />;
+  }
+
+  return <RouteGuard>{children}</RouteGuard>;
+}
+
+export default function PortalLayout({ children }: { children: React.ReactNode }) {
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
+  return (
+    <AppDataProvider>
+      <div className="flex h-screen overflow-hidden bg-surface-muted dark:bg-surface-dark">
+        <Sidebar mobileOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
+        <div className="flex-1 flex flex-col min-w-0">
+          <TopBar onMenuClick={() => setMobileNavOpen(true)} />
+          <main className="flex-1 overflow-y-auto p-4 lg:p-6">
+            <PortalShell onMenuClick={() => setMobileNavOpen(true)}>{children}</PortalShell>
+          </main>
+        </div>
+      </div>
+    </AppDataProvider>
+  );
+}

@@ -29,6 +29,7 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
  * and shows only what the Retail IT team needs to track a repair, not the
  * full technical asset record.
  */
+export const runtime = 'edge';
 export default function RecoveryStoreDetailPage() {
   const { code } = useParams<{ code: string }>();
   const router = useRouter();

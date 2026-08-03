@@ -46,7 +46,7 @@ function ScoreBar({ label, points, max, met }: { label: string; points: number; 
     </div>
   );
 }
-
+export const runtime = 'edge';
 export default function StoreDetailPage() {
   const { code } = useParams<{ code: string }>();
   const router = useRouter();

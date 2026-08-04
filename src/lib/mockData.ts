@@ -10,6 +10,7 @@ import type {
   TicketIssueType,
   TicketStatus,
   Attachment,
+  RecoveryStageHistoryEntry,
 } from "@/types/database";
 
 // Deterministic PRNG so demo data is stable across reloads.
@@ -177,6 +178,8 @@ export function generateMockData() {
 
   const vendorQuotations: VendorQuotation[] = [];
   let qid = 1;
+  const stageHistory: RecoveryStageHistoryEntry[] = [];
+  let shid = 1;
 
   stores.forEach((s, idx) => {
     const status = distribution[idx] ?? "Normal";
@@ -199,6 +202,25 @@ export function generateMockData() {
       stage === "Completed" || stage === "Verified" || stage === "Repairing"
         ? `2026-${pad(1 + Math.floor(rnd() * 6))}-${pad(1 + Math.floor(rnd() * 27))}`
         : null;
+
+    // Sprint 4 - Work Orders: walk this store through every stage it has
+    // already passed on the way to `stage`, logging one history row per
+    // step so the timeline on /recovery/[code] isn't empty in demo mode.
+    if (status !== "Normal") {
+      const reachedIdx = STAGES.indexOf(stage);
+      let cursor = new Date(2026, Math.floor(rnd() * 5), 1 + Math.floor(rnd() * 20));
+      for (let i = 0; i <= reachedIdx; i++) {
+        cursor = new Date(cursor.getTime() + (1 + Math.floor(rnd() * 4)) * 86400000);
+        stageHistory.push({
+          id: `rsh_${pad(shid++, 4)}`,
+          store_id: s.id,
+          from_stage: i === 0 ? null : STAGES[i - 1],
+          to_stage: STAGES[i],
+          note: i === reachedIdx ? s.required_action : null,
+          changed_at: cursor.toISOString(),
+        });
+      }
+    }
 
     // A quotation exists once a store has moved past "Waiting Vendor Quote".
     if (status !== "Normal" && stage !== "Waiting Vendor Quote") {
@@ -319,5 +341,5 @@ export function generateMockData() {
       notes: null,
     }));
 
-  return { stores, records, audits, vendorQuotations, tickets, attachments };
+  return { stores, records, audits, vendorQuotations, tickets, attachments, recoveryStageHistory: stageHistory };
 }

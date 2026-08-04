@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Search, Server } from "lucide-react";
+import { Search, Server, FileText } from "lucide-react";
 import { useAppData } from "@/components/providers/AppDataProvider";
 import { Card, SectionTitle } from "@/components/ui/Card";
 import { StatusBadge } from "@/components/ui/Badge";
@@ -46,8 +46,8 @@ export default function AssetRegisterPage() {
               <th className="py-2 pr-3">Province</th>
               <th className="py-2 pr-3">NVR Model</th>
               <th className="py-2 pr-3">Cameras</th>
-              <th className="py-2 pr-3">Supplier</th>
               <th className="py-2 pr-3">Status</th>
+              <th className="py-2 pr-3 text-right">Action</th>
             </tr>
           </thead>
           <tbody>
@@ -63,8 +63,15 @@ export default function AssetRegisterPage() {
                 <td className="py-2 pr-3 text-ink-soft dark:text-white/60">{s.province}</td>
                 <td className="py-2 pr-3 font-mono text-xs text-ink-soft dark:text-white/60">{s.asset?.nvr_model}</td>
                 <td className="py-2 pr-3 text-ink-soft dark:text-white/60">{s.asset?.camera_working}/{s.asset?.camera_total}</td>
-                <td className="py-2 pr-3 text-ink-soft dark:text-white/60">{s.supplierName}</td>
                 <td className="py-2 pr-3"><StatusBadge status={s.overall_status} /></td>
+                <td className="py-2 pr-3 text-right">
+                  <Link
+                    href={`/assets/${s.store_code}`}
+                    className="inline-flex items-center gap-1.5 text-xs font-medium border border-black/10 dark:border-white/10 rounded-md px-3 py-1.5 hover:bg-surface-muted dark:hover:bg-white/5"
+                  >
+                    <FileText size={13} /> รายละเอียด
+                  </Link>
+                </td>
               </tr>
             ))}
           </tbody>

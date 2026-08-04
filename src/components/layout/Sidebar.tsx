@@ -4,15 +4,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
 import {
-  LayoutDashboard, Server, FileBarChart, Settings, Camera, X, ListChecks,
+  LayoutDashboard, Server, FileBarChart, Camera, X, ClipboardList,
 } from "lucide-react";
 
 const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/store-list", label: "Store List", icon: ListChecks },
+  { href: "/work-orders", label: "ใบงานซ่อม", icon: ClipboardList },
   { href: "/assets", label: "Asset Register", icon: Server },
   { href: "/reports", label: "Reports", icon: FileBarChart },
-  { href: "/settings", label: "Settings", icon: Settings },
 ];
 
 export function Sidebar({ mobileOpen, onClose }: { mobileOpen: boolean; onClose: () => void }) {

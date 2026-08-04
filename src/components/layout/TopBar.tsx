@@ -8,7 +8,7 @@ import { useTheme } from "@/lib/theme";
 import { useAppData, ROLE_LABELS } from "@/components/providers/AppDataProvider";
 import { Select } from "@/components/ui/Select";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
-import { ZONES, SUPPLIERS } from "@/lib/mockData";
+import { ZONES } from "@/lib/mockData";
 
 export function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
   const { dark, toggle } = useTheme();
@@ -42,7 +42,6 @@ export function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
         <div className="hidden xl:flex items-center gap-2 mr-2">
           <Select value={filters.region} onChange={(v) => setFilters({ ...filters, region: v })} options={["Bangkok", "Upcountry"]} placeholder="Region" />
           <Select value={filters.zone} onChange={(v) => setFilters({ ...filters, zone: v })} options={ZONES.map((z) => z.code)} placeholder="Zone" />
-          <Select value={filters.supplier} onChange={(v) => setFilters({ ...filters, supplier: v })} options={SUPPLIERS} placeholder="Supplier" />
           <Select value={filters.status} onChange={(v) => setFilters({ ...filters, status: v })} options={["Healthy", "Partial", "Offline", "Unknown"]} placeholder="Status" />
         </div>
 

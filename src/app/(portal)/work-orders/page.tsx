@@ -1,0 +1,168 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import Link from "next/link";
+import { ClipboardList, Search, FileText } from "lucide-react";
+import { useAppData } from "@/components/providers/AppDataProvider";
+import { Card, SectionTitle } from "@/components/ui/Card";
+import { StatCard } from "@/components/ui/StatCard";
+import { StatusBadge } from "@/components/ui/Badge";
+import { RecoveryStageBadge } from "@/components/recovery/RecoveryBadges";
+import { RECOVERY_STAGES, needsRepair, isRepairPending, getRecoveryRegion, getAreaLabel } from "@/lib/recovery";
+import type { RecoveryStage, StoreWithAssets } from "@/types/database";
+
+/**
+ * Sprint 4 - Work Orders (ใบงาน): a dedicated, actionable list of every
+ * store currently in the repair pipeline — separate from the general
+ * Store List, which mixes in every store regardless of repair status.
+ * Clicking a row opens /recovery/[code], which now has the stage timeline
+ * + update form (see StageTimeline.tsx).
+ */
+export default function WorkOrdersPage() {
+  const { stores, tickets, recoveryStageHistory, loading } = useAppData();
+  const [stageFilter, setStageFilter] = useState<RecoveryStage | "">("");
+  const [showDone, setShowDone] = useState(false);
+  const [q, setQ] = useState("");
+
+  const workOrderStores = useMemo(() => stores.filter((s) => needsRepair(s, tickets)), [stores, tickets]);
+
+  const stageCounts = useMemo(() => {
+    const c: Record<RecoveryStage, number> = {
+      "Waiting Vendor Quote": 0,
+      "Waiting Approval": 0,
+      "Waiting Repair": 0,
+      Repairing: 0,
+      Completed: 0,
+      Verified: 0,
+    };
+    workOrderStores.forEach((s) => {
+      const stage = s.recovery_stage ?? "Waiting Vendor Quote";
+      c[stage] = (c[stage] ?? 0) + 1;
+    });
+    return c;
+  }, [workOrderStores]);
+
+  const openCount = useMemo(() => workOrderStores.filter((s) => isRepairPending(s, tickets)).length, [workOrderStores, tickets]);
+
+  const earliestChangeByStore = useMemo(() => {
+    const m = new Map<string, string>();
+    recoveryStageHistory.forEach((h) => {
+      const existing = m.get(h.store_id);
+      if (!existing || h.changed_at < existing) m.set(h.store_id, h.changed_at);
+    });
+    return m;
+  }, [recoveryStageHistory]);
+
+  function daysOpen(store: StoreWithAssets): number | null {
+    const opened = earliestChangeByStore.get(store.id);
+    if (!opened) return null;
+    return Math.max(0, Math.floor((Date.now() - new Date(opened).getTime()) / 86400000));
+  }
+
+  const filtered = useMemo(() => {
+    return workOrderStores.filter((s) => {
+      const stage = s.recovery_stage ?? "Waiting Vendor Quote";
+      if (!showDone && (stage === "Completed" || stage === "Verified")) return false;
+      if (stageFilter && stage !== stageFilter) return false;
+      if (q && !(s.store_name + s.store_code).toLowerCase().includes(q.toLowerCase())) return false;
+      return true;
+    });
+  }, [workOrderStores, showDone, stageFilter, q]);
+
+  const sorted = useMemo(
+    () =>
+      [...filtered].sort((a, b) => {
+        const ai = RECOVERY_STAGES.indexOf(a.recovery_stage ?? "Waiting Vendor Quote");
+        const bi = RECOVERY_STAGES.indexOf(b.recovery_stage ?? "Waiting Vendor Quote");
+        if (ai !== bi) return ai - bi;
+        return a.store_code.localeCompare(b.store_code);
+      }),
+    [filtered]
+  );
+
+  if (loading) return <div className="text-sm text-ink-faint">Loading work orders…</div>;
+
+  return (
+    <div className="space-y-5">
+      <div>
+        <h1 className="font-display text-lg font-bold text-ink dark:text-white">ใบงานซ่อม (Work Orders)</h1>
+        <p className="text-sm text-ink-faint mt-0.5">
+          สาขาที่อยู่ในกระบวนการซ่อม {openCount} ใบงาน &middot; กดที่รายการเพื่อดูรายละเอียดและอัพเดทสถานะทีละขั้น
+        </p>
+      </div>
+
+      <div className="flex flex-wrap gap-3">
+        <StatCard
+          label="เปิดอยู่ทั้งหมด"
+          value={openCount}
+          colorClass="text-brand"
+          onClick={() => {
+            setStageFilter("");
+            setShowDone(false);
+          }}
+          active={!stageFilter && !showDone}
+        />
+        {RECOVERY_STAGES.map((stage) => (
+          <StatCard
+            key={stage}
+            label={stage}
+            value={stageCounts[stage]}
+            onClick={() => {
+              setStageFilter(stage);
+              setShowDone(stage === "Completed" || stage === "Verified");
+            }}
+            active={stageFilter === stage}
+          />
+        ))}
+      </div>
+
+      <Card className="p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+          <SectionTitle icon={ClipboardList}>ใบงาน ({sorted.length})</SectionTitle>
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-1.5 text-xs text-ink-soft dark:text-white/60">
+              <input type="checkbox" checked={showDone} onChange={(e) => setShowDone(e.target.checked)} />
+              แสดงที่เสร็จแล้วด้วย
+            </label>
+            <div className="relative">
+              <Search size={13} className="absolute left-2.5 top-2.5 text-ink-faint" />
+              <input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="ค้นหาสาขา / รหัสสาขา"
+                className="pl-8 pr-3 py-1.5 text-sm rounded-md border border-black/10 dark:border-white/10 bg-surface-muted dark:bg-white/5 outline-none focus:border-brand w-60"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="divide-y divide-black/5 dark:divide-white/5">
+          {sorted.map((s) => {
+            const days = daysOpen(s);
+            return (
+              <Link
+                key={s.id}
+                href={`/recovery/${s.store_code}`}
+                className="flex items-center gap-3 py-3 flex-wrap hover:bg-surface-muted dark:hover:bg-white/5 -mx-2 px-2 rounded-md"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium text-ink dark:text-white truncate">{s.store_name}</div>
+                  <div className="font-mono text-[11px] text-ink-faint">
+                    {s.store_code} &middot; {getRecoveryRegion(s.zone)} &middot; {getAreaLabel(s.zone)}
+                  </div>
+                </div>
+                {days != null && <span className="text-xs text-ink-faint shrink-0 hidden sm:inline">{days} วัน</span>}
+                <StatusBadge status={s.overall_status} />
+                <RecoveryStageBadge stage={s.recovery_stage ?? "Waiting Vendor Quote"} />
+                <span className="flex items-center gap-1.5 text-xs font-medium border border-black/10 dark:border-white/10 rounded-md px-3 py-1.5 shrink-0">
+                  <FileText size={13} /> ดูใบงาน
+                </span>
+              </Link>
+            );
+          })}
+          {sorted.length === 0 && <p className="text-sm text-ink-faint py-4">ไม่พบใบงานที่ตรงกับตัวกรอง</p>}
+        </div>
+      </Card>
+    </div>
+  );
+}

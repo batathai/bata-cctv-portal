@@ -1,6 +1,6 @@
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { generateMockData } from "@/lib/mockData";
-import type { StoreWithAssets, MaintenanceRecord, AuditRecord, VendorQuotation, IncidentTicket, Attachment } from "@/types/database";
+import type { StoreWithAssets, MaintenanceRecord, AuditRecord, VendorQuotation, IncidentTicket, Attachment, RecoveryStageHistoryEntry } from "@/types/database";
 
 /**
  * Data access layer. Tries Supabase first; if the project has not been
@@ -109,6 +109,20 @@ export async function fetchIncidentTickets(): Promise<IncidentTicket[]> {
     return generateMockData().tickets;
   }
   return data as IncidentTicket[];
+}
+
+/** Sprint 4 - Work Orders: per-store recovery_stage change log, newest first. */
+export async function fetchRecoveryStageHistory(): Promise<RecoveryStageHistoryEntry[]> {
+  if (!isSupabaseConfigured) return generateMockData().recoveryStageHistory;
+
+  const supabase = createClient();
+  const { data, error } = await supabase.from("recovery_stage_history").select("*").order("changed_at", { ascending: false });
+
+  if (error || !data) {
+    console.error("Supabase fetchRecoveryStageHistory failed, falling back to demo data:", error?.message);
+    return generateMockData().recoveryStageHistory;
+  }
+  return data as RecoveryStageHistoryEntry[];
 }
 
 /** Sprint 3 - Asset Register file uploads (photos + documents). */

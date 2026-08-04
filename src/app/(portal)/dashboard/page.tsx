@@ -5,7 +5,7 @@ import Link from "next/link";
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from "recharts";
-import { Activity, MapPin, ListChecks, Search, WifiOff, FileText, Radio } from "lucide-react";
+import { Activity, MapPin, ListChecks, Search, FileText, Radio } from "lucide-react";
 import { useAppData } from "@/components/providers/AppDataProvider";
 import { Card, SectionTitle } from "@/components/ui/Card";
 import { StatCard } from "@/components/ui/StatCard";
@@ -96,8 +96,6 @@ export default function DashboardPage() {
     value: stores.filter((s) => (s.recovery_stage ?? (deriveRecoveryStatus(s) === "Normal" ? "Verified" : "Waiting Vendor Quote")) === stage).length,
   }));
 
-  const offlineCount = stores.filter((s) => s.overall_status === "Offline").length;
-
   const filtered = useMemo(
     () => stores.filter((s) => bucketMatches(bucket, s, audits, tickets) && (s.store_name + s.store_code).toLowerCase().includes(q.toLowerCase())),
     [stores, audits, tickets, bucket, q]
@@ -108,13 +106,6 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-5">
-      {offlineCount > 0 && (
-        <div className="flex items-center gap-2 bg-status-offline/10 border border-status-offline/30 text-status-offline text-sm font-medium rounded-md px-4 py-3">
-          <WifiOff size={16} />
-          {offlineCount} สาขากำลังออฟไลน์อยู่ตอนนี้
-        </div>
-      )}
-
       <div className="flex flex-wrap gap-3">
         <StatCard label="Stores Checked" value={counts.checked} onClick={() => setBucket("checked")} active={bucket === "checked"} />
         <StatCard label="Online" value={counts.Healthy ?? 0} colorClass="text-status-healthy" onClick={() => setBucket("Healthy")} active={bucket === "Healthy"} />
@@ -172,7 +163,12 @@ export default function DashboardPage() {
         </Card>
 
         <Card className="p-4">
-          <SectionTitle icon={ListChecks}>Store Distribution</SectionTitle>
+          <div className="flex items-center justify-between gap-2">
+            <SectionTitle icon={ListChecks}>Store Distribution</SectionTitle>
+            <Link href="/work-orders" className="text-xs font-medium text-brand hover:underline shrink-0 mb-3">
+              ดูใบงานทั้งหมด →
+            </Link>
+          </div>
           <ResponsiveContainer width="100%" height={250}>
             <BarChart data={byStage} margin={{ left: -20 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />

@@ -199,6 +199,19 @@ export interface VendorQuotation {
   updated_at: string;
 }
 
+// Sprint 4 - Work Orders: append-only log of every recovery_stage change on
+// a store, so the Work Order detail page can show "อัพเดททีละสเตตัส" (a
+// step-by-step timeline) instead of just the current stage. Written
+// alongside every `updateRecoveryStageDb` call — never edited or deleted.
+export interface RecoveryStageHistoryEntry {
+  id: string;
+  store_id: string;
+  from_stage: RecoveryStage | null;
+  to_stage: RecoveryStage;
+  note: string | null;
+  changed_at: string;
+}
+
 export interface Profile {
   id: string;
   full_name: string | null;
@@ -242,6 +255,7 @@ export interface Database {
       import_batches: { Row: ImportBatch; Insert: Partial<ImportBatch>; Update: Partial<ImportBatch> };
       vendor_quotations: { Row: VendorQuotation; Insert: Partial<VendorQuotation>; Update: Partial<VendorQuotation> };
       incident_tickets: { Row: IncidentTicket; Insert: Partial<IncidentTicket>; Update: Partial<IncidentTicket> };
+      recovery_stage_history: { Row: RecoveryStageHistoryEntry; Insert: Partial<RecoveryStageHistoryEntry>; Update: Partial<RecoveryStageHistoryEntry> };
       attachments: { Row: Attachment; Insert: Partial<Attachment>; Update: Partial<Attachment> };
     };
   };

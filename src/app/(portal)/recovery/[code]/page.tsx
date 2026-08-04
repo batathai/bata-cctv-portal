@@ -1,11 +1,12 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, MapPin, Wifi, UserCheck2, Wrench, History, Ticket as TicketIcon } from "lucide-react";
+import { ArrowLeft, MapPin, Wifi, UserCheck2, Wrench, History, Ticket as TicketIcon, GitBranch } from "lucide-react";
 import { useAppData } from "@/components/providers/AppDataProvider";
 import { Card, SectionTitle } from "@/components/ui/Card";
 import { StatusBadge } from "@/components/ui/Badge";
 import { RecoveryStatusBadge, RecoveryStageBadge } from "@/components/recovery/RecoveryBadges";
+import { StageTimeline } from "@/components/recovery/StageTimeline";
 import { TicketsCard } from "@/components/assets/TicketsCard";
 import { IvmsLookup } from "@/components/recovery/IvmsLookup";
 import { getAreaLabel, getCause, getRequiredAction, deriveRecoveryStatus, getRecoveryRegion, getLatestQuotation } from "@/lib/recovery";
@@ -33,7 +34,7 @@ export const runtime = 'edge';
 export default function RecoveryStoreDetailPage() {
   const { code } = useParams<{ code: string }>();
   const router = useRouter();
-  const { stores, vendorQuotations, loading, role } = useAppData();
+  const { stores, vendorQuotations, recoveryStageHistory, loading, role } = useAppData();
 
   if (loading) return <div className="text-sm text-ink-faint">Loading…</div>;
 
@@ -68,6 +69,11 @@ export default function RecoveryStoreDetailPage() {
             <RecoveryStageBadge stage={stage} />
           </div>
         </div>
+      </Card>
+
+      <Card className="p-5">
+        <SectionTitle icon={GitBranch}>ใบงานซ่อม (Work Order Progress)</SectionTitle>
+        <StageTimeline store={store} history={recoveryStageHistory} canEdit={canLogMaintenance(role)} />
       </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

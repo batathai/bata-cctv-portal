@@ -1,11 +1,28 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { fetchStores, fetchMaintenance, fetchAudits, fetchVendorQuotations, fetchIncidentTickets, fetchAttachments } from "@/lib/data";
+import {
+  fetchStores,
+  fetchMaintenance,
+  fetchAudits,
+  fetchVendorQuotations,
+  fetchIncidentTickets,
+  fetchAttachments,
+  fetchRecoveryStageHistory,
+} from "@/lib/data";
 import { fetchCurrentProfile } from "@/lib/profile";
 import { type UserRole, ROLE_LABELS } from "@/lib/rbac";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
-import type { StoreWithAssets, MaintenanceRecord, AuditRecord, VendorQuotation, IncidentTicket, Attachment, AttachmentFolder } from "@/types/database";
+import type {
+  StoreWithAssets,
+  MaintenanceRecord,
+  AuditRecord,
+  VendorQuotation,
+  IncidentTicket,
+  Attachment,
+  AttachmentFolder,
+  RecoveryStageHistoryEntry,
+} from "@/types/database";
 import { SUPPLIERS } from "@/lib/mockData";
 import {
   buildImportRows,
@@ -42,7 +59,6 @@ import type { RecoveryStage, TicketStatus } from "@/types/database";
 export interface Filters {
   region: string;
   zone: string;
-  supplier: string;
   status: string;
 }
 
@@ -66,6 +82,7 @@ interface AppDataContextValue {
   audits: AuditRecord[];
   vendorQuotations: VendorQuotation[];
   tickets: IncidentTicket[];
+  recoveryStageHistory: RecoveryStageHistoryEntry[];
   attachments: Attachment[];
   suppliers: string[];
   importBatches: ImportBatch[];
@@ -79,7 +96,7 @@ interface AppDataContextValue {
   addMaintenanceRecord: (input: MaintenanceFormInput) => Promise<void>;
   updateMaintenanceRecord: (id: string, patch: Partial<MaintenanceFormInput>) => Promise<void>;
   deleteMaintenanceRecord: (id: string) => Promise<void>;
-  updateRecoveryStage: (storeId: string, stage: RecoveryStage) => Promise<void>;
+  updateRecoveryStage: (storeId: string, stage: RecoveryStage, note?: string) => Promise<void>;
   createTicket: (input: TicketFormInput) => Promise<void>;
   updateTicketStatus: (ticketId: string, status: TicketStatus) => Promise<void>;
   uploadAttachment: (storeCode: string, storeId: string, folder: AttachmentFolder, file: File) => Promise<void>;
@@ -101,12 +118,13 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [accountNotProvisioned, setAccountNotProvisioned] = useState(false);
   const [unprovisionedEmail, setUnprovisionedEmail] = useState<string | null>(null);
-  const [filters, setFilters] = useState<Filters>({ region: "", zone: "", supplier: "", status: "" });
+  const [filters, setFilters] = useState<Filters>({ region: "", zone: "", status: "" });
   const [allStores, setAllStores] = useState<StoreWithAssets[]>([]);
   const [maintenance, setMaintenance] = useState<MaintenanceRecord[]>([]);
   const [audits, setAudits] = useState<AuditRecord[]>([]);
   const [vendorQuotations, setVendorQuotations] = useState<VendorQuotation[]>([]);
   const [tickets, setTickets] = useState<IncidentTicket[]>([]);
+  const [recoveryStageHistory, setRecoveryStageHistory] = useState<RecoveryStageHistoryEntry[]>([]);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [importBatches, setImportBatches] = useState<ImportBatch[]>([]);
 
@@ -120,7 +138,8 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       fetchVendorQuotations(),
       fetchIncidentTickets(),
       fetchAttachments(),
-    ]).then(([s, m, a, profileResult, vq, tk, att]) => {
+      fetchRecoveryStageHistory(),
+    ]).then(([s, m, a, profileResult, vq, tk, att, rsh]) => {
         if (!mounted) return;
         setAllStores(s);
         setMaintenance(m);
@@ -128,6 +147,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         setVendorQuotations(vq);
         setTickets(tk);
         setAttachments(att);
+        setRecoveryStageHistory(rsh);
         if (profileResult.status === "ok") {
           setRole(profileResult.profile.role);
         } else if (profileResult.status === "not_provisioned") {
@@ -147,7 +167,6 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     let list = allStores;
     if (filters.region) list = list.filter((s) => s.region === filters.region);
     if (filters.zone) list = list.filter((s) => s.zone === filters.zone);
-    if (filters.supplier) list = list.filter((s) => s.supplierName === filters.supplier);
     if (filters.status) list = list.filter((s) => s.overall_status === filters.status);
     return list;
   }, [allStores, filters]);
@@ -310,13 +329,27 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  async function updateRecoveryStage(storeId: string, stage: RecoveryStage) {
+  async function updateRecoveryStage(storeId: string, stage: RecoveryStage, note?: string) {
+    const currentStore = allStores.find((s) => s.id === storeId);
+    const fromStage = currentStore?.recovery_stage ?? null;
     if (isSupabaseConfigured) {
       const supabase = createClient();
-      await updateRecoveryStageDb(supabase, storeId, stage);
+      await updateRecoveryStageDb(supabase, storeId, stage, fromStage, note);
       setAllStores(await fetchStores());
+      setRecoveryStageHistory(await fetchRecoveryStageHistory());
     } else {
       setAllStores((prev) => prev.map((s) => (s.id === storeId ? { ...s, recovery_stage: stage } : s)));
+      setRecoveryStageHistory((prev) => [
+        {
+          id: `rsh_local_${Date.now()}`,
+          store_id: storeId,
+          from_stage: fromStage,
+          to_stage: stage,
+          note: note || null,
+          changed_at: new Date().toISOString(),
+        },
+        ...prev,
+      ]);
     }
   }
 
@@ -493,6 +526,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     audits,
     vendorQuotations,
     tickets,
+    recoveryStageHistory,
     attachments,
     suppliers: SUPPLIERS,
     importBatches,

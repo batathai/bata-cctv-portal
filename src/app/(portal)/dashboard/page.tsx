@@ -5,7 +5,7 @@ import Link from "next/link";
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from "recharts";
-import { Activity, MapPin, ListChecks, Search, WifiOff, Eye, FileText, Radio } from "lucide-react";
+import { Activity, MapPin, ListChecks, Search, WifiOff, FileText, Radio } from "lucide-react";
 import { useAppData } from "@/components/providers/AppDataProvider";
 import { Card, SectionTitle } from "@/components/ui/Card";
 import { StatCard } from "@/components/ui/StatCard";
@@ -48,7 +48,7 @@ function bucketMatches(bucket: Bucket, s: StoreWithAssets, audits: any[], ticket
 }
 
 export default function DashboardPage() {
-  const { stores, audits, tickets, loading, role } = useAppData();
+  const { stores, audits, tickets, loading } = useAppData();
   const [bucket, setBucket] = useState<Bucket>("all");
   const [q, setQ] = useState("");
 
@@ -111,7 +111,7 @@ export default function DashboardPage() {
       {offlineCount > 0 && (
         <div className="flex items-center gap-2 bg-status-offline/10 border border-status-offline/30 text-status-offline text-sm font-medium rounded-md px-4 py-3">
           <WifiOff size={16} />
-          {offlineCount} {role === "hq_admin" ? "สาขากำลังออฟไลน์อยู่ตอนนี้" : "สาขาในเขตของคุณกำลังออฟไลน์อยู่ตอนนี้"}
+          {offlineCount} สาขากำลังออฟไลน์อยู่ตอนนี้
         </div>
       )}
 
@@ -218,12 +218,6 @@ export default function DashboardPage() {
                 className="flex items-center gap-1.5 text-xs font-medium border border-black/10 dark:border-white/10 rounded-md px-3 py-1.5 hover:bg-surface-muted dark:hover:bg-white/5 shrink-0"
               >
                 <FileText size={13} /> รายละเอียด
-              </Link>
-              <Link
-                href={`/live-access?q=${encodeURIComponent(s.store_code)}`}
-                className="flex items-center gap-1.5 text-xs font-medium border border-black/10 dark:border-white/10 rounded-md px-3 py-1.5 hover:bg-surface-muted dark:hover:bg-white/5 shrink-0"
-              >
-                <Eye size={13} /> ดู Live View
               </Link>
             </div>
           ))}

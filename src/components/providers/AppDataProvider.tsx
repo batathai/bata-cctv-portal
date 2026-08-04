@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { fetchStores, fetchMaintenance, fetchAudits, fetchVendorQuotations, fetchIncidentTickets, fetchAttachments } from "@/lib/data";
 import { fetchCurrentProfile } from "@/lib/profile";
-import { ROLE_ZONES, type UserRole, ROLE_LABELS } from "@/lib/rbac";
+import { type UserRole, ROLE_LABELS } from "@/lib/rbac";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import type { StoreWithAssets, MaintenanceRecord, AuditRecord, VendorQuotation, IncidentTicket, Attachment, AttachmentFolder } from "@/types/database";
 import { SUPPLIERS } from "@/lib/mockData";
@@ -98,11 +98,6 @@ const AppDataContext = createContext<AppDataContextValue | null>(null);
 export function AppDataProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [role, setRole] = useState<UserRole>("hq_admin");
-  // Per-user zone assignment from their real `profiles` row (e.g. one BKK
-  // Manager sees only "511", another only "512"). Falls back to the static
-  // ROLE_ZONES map below when there's no real profile yet (demo mode, or a
-  // role that hasn't been assigned specific zones).
-  const [assignedZones, setAssignedZones] = useState<string[] | null>(null);
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [accountNotProvisioned, setAccountNotProvisioned] = useState(false);
   const [unprovisionedEmail, setUnprovisionedEmail] = useState<string | null>(null);
@@ -133,12 +128,8 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         setVendorQuotations(vq);
         setTickets(tk);
         setAttachments(att);
-        // This is what makes RBAC apply to real logins instead of everyone
-        // defaulting to hq_admin: once a real profile is found, its role and
-        // assigned_zones win over the local demo state.
         if (profileResult.status === "ok") {
           setRole(profileResult.profile.role);
-          setAssignedZones(profileResult.profile.assigned_zones ?? []);
         } else if (profileResult.status === "not_provisioned") {
           setAccountNotProvisioned(true);
           setUnprovisionedEmail(profileResult.email);
@@ -154,25 +145,12 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
 
   const stores = useMemo(() => {
     let list = allStores;
-    // Only bkk_manager / country_manager are ever zone-restricted. hq_admin
-    // and supplier must never be filtered by zone — critically, an empty
-    // assigned_zones array (`[]`, which is what a profile row defaults to
-    // before anyone fills it in) is NOT the same as "no zones assigned yet,
-    // fall back to the default"; `[] ?? fallback` still evaluates to `[]`
-    // since `??` only falls back on null/undefined, and `.filter(() =>
-    // [].includes(...))` then silently excludes every single store. This bit
-    // hq_admin in production: their profiles row had assigned_zones = [].
-    if (role === "bkk_manager" || role === "country_manager") {
-      const zones = assignedZones && assignedZones.length > 0 ? assignedZones : ROLE_ZONES[role];
-      if (zones) list = list.filter((s) => zones.includes(s.zone));
-    }
-    if (role === "supplier") list = list.filter((s) => s.supplierName === "Flowbridge");
     if (filters.region) list = list.filter((s) => s.region === filters.region);
     if (filters.zone) list = list.filter((s) => s.zone === filters.zone);
     if (filters.supplier) list = list.filter((s) => s.supplierName === filters.supplier);
     if (filters.status) list = list.filter((s) => s.overall_status === filters.status);
     return list;
-  }, [allStores, role, assignedZones, filters]);
+  }, [allStores, filters]);
 
   async function runImport(
     targetTable: TargetTable,

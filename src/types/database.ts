@@ -3,7 +3,8 @@
 // for a fully generated version — this hand-authored version is enough to
 // build against today.
 
-export type UserRole = "hq_admin" | "bkk_manager" | "country_manager" | "supplier";
+import type { UserRole } from "@/lib/rbac";
+export type { UserRole } from "@/lib/rbac";
 export type OverallStatus = "Healthy" | "Partial" | "View Only" | "Offline" | "Unknown";
 
 // --- Sprint 1: Recovery Dashboard (first 50 priority stores) ---

@@ -4,25 +4,19 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
 import {
-  LayoutDashboard, Server, Eye, Wrench, ClipboardCheck, FileBarChart, Settings, Lock, Camera, X, ListChecks,
+  LayoutDashboard, Server, FileBarChart, Settings, Camera, X, ListChecks,
 } from "lucide-react";
-import { useAppData } from "@/components/providers/AppDataProvider";
-import { canAccessRoute } from "@/lib/rbac";
 
 const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/store-list", label: "Store List", icon: ListChecks },
   { href: "/assets", label: "Asset Register", icon: Server },
-  { href: "/live-access", label: "Live Access", icon: Eye },
-  { href: "/maintenance", label: "Maintenance", icon: Wrench },
-  { href: "/audit", label: "Audit", icon: ClipboardCheck },
   { href: "/reports", label: "Reports", icon: FileBarChart },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
 export function Sidebar({ mobileOpen, onClose }: { mobileOpen: boolean; onClose: () => void }) {
   const pathname = usePathname();
-  const { role } = useAppData();
 
   return (
     <>
@@ -50,22 +44,8 @@ export function Sidebar({ mobileOpen, onClose }: { mobileOpen: boolean; onClose:
 
         <nav className="flex-1 overflow-y-auto py-3 px-3">
           {NAV.map((item) => {
-            const allowed = canAccessRoute(item.href, role);
             const active = pathname === item.href || pathname.startsWith(item.href + "/");
             const Icon = item.icon;
-            if (!allowed) {
-              return (
-                <div
-                  key={item.href}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-md text-ink-faint/60 cursor-not-allowed"
-                  title="Not permitted for your role"
-                >
-                  <Icon size={16} />
-                  <span className="text-sm flex-1">{item.label}</span>
-                  <Lock size={12} />
-                </div>
-              );
-            }
             return (
               <Link
                 key={item.href}

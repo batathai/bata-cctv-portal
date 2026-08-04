@@ -2,19 +2,17 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Search, WifiOff, Eye, Radio, FileText } from "lucide-react";
+import { Search, WifiOff, Radio, FileText } from "lucide-react";
 import { useAppData } from "@/components/providers/AppDataProvider";
 import { Card, SectionTitle } from "@/components/ui/Card";
 import { StatusBadge } from "@/components/ui/Badge";
 import { StatCard } from "@/components/ui/StatCard";
 
 /**
- * Lightweight status view for BKK Manager / Country Manager: just the
- * stores in their own zone(s), whether each one is Online/Offline right
- * now, and a one-click way into Live Access for that store. Deliberately
- * leaves out Health Score, cost, NVR/HDD technical detail, and repair
- * history — those stay on the full Dashboard / Asset Register (HQ Admin
- * only).
+ * Lightweight status view: just the stores, and whether each one is
+ * Online/Offline right now. Deliberately leaves out Health Score, cost,
+ * NVR/HDD technical detail, and repair history — those stay on the full
+ * Dashboard / Asset Register.
  */
 export default function DeviceStatusPage() {
   const { stores, loading } = useAppData();
@@ -83,12 +81,6 @@ export default function DeviceStatusPage() {
                 className="flex items-center gap-1.5 text-xs font-medium border border-black/10 dark:border-white/10 rounded-md px-3 py-1.5 hover:bg-surface-muted dark:hover:bg-white/5 shrink-0"
               >
                 <FileText size={13} /> รายละเอียด
-              </Link>
-              <Link
-                href={`/live-access?q=${encodeURIComponent(s.store_code)}`}
-                className="flex items-center gap-1.5 text-xs font-medium border border-black/10 dark:border-white/10 rounded-md px-3 py-1.5 hover:bg-surface-muted dark:hover:bg-white/5 shrink-0"
-              >
-                <Eye size={13} /> ดู Live View
               </Link>
             </div>
           ))}

@@ -1,35 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { useState } from "react";
 import { ShieldAlert } from "lucide-react";
 import { AppDataProvider, useAppData } from "@/components/providers/AppDataProvider";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TopBar } from "@/components/layout/TopBar";
-import { canAccessRoute, DEFAULT_ROUTE_BY_ROLE } from "@/lib/rbac";
-
-/**
- * Enforces RBAC at the route level, not just by hiding sidebar links.
- * Without this, a bkk_manager/country_manager typing "/maintenance" or
- * "/assets/51101" directly into the address bar would still see the page —
- * the sidebar lock icon is cosmetic on its own. Waits for the real profile
- * to load first so it doesn't bounce someone before their role is known.
- */
-function RouteGuard({ children }: { children: React.ReactNode }) {
-  const { role, profileLoaded } = useAppData();
-  const pathname = usePathname();
-  const router = useRouter();
-  const allowed = profileLoaded && canAccessRoute(pathname, role);
-
-  useEffect(() => {
-    if (profileLoaded && !canAccessRoute(pathname, role)) {
-      router.replace(DEFAULT_ROUTE_BY_ROLE[role]);
-    }
-  }, [profileLoaded, pathname, role, router]);
-
-  if (!allowed) return null;
-  return <>{children}</>;
-}
 
 /**
  * Shown instead of the whole app shell when someone is genuinely logged in
@@ -66,7 +41,7 @@ function PortalShell({ children, onMenuClick }: { children: React.ReactNode; onM
     return <AccountNotProvisioned email={unprovisionedEmail ?? "(unknown)"} />;
   }
 
-  return <RouteGuard>{children}</RouteGuard>;
+  return <>{children}</>;
 }
 
 export default function PortalLayout({ children }: { children: React.ReactNode }) {

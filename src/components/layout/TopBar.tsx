@@ -9,11 +9,10 @@ import { useAppData, ROLE_LABELS } from "@/components/providers/AppDataProvider"
 import { Select } from "@/components/ui/Select";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { ZONES, SUPPLIERS } from "@/lib/mockData";
-import type { UserRole } from "@/lib/rbac";
 
 export function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
   const { dark, toggle } = useTheme();
-  const { role, setRole, filters, setFilters, isDemoMode } = useAppData();
+  const { role, filters, setFilters } = useAppData();
   const [menuOpen, setMenuOpen] = useState(false);
   const router = useRouter();
 
@@ -68,24 +67,6 @@ export function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
           </button>
           {menuOpen && (
             <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-surface-dark border border-black/10 dark:border-white/10 rounded-md shadow-card p-2 text-sm">
-              {isDemoMode && (
-                <div className="mb-2">
-                  <div className="px-2 pb-1 text-[10px] uppercase tracking-wide text-ink-faint">Demo: view as</div>
-                  {(Object.keys(ROLE_LABELS) as UserRole[]).map((r) => (
-                    <button
-                      key={r}
-                      onClick={() => {
-                        setRole(r);
-                        setMenuOpen(false);
-                      }}
-                      className={`w-full text-left px-2 py-1.5 rounded ${r === role ? "bg-brand-50 text-brand font-medium" : "hover:bg-surface-muted dark:hover:bg-white/5"}`}
-                    >
-                      {ROLE_LABELS[r]}
-                    </button>
-                  ))}
-                  <div className="my-2 h-px bg-black/5 dark:bg-white/10" />
-                </div>
-              )}
               <button
                 onClick={handleSignOut}
                 className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-brand hover:bg-brand-50"

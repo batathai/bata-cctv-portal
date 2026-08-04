@@ -3,7 +3,7 @@
 import { Settings, Users, Building2, ShieldAlert } from "lucide-react";
 import { useAppData, ROLE_LABELS } from "@/components/providers/AppDataProvider";
 import { Card, SectionTitle } from "@/components/ui/Card";
-import { canManageMasterData, ROLE_ZONES } from "@/lib/rbac";
+import { canManageMasterData } from "@/lib/rbac";
 import { SUPPLIERS } from "@/lib/mockData";
 
 export default function SettingsPage() {
@@ -26,9 +26,7 @@ export default function SettingsPage() {
             {(Object.keys(ROLE_LABELS) as (keyof typeof ROLE_LABELS)[]).map((r) => (
               <div key={r} className="flex justify-between border-b border-black/5 dark:border-white/5 py-2">
                 <span className="text-ink dark:text-white">{ROLE_LABELS[r]}</span>
-                <span className="text-ink-faint text-xs">
-                  {ROLE_ZONES[r] ? `Zones ${ROLE_ZONES[r]!.join(", ")}` : r === "supplier" ? "Assigned stores only" : "All zones"}
-                </span>
+                <span className="text-ink-faint text-xs">All zones</span>
               </div>
             ))}
           </div>

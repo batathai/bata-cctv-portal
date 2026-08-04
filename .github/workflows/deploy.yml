@@ -1,11 +1,9 @@
 name: Deploy to Cloudflare Pages
-
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -14,31 +12,27 @@ jobs:
       deployments: write
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
-
       - name: Install dependencies
         run: npm ci
-
-- name: Lint
+      - name: Lint
         run: npm run lint
-- name: Debug env length
+      - name: Debug env length
         run: |
           echo "URL length: ${#NEXT_PUBLIC_SUPABASE_URL}"
           echo "KEY length: ${#NEXT_PUBLIC_SUPABASE_ANON_KEY}"
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-- name: Build for Cloudflare Pages
+      - name: Build for Cloudflare Pages
         run: npm run pages:build
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-
-- name: Deploy to Cloudflare Pages
+      - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}

@@ -158,6 +158,25 @@ export function isRepairPending(store: StoreWithAssets, tickets: IncidentTicket[
 }
 
 /**
+ * The single stage bucket to count and display a work order under, on the
+ * Work Orders page. A store's `recovery_stage` field only advances to
+ * "Completed"/"Verified" if someone walks it through the Work Order stage
+ * timeline — but isRepairCompleted() above also treats a Completed/Closed
+ * incident ticket as "done", since repairs are sometimes closed out via the
+ * ticket instead. Code that bucketed stores by raw `recovery_stage` alone
+ * (as the Work Orders page used to, in its header count and stage-breakdown
+ * cards) disagreed with the "เปิดอยู่ทั้งหมด" card, which already used
+ * isRepairCompleted — a store with a closed ticket but a stale/unset
+ * recovery_stage got counted as open by one and done by the other, 1 apart.
+ * Routing every count through this one function is what keeps them in sync.
+ */
+export function getEffectiveRecoveryStage(store: StoreWithAssets, tickets: IncidentTicket[]): RecoveryStage {
+  if (store.recovery_stage === "Verified") return "Verified";
+  if (isRepairCompleted(store, tickets)) return "Completed";
+  return store.recovery_stage ?? "Waiting Vendor Quote";
+}
+
+/**
  * Recomputes `overall_status` from the asset's own condition — used after
  * Edit Detail saves NVR/Camera/HDD/Playback changes, so the status badge
  * shown everywhere (Device Status, Asset Register, Store Detail) reflects

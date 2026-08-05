@@ -8,7 +8,7 @@ import { Card, SectionTitle } from "@/components/ui/Card";
 import { StatCard } from "@/components/ui/StatCard";
 import { StatusBadge } from "@/components/ui/Badge";
 import { RecoveryStageBadge } from "@/components/recovery/RecoveryBadges";
-import { RECOVERY_STAGES, needsRepair, isRepairPending, getRecoveryRegion, getAreaLabel } from "@/lib/recovery";
+import { RECOVERY_STAGES, needsRepair, getEffectiveRecoveryStage, getRecoveryRegion, getAreaLabel } from "@/lib/recovery";
 import type { RecoveryStage, StoreWithAssets } from "@/types/database";
 
 /**
@@ -26,6 +26,12 @@ export default function WorkOrdersPage() {
 
   const workOrderStores = useMemo(() => stores.filter((s) => needsRepair(s, tickets)), [stores, tickets]);
 
+  // Every count on this page is derived from the same per-store bucket
+  // (getEffectiveRecoveryStage) so they can never drift apart again: the
+  // stage-breakdown cards sum to workOrderStores.length by construction,
+  // "เปิดอยู่ทั้งหมด" sums the non-terminal buckets of that same breakdown,
+  // and the default list view (below) hides a store from view using the
+  // exact same terminal-stage check.
   const stageCounts = useMemo(() => {
     const c: Record<RecoveryStage, number> = {
       "Waiting Vendor Quote": 0,
@@ -36,13 +42,16 @@ export default function WorkOrdersPage() {
       Verified: 0,
     };
     workOrderStores.forEach((s) => {
-      const stage = s.recovery_stage ?? "Waiting Vendor Quote";
+      const stage = getEffectiveRecoveryStage(s, tickets);
       c[stage] = (c[stage] ?? 0) + 1;
     });
     return c;
-  }, [workOrderStores]);
+  }, [workOrderStores, tickets]);
 
-  const openCount = useMemo(() => workOrderStores.filter((s) => isRepairPending(s, tickets)).length, [workOrderStores, tickets]);
+  const openCount = useMemo(
+    () => RECOVERY_STAGES.filter((stage) => stage !== "Completed" && stage !== "Verified").reduce((sum, stage) => sum + stageCounts[stage], 0),
+    [stageCounts]
+  );
 
   const earliestChangeByStore = useMemo(() => {
     const m = new Map<string, string>();
@@ -61,23 +70,23 @@ export default function WorkOrdersPage() {
 
   const filtered = useMemo(() => {
     return workOrderStores.filter((s) => {
-      const stage = s.recovery_stage ?? "Waiting Vendor Quote";
+      const stage = getEffectiveRecoveryStage(s, tickets);
       if (!showDone && (stage === "Completed" || stage === "Verified")) return false;
       if (stageFilter && stage !== stageFilter) return false;
       if (q && !(s.store_name + s.store_code).toLowerCase().includes(q.toLowerCase())) return false;
       return true;
     });
-  }, [workOrderStores, showDone, stageFilter, q]);
+  }, [workOrderStores, tickets, showDone, stageFilter, q]);
 
   const sorted = useMemo(
     () =>
       [...filtered].sort((a, b) => {
-        const ai = RECOVERY_STAGES.indexOf(a.recovery_stage ?? "Waiting Vendor Quote");
-        const bi = RECOVERY_STAGES.indexOf(b.recovery_stage ?? "Waiting Vendor Quote");
+        const ai = RECOVERY_STAGES.indexOf(getEffectiveRecoveryStage(a, tickets));
+        const bi = RECOVERY_STAGES.indexOf(getEffectiveRecoveryStage(b, tickets));
         if (ai !== bi) return ai - bi;
         return a.store_code.localeCompare(b.store_code);
       }),
-    [filtered]
+    [filtered, tickets]
   );
 
   if (loading) return <div className="text-sm text-ink-faint">Loading work orders…</div>;
@@ -153,7 +162,7 @@ export default function WorkOrdersPage() {
                 </div>
                 {days != null && <span className="text-xs text-ink-faint shrink-0 hidden sm:inline">{days} วัน</span>}
                 <StatusBadge status={s.overall_status} />
-                <RecoveryStageBadge stage={s.recovery_stage ?? "Waiting Vendor Quote"} />
+                <RecoveryStageBadge stage={getEffectiveRecoveryStage(s, tickets)} />
                 <span className="flex items-center gap-1.5 text-xs font-medium border border-black/10 dark:border-white/10 rounded-md px-3 py-1.5 shrink-0">
                   <FileText size={13} /> ดูใบงาน
                 </span>

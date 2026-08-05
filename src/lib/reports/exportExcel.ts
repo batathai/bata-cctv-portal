@@ -1,5 +1,6 @@
 import * as XLSX from "xlsx";
 import type { StoreWithAssets, MaintenanceRecord } from "@/types/database";
+import { regionFromZone, zoneCode } from "@/lib/recovery";
 
 function download(wb: XLSX.WorkBook, filename: string) {
   XLSX.writeFile(wb, filename);
@@ -9,8 +10,8 @@ export function exportStoresToExcel(stores: StoreWithAssets[], filename = "bata-
   const rows = stores.map((s) => ({
     "Store Code": s.store_code,
     "Store Name": s.store_name,
-    Region: s.region,
-    Zone: s.zone,
+    Region: regionFromZone(s.zone),
+    Zone: zoneCode(s.zone),
     Province: s.province,
     Supplier: s.supplierName,
     "Overall Status": s.overall_status,

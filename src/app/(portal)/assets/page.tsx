@@ -9,7 +9,7 @@ import { StatusBadge } from "@/components/ui/Badge";
 import { Select } from "@/components/ui/Select";
 import { ExportButtons } from "@/components/reports/ExportButtons";
 import { ZONES } from "@/lib/mockData";
-import { zoneCode, getAreaLabel } from "@/lib/recovery";
+import { zoneCode, getAreaLabel, regionFromZone } from "@/lib/recovery";
 
 export default function AssetRegisterPage() {
   const { stores, loading } = useAppData();
@@ -66,7 +66,7 @@ export default function AssetRegisterPage() {
                   </Link>
                 </td>
                 <td className="py-2 pr-3">{s.store_name}</td>
-                <td className="py-2 pr-3 text-ink-soft dark:text-white/60">{s.region} &middot; {zoneCode(s.zone)}</td>
+                <td className="py-2 pr-3 text-ink-soft dark:text-white/60">{regionFromZone(s.zone)} &middot; {zoneCode(s.zone)}</td>
                 <td className="py-2 pr-3 text-ink-soft dark:text-white/60">{s.province}</td>
                 <td className="py-2 pr-3 font-mono text-xs text-ink-soft dark:text-white/60">{s.asset?.nvr_model}</td>
                 <td className="py-2 pr-3 text-ink-soft dark:text-white/60">{s.asset?.camera_working}/{s.asset?.camera_total}</td>

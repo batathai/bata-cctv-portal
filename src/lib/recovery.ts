@@ -38,6 +38,19 @@ export function getRecoveryRegion(zone: string): RecoveryRegion {
   return RECOVERY_REGION_BY_ZONE[zoneCode(zone)] ?? "Country";
 }
 
+/**
+ * Bangkok/Upcountry classification, derived purely from the zone code —
+ * same source of truth as getRecoveryRegion (511/512/513/550 -> Bangkok,
+ * 520/530/540/560 -> Upcountry) but returning the "Bangkok"/"Upcountry"
+ * labels used by `stores.region`, the TopBar Region filter, and Asset
+ * Register, instead of the "BKK"/"Country" labels used by the Recovery/Work
+ * Order pages. Use this instead of trusting a store's stored `region`
+ * column, which can drift out of sync with its `zone` after a messy import.
+ */
+export function regionFromZone(zone: string): "Bangkok" | "Upcountry" {
+  return getRecoveryRegion(zone) === "BKK" ? "Bangkok" : "Upcountry";
+}
+
 /** "Area" on the Store Detail page — reuses the human-readable zone label already defined in mockData's ZONES. */
 export function getAreaLabel(zone: string): string {
   return ZONES.find((z) => z.code === zoneCode(zone))?.label ?? zoneCode(zone);

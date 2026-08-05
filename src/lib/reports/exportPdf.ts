@@ -1,6 +1,7 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { StoreWithAssets, MaintenanceRecord } from "@/types/database";
+import { regionFromZone, zoneCode } from "@/lib/recovery";
 
 const BRAND_RED = "#D71920";
 
@@ -53,7 +54,7 @@ export function exportExecutivePdf(stores: StoreWithAssets[]) {
     head: [["Store Code", "Store Name", "Zone", "Status", "Score"]],
     body: [...stores]
       .sort((a, b) => b.healthScore - a.healthScore)
-      .map((s) => [s.store_code, s.store_name, s.zone, s.overall_status, String(s.healthScore)]),
+      .map((s) => [s.store_code, s.store_name, zoneCode(s.zone), s.overall_status, String(s.healthScore)]),
     headStyles: { fillColor: [215, 25, 32] },
     styles: { fontSize: 8 },
   });
@@ -69,7 +70,7 @@ export function exportStoreDetailPdf(store: StoreWithAssets, records: Maintenanc
   doc.setFontSize(12);
   doc.text(`${store.store_name} (${store.store_code})`, 14, 30);
   doc.setFontSize(9);
-  doc.text(`${store.region} / Zone ${store.zone} — ${store.province ?? ""}`, 14, 36);
+  doc.text(`${regionFromZone(store.zone)} / Zone ${zoneCode(store.zone)} — ${store.province ?? ""}`, 14, 36);
   doc.text(`Overall Status: ${store.overall_status}    Health Score: ${store.healthScore}`, 14, 42);
 
   autoTable(doc, {
@@ -114,7 +115,7 @@ export function exportOfflineStoresPdf(stores: StoreWithAssets[]) {
     body: offline.map((s) => [
       s.store_code,
       s.store_name,
-      s.zone,
+      zoneCode(s.zone),
       s.overall_status,
       s.supplierName,
       s.asset?.nvr_online ? "Yes" : "No",

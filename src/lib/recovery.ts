@@ -23,13 +23,24 @@ export const RECOVERY_REGION_BY_ZONE: Record<string, RecoveryRegion> = {
   "560": "Country",
 };
 
+/**
+ * Some stores' `zone` values carry a "_ManagerName" suffix from the DM
+ * import (e.g. "511_Songpol"), while others are the bare code (e.g. "520")
+ * — both mean the same zone. Every zone-keyed lookup in this file goes
+ * through this first so DM-suffixed stores classify/label the same as
+ * everyone else, instead of silently falling through to a wrong default.
+ */
+export function zoneCode(zone: string): string {
+  return zone.split("_")[0];
+}
+
 export function getRecoveryRegion(zone: string): RecoveryRegion {
-  return RECOVERY_REGION_BY_ZONE[zone] ?? "Country";
+  return RECOVERY_REGION_BY_ZONE[zoneCode(zone)] ?? "Country";
 }
 
 /** "Area" on the Store Detail page — reuses the human-readable zone label already defined in mockData's ZONES. */
 export function getAreaLabel(zone: string): string {
-  return ZONES.find((z) => z.code === zone)?.label ?? zone;
+  return ZONES.find((z) => z.code === zoneCode(zone))?.label ?? zoneCode(zone);
 }
 
 export const RECOVERY_STATUSES: RecoveryStatus[] = ["Normal", "Camera Issue", "DVR Failure", "Device Not Registered"];

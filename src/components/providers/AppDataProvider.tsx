@@ -50,7 +50,7 @@ import {
   type MaintenanceFormInput,
 } from "@/lib/maintenanceWrite";
 import { updateRecoveryStageDb } from "@/lib/recoveryWrite";
-import { deriveOverallStatusFromAsset, deriveRecoveryStatusFromAsset } from "@/lib/recovery";
+import { deriveOverallStatusFromAsset, deriveRecoveryStatusFromAsset, zoneCode } from "@/lib/recovery";
 import { updateStoreDetailsDb, updateAssetDetailsDb, updateHikconnectDetailsDb, relocateAssetDb, uploadQrCodeDb } from "@/lib/assetWrite";
 import { createIncidentTicketDb, updateIncidentTicketStatusDb, type TicketFormInput } from "@/lib/ticketWrite";
 import { uploadAttachment as uploadAttachmentDb, deleteAttachment as deleteAttachmentDb, getAttachmentUrl } from "@/lib/attachmentWrite";
@@ -166,7 +166,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   const stores = useMemo(() => {
     let list = allStores;
     if (filters.region) list = list.filter((s) => s.region === filters.region);
-    if (filters.zone) list = list.filter((s) => s.zone === filters.zone);
+    if (filters.zone) list = list.filter((s) => zoneCode(s.zone) === filters.zone);
     if (filters.status) list = list.filter((s) => s.overall_status === filters.status);
     return list;
   }, [allStores, filters]);

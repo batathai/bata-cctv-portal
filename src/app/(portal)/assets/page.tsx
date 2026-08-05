@@ -6,25 +6,21 @@ import { Search, Server, FileText } from "lucide-react";
 import { useAppData } from "@/components/providers/AppDataProvider";
 import { Card, SectionTitle } from "@/components/ui/Card";
 import { StatusBadge } from "@/components/ui/Badge";
+import { Select } from "@/components/ui/Select";
 import { ExportButtons } from "@/components/reports/ExportButtons";
-
-/**
- * Some stores' `zone` values carry a "_ManagerName" suffix (e.g.
- * "511_Songpol") from the DM import, while others are just the bare code
- * (e.g. "520") — both mean the same zone. This is display-only: it doesn't
- * touch the underlying data, just shows the code portion in this table.
- */
-function zoneCode(zone: string): string {
-  return zone.split("_")[0];
-}
+import { ZONES } from "@/lib/mockData";
+import { zoneCode, getAreaLabel } from "@/lib/recovery";
 
 export default function AssetRegisterPage() {
   const { stores, loading } = useAppData();
   const [q, setQ] = useState("");
+  const [zoneFilter, setZoneFilter] = useState("");
 
-  const filtered = stores.filter((s) =>
-    (s.store_name + s.store_code + (s.province ?? "")).toLowerCase().includes(q.toLowerCase())
-  );
+  const filtered = stores
+    .filter((s) => !zoneFilter || zoneCode(s.zone) === zoneFilter)
+    .filter((s) =>
+      (s.store_name + s.store_code + (s.province ?? "") + zoneCode(s.zone) + getAreaLabel(s.zone)).toLowerCase().includes(q.toLowerCase())
+    );
 
   if (loading) return <div className="text-sm text-ink-faint">Loading asset register…</div>;
 
@@ -33,12 +29,13 @@ export default function AssetRegisterPage() {
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <SectionTitle icon={Server}>Asset Register ({filtered.length})</SectionTitle>
         <div className="flex items-center gap-2">
+          <Select value={zoneFilter} onChange={setZoneFilter} options={ZONES.map((z) => z.code)} placeholder="Zone" />
           <div className="relative">
             <Search size={13} className="absolute left-2.5 top-2.5 text-ink-faint" />
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Search store, code, province"
+              placeholder="Search store, code, province, zone"
               className="pl-8 pr-3 py-1.5 text-sm rounded-md border border-black/10 dark:border-white/10 bg-surface-muted dark:bg-white/5 outline-none focus:border-brand w-60"
             />
           </div>

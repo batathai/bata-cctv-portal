@@ -20,6 +20,7 @@ import {
   isHealthy,
   isRepairCompleted,
   isRepairPending,
+  zoneCode,
 } from "@/lib/recovery";
 import type { StoreWithAssets } from "@/types/database";
 
@@ -150,7 +151,7 @@ export default function DashboardPage() {
           </ResponsiveContainer>
           <ResponsiveContainer width="100%" height={140}>
             <BarChart
-              data={ZONES.map((z) => ({ name: z.code, value: stores.filter((s) => s.zone === z.code).length })).filter((z) => z.value > 0)}
+              data={ZONES.map((z) => ({ name: z.code, value: stores.filter((s) => zoneCode(s.zone) === z.code).length })).filter((z) => z.value > 0)}
               margin={{ left: -20 }}
             >
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />

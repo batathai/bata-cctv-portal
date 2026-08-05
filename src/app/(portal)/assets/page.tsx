@@ -8,6 +8,16 @@ import { Card, SectionTitle } from "@/components/ui/Card";
 import { StatusBadge } from "@/components/ui/Badge";
 import { ExportButtons } from "@/components/reports/ExportButtons";
 
+/**
+ * Some stores' `zone` values carry a "_ManagerName" suffix (e.g.
+ * "511_Songpol") from the DM import, while others are just the bare code
+ * (e.g. "520") — both mean the same zone. This is display-only: it doesn't
+ * touch the underlying data, just shows the code portion in this table.
+ */
+function zoneCode(zone: string): string {
+  return zone.split("_")[0];
+}
+
 export default function AssetRegisterPage() {
   const { stores, loading } = useAppData();
   const [q, setQ] = useState("");
@@ -59,7 +69,7 @@ export default function AssetRegisterPage() {
                   </Link>
                 </td>
                 <td className="py-2 pr-3">{s.store_name}</td>
-                <td className="py-2 pr-3 text-ink-soft dark:text-white/60">{s.region} &middot; {s.zone}</td>
+                <td className="py-2 pr-3 text-ink-soft dark:text-white/60">{s.region} &middot; {zoneCode(s.zone)}</td>
                 <td className="py-2 pr-3 text-ink-soft dark:text-white/60">{s.province}</td>
                 <td className="py-2 pr-3 font-mono text-xs text-ink-soft dark:text-white/60">{s.asset?.nvr_model}</td>
                 <td className="py-2 pr-3 text-ink-soft dark:text-white/60">{s.asset?.camera_working}/{s.asset?.camera_total}</td>

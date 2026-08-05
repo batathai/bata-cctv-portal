@@ -32,10 +32,9 @@ export default function WorkOrdersPage() {
 
   // Every count on this page is derived from the same per-store bucket
   // (getEffectiveRecoveryStage) so they can never drift apart again: the
-  // stage-breakdown cards sum to workOrderStores.length by construction,
-  // "Total Open" sums the non-terminal buckets of that same breakdown,
-  // and the default list view (below) hides a store from view using the
-  // exact same terminal-stage check.
+  // stage-breakdown cards sum to workOrderStores.length by construction, and
+  // "Total Open" is that same total (every work order ever opened for a
+  // store, regardless of how far along it is — including Completed/Verified).
   const stageCounts = useMemo(() => {
     const c: Record<RecoveryStage, number> = {
       "Waiting Vendor Quote": 0,
@@ -52,10 +51,7 @@ export default function WorkOrdersPage() {
     return c;
   }, [workOrderStores, tickets]);
 
-  const openCount = useMemo(
-    () => RECOVERY_STAGES.filter((stage) => stage !== "Completed" && stage !== "Verified").reduce((sum, stage) => sum + stageCounts[stage], 0),
-    [stageCounts]
-  );
+  const openCount = useMemo(() => RECOVERY_STAGES.reduce((sum, stage) => sum + stageCounts[stage], 0), [stageCounts]);
 
   const earliestChangeByStore = useMemo(() => {
     const m = new Map<string, string>();
@@ -101,7 +97,7 @@ export default function WorkOrdersPage() {
         <div>
           <h1 className="font-display text-lg font-bold text-ink dark:text-white">Work Orders</h1>
           <p className="text-sm text-ink-faint mt-0.5">
-            {openCount} store(s) currently in the repair pipeline &middot; click a row to view details and update its status step by step
+            {openCount} store(s) tracked in the work order system &middot; click a row to view details and update its status step by step
           </p>
         </div>
         {canOpenTicket && (
@@ -123,9 +119,9 @@ export default function WorkOrdersPage() {
           colorClass="text-brand"
           onClick={() => {
             setStageFilter("");
-            setShowDone(false);
+            setShowDone(true);
           }}
-          active={!stageFilter && !showDone}
+          active={!stageFilter && showDone}
         />
         {RECOVERY_STAGES.map((stage) => (
           <StatCard

@@ -1,0 +1,140 @@
+{
+  "created_at": "2026-08-05T11:00:22.338Z",
+  "stores": [
+    {
+      "id": "f674e75b-12f6-4da6-84e7-3ccb743759c7",
+      "store_code": "54022",
+      "region_before": "Upcountry"
+    },
+    {
+      "id": "5c896306-0b6d-4c12-9cb7-699cb0ca34e0",
+      "store_code": "54035",
+      "region_before": "Upcountry"
+    },
+    {
+      "id": "936177b7-06d1-4bcc-96f4-18a4f220fce3",
+      "store_code": "51550",
+      "region_before": "Upcountry"
+    },
+    {
+      "id": "783697dc-6fd9-4b27-b518-d0f0a0898fce",
+      "store_code": "52003",
+      "region_before": "Upcountry"
+    },
+    {
+      "id": "d604c3cf-1708-431d-86e8-85d573f8f4aa",
+      "store_code": "51404",
+      "region_before": "Upcountry"
+    },
+    {
+      "id": "6cd4a9dc-7dd9-4b6f-991d-5daf6975ee47",
+      "store_code": "51426",
+      "region_before": "Upcountry"
+    },
+    {
+      "id": "46ff09ce-29e1-4a20-aaf0-a62819f936f2",
+      "store_code": "51905",
+      "region_before": "Upcountry"
+    },
+    {
+      "id": "1f1bbe9f-7962-49e1-9be7-9412e413ea7e",
+      "store_code": "51438",
+      "region_before": "Upcountry"
+    },
+    {
+      "id": "09b93867-f944-4101-9e89-60cc45959ab8",
+      "store_code": "55001",
+      "region_before": "Upcountry"
+    },
+    {
+      "id": "c8788b2a-78a7-4538-a62b-5f4b57a98439",
+      "store_code": "51518",
+      "region_before": "Upcountry"
+    },
+    {
+      "id": "71070b0f-992a-4ee2-a65c-65aed9c62b1e",
+      "store_code": "51430",
+      "region_before": "Upcountry"
+    },
+    {
+      "id": "fc041dda-c9e6-47ef-bdd7-b8837903a407",
+      "store_code": "51511",
+      "region_before": "Upcountry"
+    },
+    {
+      "id": "b00a5116-d5cf-4257-9dc3-8eb232fabb66",
+      "store_code": "54048",
+      "region_before": "Upcountry"
+    },
+    {
+      "id": "cdd2ee17-5a83-4059-b662-49ea6827d57c",
+      "store_code": "51512",
+      "region_before": "Upcountry"
+    },
+    {
+      "id": "2bde0dd0-850b-4a1f-a563-33f7f7406215",
+      "store_code": "51436",
+      "region_before": "Upcountry"
+    },
+    {
+      "id": "cb7d75b5-9f1e-46de-b8c9-45ff3d9dbe48",
+      "store_code": "51428",
+      "region_before": "Upcountry"
+    },
+    {
+      "id": "7433a0e1-2cd0-45d9-baa8-331c2e0bba4a",
+      "store_code": "54023",
+      "region_before": "Upcountry"
+    },
+    {
+      "id": "636cbcdb-5cf8-4a9a-9f65-dabc5891bf55",
+      "store_code": "51944",
+      "region_before": "Upcountry"
+    },
+    {
+      "id": "85667393-c300-49d6-bec1-2c1137594b00",
+      "store_code": "54017",
+      "region_before": "Upcountry"
+    },
+    {
+      "id": "37cbddac-c64d-46e2-8709-3472aca7a00d",
+      "store_code": "54046",
+      "region_before": "Upcountry"
+    },
+    {
+      "id": "8d0cc1e5-43f9-4462-9a32-ca07d6a0319e",
+      "store_code": "51416",
+      "region_before": "Upcountry"
+    },
+    {
+      "id": "33f7bae6-5b2e-46e0-aad2-54a613301b16",
+      "store_code": "51407",
+      "region_before": "Upcountry"
+    },
+    {
+      "id": "6625d327-5fc6-46b6-808a-5b89d53ad6ff",
+      "store_code": "54021",
+      "region_before": "Upcountry"
+    },
+    {
+      "id": "bb2a3584-a0f0-45e2-81ef-1523380963b5",
+      "store_code": "51403",
+      "region_before": "Upcountry"
+    },
+    {
+      "id": "c7620463-4292-46ca-8b69-2ec04a4d3923",
+      "store_code": "54094",
+      "region_before": "Upcountry"
+    },
+    {
+      "id": "22dbe7da-0084-4e45-96ca-f4d24bc1ed01",
+      "store_code": "51906",
+      "region_before": "Upcountry"
+    },
+    {
+      "id": "84fe5c8a-a0df-4ce7-b793-21b18ad09a87",
+      "store_code": "51431",
+      "region_before": "Upcountry"
+    }
+  ]
+}

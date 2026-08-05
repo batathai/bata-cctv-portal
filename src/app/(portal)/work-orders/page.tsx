@@ -2,34 +2,38 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ClipboardList, Search, FileText } from "lucide-react";
+import { ClipboardList, Search, FileText, Plus } from "lucide-react";
 import { useAppData } from "@/components/providers/AppDataProvider";
 import { Card, SectionTitle } from "@/components/ui/Card";
 import { StatCard } from "@/components/ui/StatCard";
 import { StatusBadge } from "@/components/ui/Badge";
 import { RecoveryStageBadge } from "@/components/recovery/RecoveryBadges";
+import { NewTicketModal } from "@/components/work-orders/NewTicketModal";
 import { RECOVERY_STAGES, needsRepair, getEffectiveRecoveryStage, getRecoveryRegion, getAreaLabel } from "@/lib/recovery";
+import { canLogMaintenance } from "@/lib/rbac";
 import type { RecoveryStage, StoreWithAssets } from "@/types/database";
 
 /**
- * Sprint 4 - Work Orders (ใบงาน): a dedicated, actionable list of every
+ * Sprint 4 - Work Orders: a dedicated, actionable list of every
  * store currently in the repair pipeline — separate from the general
  * Store List, which mixes in every store regardless of repair status.
  * Clicking a row opens /recovery/[code], which now has the stage timeline
  * + update form (see StageTimeline.tsx).
  */
 export default function WorkOrdersPage() {
-  const { stores, tickets, recoveryStageHistory, loading } = useAppData();
+  const { stores, tickets, recoveryStageHistory, loading, role } = useAppData();
   const [stageFilter, setStageFilter] = useState<RecoveryStage | "">("");
   const [showDone, setShowDone] = useState(false);
   const [q, setQ] = useState("");
+  const [showNewTicket, setShowNewTicket] = useState(false);
+  const canOpenTicket = canLogMaintenance(role);
 
   const workOrderStores = useMemo(() => stores.filter((s) => needsRepair(s, tickets)), [stores, tickets]);
 
   // Every count on this page is derived from the same per-store bucket
   // (getEffectiveRecoveryStage) so they can never drift apart again: the
   // stage-breakdown cards sum to workOrderStores.length by construction,
-  // "เปิดอยู่ทั้งหมด" sums the non-terminal buckets of that same breakdown,
+  // "Total Open" sums the non-terminal buckets of that same breakdown,
   // and the default list view (below) hides a store from view using the
   // exact same terminal-stage check.
   const stageCounts = useMemo(() => {
@@ -93,16 +97,28 @@ export default function WorkOrdersPage() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="font-display text-lg font-bold text-ink dark:text-white">ใบงานซ่อม (Work Orders)</h1>
-        <p className="text-sm text-ink-faint mt-0.5">
-          สาขาที่อยู่ในกระบวนการซ่อม {openCount} ใบงาน &middot; กดที่รายการเพื่อดูรายละเอียดและอัพเดทสถานะทีละขั้น
-        </p>
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="font-display text-lg font-bold text-ink dark:text-white">Work Orders</h1>
+          <p className="text-sm text-ink-faint mt-0.5">
+            {openCount} store(s) currently in the repair pipeline &middot; click a row to view details and update its status step by step
+          </p>
+        </div>
+        {canOpenTicket && (
+          <button
+            onClick={() => setShowNewTicket(true)}
+            className="flex items-center gap-1.5 text-xs font-medium bg-brand text-white rounded-md px-3 py-2 shrink-0 hover:opacity-90"
+          >
+            <Plus size={14} /> New Ticket
+          </button>
+        )}
       </div>
+
+      {showNewTicket && <NewTicketModal onClose={() => setShowNewTicket(false)} />}
 
       <div className="flex flex-wrap gap-3">
         <StatCard
-          label="เปิดอยู่ทั้งหมด"
+          label="Total Open"
           value={openCount}
           colorClass="text-brand"
           onClick={() => {
@@ -127,18 +143,18 @@ export default function WorkOrdersPage() {
 
       <Card className="p-4">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
-          <SectionTitle icon={ClipboardList}>ใบงาน ({sorted.length})</SectionTitle>
+          <SectionTitle icon={ClipboardList}>Work Orders ({sorted.length})</SectionTitle>
           <div className="flex items-center gap-3">
             <label className="flex items-center gap-1.5 text-xs text-ink-soft dark:text-white/60">
               <input type="checkbox" checked={showDone} onChange={(e) => setShowDone(e.target.checked)} />
-              แสดงที่เสร็จแล้วด้วย
+              Show completed too
             </label>
             <div className="relative">
               <Search size={13} className="absolute left-2.5 top-2.5 text-ink-faint" />
               <input
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
-                placeholder="ค้นหาสาขา / รหัสสาขา"
+                placeholder="Search store / store code"
                 className="pl-8 pr-3 py-1.5 text-sm rounded-md border border-black/10 dark:border-white/10 bg-surface-muted dark:bg-white/5 outline-none focus:border-brand w-60"
               />
             </div>
@@ -160,16 +176,16 @@ export default function WorkOrdersPage() {
                     {s.store_code} &middot; {getRecoveryRegion(s.zone)} &middot; {getAreaLabel(s.zone)}
                   </div>
                 </div>
-                {days != null && <span className="text-xs text-ink-faint shrink-0 hidden sm:inline">{days} วัน</span>}
+                {days != null && <span className="text-xs text-ink-faint shrink-0 hidden sm:inline">{days} days</span>}
                 <StatusBadge status={s.overall_status} />
                 <RecoveryStageBadge stage={getEffectiveRecoveryStage(s, tickets)} />
                 <span className="flex items-center gap-1.5 text-xs font-medium border border-black/10 dark:border-white/10 rounded-md px-3 py-1.5 shrink-0">
-                  <FileText size={13} /> ดูใบงาน
+                  <FileText size={13} /> View Order
                 </span>
               </Link>
             );
           })}
-          {sorted.length === 0 && <p className="text-sm text-ink-faint py-4">ไม่พบใบงานที่ตรงกับตัวกรอง</p>}
+          {sorted.length === 0 && <p className="text-sm text-ink-faint py-4">No work orders match the current filter</p>}
         </div>
       </Card>
     </div>

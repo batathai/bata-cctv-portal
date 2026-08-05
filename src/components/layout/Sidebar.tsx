@@ -9,7 +9,7 @@ import {
 
 const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/work-orders", label: "ใบงานซ่อม", icon: ClipboardList },
+  { href: "/work-orders", label: "Work Orders", icon: ClipboardList },
   { href: "/assets", label: "Asset Register", icon: Server },
   { href: "/reports", label: "Reports", icon: FileBarChart },
 ];

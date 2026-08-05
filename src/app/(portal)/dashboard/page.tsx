@@ -166,7 +166,7 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between gap-2">
             <SectionTitle icon={ListChecks}>Store Distribution</SectionTitle>
             <Link href="/work-orders" className="text-xs font-medium text-brand hover:underline shrink-0 mb-3">
-              ดูใบงานทั้งหมด →
+              View all work orders →
             </Link>
           </div>
           <ResponsiveContainer width="100%" height={250}>
@@ -193,7 +193,7 @@ export default function DashboardPage() {
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="ค้นหาสาขา / รหัสสาขา"
+              placeholder="Search store / store code"
               className="pl-8 pr-3 py-1.5 text-sm rounded-md border border-black/10 dark:border-white/10 bg-surface-muted dark:bg-white/5 outline-none focus:border-brand w-60"
             />
           </div>
@@ -213,11 +213,11 @@ export default function DashboardPage() {
                 href={`/recovery/${s.store_code}`}
                 className="flex items-center gap-1.5 text-xs font-medium border border-black/10 dark:border-white/10 rounded-md px-3 py-1.5 hover:bg-surface-muted dark:hover:bg-white/5 shrink-0"
               >
-                <FileText size={13} /> รายละเอียด
+                <FileText size={13} /> Details
               </Link>
             </div>
           ))}
-          {sorted.length === 0 && <p className="text-sm text-ink-faint py-4">ไม่พบสาขาที่ตรงกับตัวกรอง</p>}
+          {sorted.length === 0 && <p className="text-sm text-ink-faint py-4">No stores match the current filter</p>}
         </div>
       </Card>
     </div>

@@ -92,7 +92,7 @@ export function StageTimeline({
           <textarea
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            placeholder={`บันทึกหมายเหตุ (ถ้ามี) ก่อนเลื่อนไป "${nextStage}"`}
+            placeholder={`Add a note (optional) before moving to "${nextStage}"`}
             rows={2}
             className="w-full text-sm border border-black/10 dark:border-white/10 rounded-md px-3 py-2 bg-white dark:bg-surface-dark outline-none focus:border-brand resize-none"
           />
@@ -108,18 +108,18 @@ export function StageTimeline({
               className="flex items-center gap-1.5 text-xs font-medium bg-brand text-white rounded-md px-3 py-1.5 disabled:opacity-60"
             >
               {saving && <Loader2 size={12} className="animate-spin" />}
-              เลื่อนสถานะไป &quot;{nextStage}&quot;
+              Move to &quot;{nextStage}&quot;
             </button>
           </div>
         </div>
       )}
-      {canEdit && !nextStage && <p className="text-xs text-status-healthy font-medium">งานนี้เสร็จสมบูรณ์แล้ว (Verified)</p>}
+      {canEdit && !nextStage && <p className="text-xs text-status-healthy font-medium">This work order is fully complete (Verified)</p>}
 
       {/* History log */}
       <div>
-        <div className="text-xs font-semibold text-ink-faint uppercase tracking-wide mb-2">ประวัติการอัพเดท</div>
+        <div className="text-xs font-semibold text-ink-faint uppercase tracking-wide mb-2">Update History</div>
         {storeHistory.length === 0 ? (
-          <p className="text-sm text-ink-faint">ยังไม่มีประวัติการเปลี่ยนสถานะ</p>
+          <p className="text-sm text-ink-faint">No status changes yet</p>
         ) : (
           <div className="space-y-2">
             {storeHistory.map((h) => (
@@ -129,7 +129,7 @@ export function StageTimeline({
                 </span>
                 <div>
                   <span className="text-ink dark:text-white">
-                    {h.from_stage ? `${h.from_stage} → ${h.to_stage}` : `เปิดใบงาน: ${h.to_stage}`}
+                    {h.from_stage ? `${h.from_stage} → ${h.to_stage}` : `Opened: ${h.to_stage}`}
                   </span>
                   {h.note && <div className="text-xs text-ink-soft dark:text-white/60 mt-0.5">{h.note}</div>}
                 </div>

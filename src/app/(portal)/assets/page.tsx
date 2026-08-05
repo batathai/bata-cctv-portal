@@ -69,7 +69,7 @@ export default function AssetRegisterPage() {
                     href={`/assets/${s.store_code}`}
                     className="inline-flex items-center gap-1.5 text-xs font-medium border border-black/10 dark:border-white/10 rounded-md px-3 py-1.5 hover:bg-surface-muted dark:hover:bg-white/5"
                   >
-                    <FileText size={13} /> รายละเอียด
+                    <FileText size={13} /> Details
                   </Link>
                 </td>
               </tr>

@@ -72,7 +72,7 @@ export default function RecoveryStoreDetailPage() {
       </Card>
 
       <Card className="p-5">
-        <SectionTitle icon={GitBranch}>ใบงานซ่อม (Work Order Progress)</SectionTitle>
+        <SectionTitle icon={GitBranch}>Work Order Progress</SectionTitle>
         <StageTimeline store={store} history={recoveryStageHistory} canEdit={canLogMaintenance(role)} />
       </Card>
 

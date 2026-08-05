@@ -20,12 +20,12 @@ function AccountNotProvisioned({ email }: { email: string }) {
         <div className="mx-auto w-12 h-12 rounded-full bg-brand-50 text-brand flex items-center justify-center mb-4">
           <ShieldAlert size={22} />
         </div>
-        <h1 className="font-display text-lg font-bold text-ink dark:text-white mb-2">บัญชียังไม่ได้ตั้งค่าสิทธิ์การใช้งาน</h1>
+        <h1 className="font-display text-lg font-bold text-ink dark:text-white mb-2">Account not yet provisioned</h1>
         <p className="text-sm text-ink-soft dark:text-white/60 mb-1">
-          บัญชี <span className="font-mono text-xs">{email}</span> เข้าสู่ระบบสำเร็จ แต่ยังไม่มี profile/role กำหนดไว้
+          The account <span className="font-mono text-xs">{email}</span> signed in successfully, but has no profile/role set up yet.
         </p>
         <p className="text-sm text-ink-soft dark:text-white/60">
-          กรุณาติดต่อ HQ Admin ให้เพิ่มบัญชีนี้ในตาราง <span className="font-mono text-xs">profiles</span> ของ Supabase พร้อมกำหนด role ที่ถูกต้อง
+          Please contact your HQ Admin to add this account to the <span className="font-mono text-xs">profiles</span> table in Supabase with the correct role assigned.
         </p>
       </div>
     </div>

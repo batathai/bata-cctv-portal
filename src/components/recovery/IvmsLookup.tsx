@@ -10,7 +10,7 @@ export function IvmsLookup({ store }: { store: StoreWithAssets }) {
   const [copied, setCopied] = useState(false);
 
   if (!lookup) {
-    return <p className="text-xs text-ink-faint">ยังไม่มี Serial Number / Hik UID บันทึกไว้สำหรับเครื่องนี้</p>;
+    return <p className="text-xs text-ink-faint">No Serial Number / Hik UID recorded for this device yet</p>;
   }
 
   async function handleCopy() {
@@ -26,7 +26,7 @@ export function IvmsLookup({ store }: { store: StoreWithAssets }) {
 
   return (
     <div>
-      <p className="text-[11px] text-ink-faint mb-1">เปิดโปรแกรม iVMS-4200 ในเครื่อง แล้วค้นหาด้วย {lookup.label} นี้</p>
+      <p className="text-[11px] text-ink-faint mb-1">Open iVMS-4200 on your computer, then search using this {lookup.label}</p>
       <button
         onClick={handleCopy}
         className="w-full flex items-center justify-between gap-2 text-xs font-medium border border-black/10 dark:border-white/10 rounded-md px-3 py-2 hover:bg-surface-muted dark:hover:bg-white/5"

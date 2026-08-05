@@ -1,0 +1,1793 @@
+{
+  "created_at": "2026-08-05T05:55:10.150Z",
+  "work_order_store_count": 197,
+  "stores": [
+    {
+      "id": "9e007c29-7707-4642-bf21-175cb99918cf",
+      "store_code": "51960",
+      "store_name": "Big C Rama 2",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "5e932a84-dada-499d-84d2-dca2a67702a9",
+      "store_code": "51938",
+      "store_name": "Lotus Lat Phrao",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "d604c3cf-1708-431d-86e8-85d573f8f4aa",
+      "store_code": "51404",
+      "store_name": "Fashion Island",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "4a38fdce-b186-496a-b89d-bd5c0baf1384",
+      "store_code": "51514",
+      "store_name": "Big C Rama 4",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "a144eb49-5c89-4237-b193-4eff5ccb871b",
+      "store_code": "53012",
+      "store_name": "Central Udon",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "f28cb1b2-d377-40d9-bb83-87786be49e03",
+      "store_code": "53955",
+      "store_name": "Lotus Nong Khai",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "a525e628-960d-440a-9600-ddefd0da5379",
+      "store_code": "51434",
+      "store_name": "Sukhumvit 15",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "e8fe4482-b928-4ad4-bf87-4428ab8da12a",
+      "store_code": "51903",
+      "store_name": "Imperial Lat Phrao",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "783697dc-6fd9-4b27-b518-d0f0a0898fce",
+      "store_code": "52003",
+      "store_name": "Ayutthaya Park",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "4fd4b17e-7c3e-4dcc-a999-56cc0f0f5d77",
+      "store_code": "51410",
+      "store_name": "CentralPlaza Bang Na",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "a444768c-11a2-45c3-8785-931774ac02ae",
+      "store_code": "51506",
+      "store_name": "Imperial Samrong",
+      "recovery_status": "Device Not Registered",
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "6cd4a9dc-7dd9-4b6f-991d-5daf6975ee47",
+      "store_code": "51426",
+      "store_name": "Big C Rajdamri",
+      "recovery_status": "Device Not Registered",
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "cbae5519-eb82-411f-97ad-bd27e36a810b",
+      "store_code": "51535",
+      "store_name": "Big C Suwinthawong",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "11009f56-2fef-4454-84ed-33c372c5c576",
+      "store_code": "51418",
+      "store_name": "Lotus Rangsit Klong 7",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "127bcb1f-99b6-4b81-8785-a8995d580329",
+      "store_code": "51450",
+      "store_name": "Central Westville",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "e5ffa884-8712-4d4d-8c83-0970ac45f288",
+      "store_code": "51968",
+      "store_name": "Lotus Rama 4",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "9faacd89-bb40-40db-b611-5ebbfc5f7709",
+      "store_code": "51415",
+      "store_name": "CentralPlaza Ram Intra",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "8ac6b937-d66e-46fc-88ec-774ff35b0201",
+      "store_code": "51425",
+      "store_name": "CentralPlaza Chaeng Wattana",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "54adda5d-c352-4e41-81f5-1619d26b2064",
+      "store_code": "51520",
+      "store_name": "Robinson Srisamarn",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "cd35c69f-cbab-4002-b0aa-cf66838244a5",
+      "store_code": "51498",
+      "store_name": "Minburi",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "3eae408a-ec80-44fd-83c7-46af4feefd47",
+      "store_code": "51939",
+      "store_name": "Lotus Chaeng Wattana",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "5a18fae0-4564-41e9-80e1-250458a66eaf",
+      "store_code": "51540",
+      "store_name": "Big C Ram Intra",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "45964513-d1d7-42a3-b002-b7146597dc8d",
+      "store_code": "51948",
+      "store_name": "Lotus Lak Si",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "23a6da0b-d902-43c2-87fb-7aa41be9a1cb",
+      "store_code": "51201",
+      "store_name": "CK Plaza",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "8525bc66-021a-4823-8802-9f507925b510",
+      "store_code": "51427",
+      "store_name": "Paradise Park",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "5ab5238a-c1e7-4858-9902-9f5c21ec6e96",
+      "store_code": "51439",
+      "store_name": "Robinson Ladkrabang",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "9bf993bd-8445-4b8f-9391-5262e2c70721",
+      "store_code": "54007",
+      "store_name": "Lotus North Pattaya",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "587d72f2-199d-49e3-8030-cde0ac31bf29",
+      "store_code": "54005",
+      "store_name": "Central Siracha",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "4dbffa78-468e-41c1-b753-02df44a4f328",
+      "store_code": "54004",
+      "store_name": "Big C Pattaya",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "fee1259f-1a86-4404-abb5-45add6e07c15",
+      "store_code": "53947",
+      "store_name": "Big C Rayong",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "1e14c4ad-9c7e-4122-bc0e-b25bc4d8b131",
+      "store_code": "51946",
+      "store_name": "BC Rangsit",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "d6dbfa25-cc74-473b-8e6a-e229fcc48b87",
+      "store_code": "51965",
+      "store_name": "Lotus Bang Kapi",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "5d097653-bf43-4f2f-ad64-1cc3a4173da7",
+      "store_code": "51548",
+      "store_name": "Big C Bang Phli",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "78acc892-d058-4c72-a4be-87d39248fc3c",
+      "store_code": "54029",
+      "store_name": "Harbor Mall",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "a02a1605-621b-4f3e-ad72-e3aa9586ff57",
+      "store_code": "54030",
+      "store_name": "Big C Chonburi",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "b7eda314-d194-4bd2-b0f6-cc5c487cc75a",
+      "store_code": "52005",
+      "store_name": "Big C Chiang Mai",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "eb838a5e-1b2d-483a-bf1c-14cd13002db8",
+      "store_code": "71205",
+      "store_name": "Infinite Mall",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "ca948337-b5c3-4c72-afe6-619fa26d5b34",
+      "store_code": "52902",
+      "store_name": "Big C Chiang Mai 2",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "24372d2b-0424-4698-b9fb-b305bfac448d",
+      "store_code": "52901",
+      "store_name": "Big C Kamphaeng Phet",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "be04d532-7c7f-473b-a4da-4b2fa5cb92de",
+      "store_code": "51534",
+      "store_name": "Big C Bangpakok",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "761a1375-b823-49e8-8e04-8c594f04ff12",
+      "store_code": "51508",
+      "store_name": "Tha Phrachan",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "8ed157db-477b-47be-b198-76591931a489",
+      "store_code": "51510",
+      "store_name": "Yaowarat",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "c03c4980-3c2d-4d0c-8df8-edfdad2b39fd",
+      "store_code": "51521",
+      "store_name": "Lotus Bangpakok",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "5ea7daf6-1491-4660-8df2-d09810ec52a4",
+      "store_code": "51524",
+      "store_name": "Lotus Charan Sanit Wong",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "87b282ba-5f9a-4d9b-b304-f021112d48f3",
+      "store_code": "51530",
+      "store_name": "Big C Phetkasem",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "9872828c-104e-4be6-bd0b-a55d36487e63",
+      "store_code": "51446",
+      "store_name": "Lotus Rangsit Klong 4",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "14cd702b-6c18-4ea0-8ceb-2a0b135729f8",
+      "store_code": "51409",
+      "store_name": "IT Square",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "4cf7ca05-ceb9-4122-8ed9-c81d05ae6b8a",
+      "store_code": "72007",
+      "store_name": "Chaipong Plaza",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "9cc9c68d-4660-46e4-89ca-050a044f5b1a",
+      "store_code": "53030",
+      "store_name": "Big C Roi Et",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "fc317a8e-5669-46c5-827e-72d269f87192",
+      "store_code": "53022",
+      "store_name": "Central Khon Kaen",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "e240e8cc-3c83-48a5-aac3-c9c6ac757446",
+      "store_code": "52002",
+      "store_name": "Central Chiang Rai",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "5fc7e0da-04a8-4782-ab9b-80cb542adbfd",
+      "store_code": "53023",
+      "store_name": "TOPS Plaza Phol",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "932e32d1-fe71-401a-a773-7317c365af21",
+      "store_code": "55043",
+      "store_name": "Central Nakhon Si",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "c8788b2a-78a7-4538-a62b-5f4b57a98439",
+      "store_code": "51518",
+      "store_name": "Central Rama 3",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "1f1bbe9f-7962-49e1-9be7-9412e413ea7e",
+      "store_code": "51438",
+      "store_name": "Central Pinklao",
+      "recovery_status": "Device Not Registered",
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "60c42642-6c19-41ee-8b57-21baa5570c60",
+      "store_code": "52043",
+      "store_name": "Big C Phetchabun",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "dd34238e-d41e-4f09-ad27-3bc36c4e0575",
+      "store_code": "51091",
+      "store_name": "Terminal 21Koraj Fair",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "b04a15a8-de43-436c-9a82-8b017c366b9f",
+      "store_code": "53006",
+      "store_name": "Lotus Tha Bo",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "a06594bc-4362-4757-8f8e-3e0bfffb4a26",
+      "store_code": "53026",
+      "store_name": "Fairy Plaza",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "1dd95ca8-244c-42bb-bba4-2a32ad8c4bf7",
+      "store_code": "53035",
+      "store_name": "Robinson Roi Et",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "96191019-35b9-40ff-a31e-e1e87df0f228",
+      "store_code": "53032",
+      "store_name": "Robinson Sakon Nakhon",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "df3ea50e-a3b2-4a1f-be75-235e3e370a0c",
+      "store_code": "52036",
+      "store_name": "Lotus Ruam Chok",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "6ba98d4c-06e9-47f6-9fd3-08c55b6064b4",
+      "store_code": "52033",
+      "store_name": "Happy Plaza",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "5b97aae1-88ad-4c3a-945b-51fca7a87295",
+      "store_code": "52048",
+      "store_name": "Lotus Nan",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "983db27f-fe90-4749-914b-ed808dc15b09",
+      "store_code": "52098",
+      "store_name": "Chiang Mai Outlet",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "110f4e60-46f5-49fe-8e01-08c39524529c",
+      "store_code": "52042",
+      "store_name": "Uttaradit",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "edf308d9-398e-4d69-9db8-55554d88f68d",
+      "store_code": "53038",
+      "store_name": "Lotus Khon Kaen",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "a7db5bf3-fb6d-4139-a3b5-06636d4e0486",
+      "store_code": "53037",
+      "store_name": "Asawann Nong Khai",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "8adb3e96-f861-4771-a582-d4c60ecd5309",
+      "store_code": "53029",
+      "store_name": "Sermthai Complex",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "e0290c9d-7883-47ec-9aaf-4b0cf6a150d2",
+      "store_code": "73005",
+      "store_name": "Roi Et Plaza",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "17a632b6-e4eb-428a-bd66-0341c64922aa",
+      "store_code": "53008",
+      "store_name": "Lotus Det Udom",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "5c40e646-3a0d-4f85-ad47-62b9faf911f0",
+      "store_code": "53024",
+      "store_name": "Big C Pakchong",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "af775321-1159-4650-80dc-bc93e63d7700",
+      "store_code": "53018",
+      "store_name": "Big C Warin Chamrap",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "17261892-e975-411e-89e6-ca82997fdc8c",
+      "store_code": "53009",
+      "store_name": "The Mall Korat",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "4fd7a6cf-40ff-46cb-ba03-ac14a1474a9c",
+      "store_code": "53020",
+      "store_name": "Big C Sisaket",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "0c1bec50-3b2a-41df-a1c1-ca9b54161b19",
+      "store_code": "53040",
+      "store_name": "Big C Korat 2",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "435106c3-58a3-438b-abb8-6f3ec0409df3",
+      "store_code": "53010",
+      "store_name": "Surin Plaza",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "bd411d14-bf47-483a-b7d7-f4c8ebb121e3",
+      "store_code": "53041",
+      "store_name": "Central Koraj",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "c728b20f-4d46-45f1-bd00-1bde1044eadf",
+      "store_code": "53043",
+      "store_name": "Big C AMNATCHAROEN",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "6808efd5-10b5-4b7d-ad41-b7e1cb9d46e4",
+      "store_code": "53045",
+      "store_name": "Lotus Nangrong",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "566d3d18-4868-4a8c-860d-f73645d9cf0c",
+      "store_code": "53047",
+      "store_name": "Lotus Ubol",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "ddc07356-8649-43a9-ac12-225b6059a750",
+      "store_code": "53948",
+      "store_name": "Big C Korat",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "8808efef-4b18-479e-8d59-c722c1cfd520",
+      "store_code": "54013",
+      "store_name": "Big C Chachoengsao",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "c8d68865-879a-4964-bb3d-514cab7f90d0",
+      "store_code": "54019",
+      "store_name": "Big C Sa Kaeo",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "9de1c2db-d63b-480e-8e75-4fa07d9f2261",
+      "store_code": "54038",
+      "store_name": "Big C Si Maha Phot",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "7d78d4c1-8704-4a71-9178-1b0de17cea6c",
+      "store_code": "54039",
+      "store_name": "Lotus Nakhon Nayok",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "18a6ef56-089b-4f5a-bd00-8a9653d0bacc",
+      "store_code": "54044",
+      "store_name": "Robinson Chachoengsao",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "dfe76cd2-b624-4f00-87b8-715de5e86c8e",
+      "store_code": "73015",
+      "store_name": "Suenheng Plaza",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "c7fb12b0-55e9-447e-aefe-c27eb6449321",
+      "store_code": "52019",
+      "store_name": "Lotus Payao",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "de013b47-e1b9-4131-847e-c4782dbd218a",
+      "store_code": "52032",
+      "store_name": "Lotus Phitsanulok",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "197f1b7b-c5f7-41b5-8c8b-4c18e1e9e28e",
+      "store_code": "52026",
+      "store_name": "Central Nakornsawan",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "8165803d-5d83-4fa9-8e58-01b64cb06361",
+      "store_code": "52018",
+      "store_name": "Robinson Kampangpetch",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "ce590aed-8b13-4af2-9cd3-79227165101e",
+      "store_code": "52031",
+      "store_name": "CentralPlaza Lampang",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "c320bf48-5245-4e5d-8d8a-e39594dfe74d",
+      "store_code": "52942",
+      "store_name": "Big C Chiang Rai",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "1d2c5f04-5026-4b56-8909-f9253cec7aa1",
+      "store_code": "53049",
+      "store_name": "Robinson Chaiyapum",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "e646c4ad-7d3d-4082-9921-b5a99ec848e2",
+      "store_code": "53048",
+      "store_name": "Lotus Chumphae",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "f8a38cc3-3076-4dda-b4f4-63d9d4968bdc",
+      "store_code": "53036",
+      "store_name": "Robinson Mukdahan",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "35740f2f-0d23-4cf5-804c-ac85f173804f",
+      "store_code": "55035",
+      "store_name": "Central Hat Yai",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "eed53296-f065-4fbb-bfd7-21b5594b95cd",
+      "store_code": "55005",
+      "store_name": "Lotus Surat",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "2ac932c3-1b92-4a7c-aac2-dce6a8be59ee",
+      "store_code": "55019",
+      "store_name": "Lotus Samui",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "fbf160c1-44ed-4da1-a25c-308c0fe4df54",
+      "store_code": "55018",
+      "store_name": "Lotus Phatthalung",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "f674e75b-12f6-4da6-84e7-3ccb743759c7",
+      "store_code": "54022",
+      "store_name": "Central Mahachai",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "981b1c8c-2d02-41ed-aae0-97daeda15e04",
+      "store_code": "52025",
+      "store_name": "Maya Chiengmai",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "5c896306-0b6d-4c12-9cb7-699cb0ca34e0",
+      "store_code": "54035",
+      "store_name": "Robinson Saraburi",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "b00a5116-d5cf-4257-9dc3-8eb232fabb66",
+      "store_code": "54048",
+      "store_name": "Central Marina",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "15bc5afe-962e-4e09-b14e-01cb74294787",
+      "store_code": "54947",
+      "store_name": "Lotus Nakhon Pathom  ปิด​31/3",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "19664c0e-bf69-43d7-92d6-010e1c3b2609",
+      "store_code": "54011",
+      "store_name": "Central Ayutthaya",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "2bd3b2c7-7afb-4e36-988f-4a1fc044bcec",
+      "store_code": "54040",
+      "store_name": "Robinson Suphan Buri",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "060677f9-51aa-467f-9748-349d9bb4b6a2",
+      "store_code": "54945",
+      "store_name": "Lotus Suphan Buri",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "d79553eb-51f4-417b-b1ed-e741045c31cf",
+      "store_code": "54960",
+      "store_name": "Lotus Ratchaburi",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "e0bdaf6b-0678-4667-baeb-1bf8076f4d64",
+      "store_code": "55044",
+      "store_name": "Huahin Bluport",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "4d849fb6-540c-46d7-a008-8a78dccb3ea3",
+      "store_code": "74014",
+      "store_name": "Sahathai Phetchaburi",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "834856ad-d329-4a5a-a303-487b5fed4f6b",
+      "store_code": "74023",
+      "store_name": "Kanokkan",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "d6f6d728-928e-40d2-b11d-7fcb8c57e5c5",
+      "store_code": "54014",
+      "store_name": "Lotus Banpong",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "26e32558-096a-43bd-af87-5f90b8f6c57f",
+      "store_code": "54032",
+      "store_name": "Suk-anan Park",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "f10ae585-ceab-4756-a71a-c5ff6aff2333",
+      "store_code": "55031",
+      "store_name": "Big C Phuket",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "4bda0fcb-4798-469e-9e30-b37f64e825a9",
+      "store_code": "55010",
+      "store_name": "Lotus Krabi",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "d7d0a3a1-05a3-4bcd-bf07-a8002d3c915c",
+      "store_code": "55033",
+      "store_name": "Lotus Wiang Sa",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "2f4a0663-ec3e-44b2-986f-ac58e1a6541f",
+      "store_code": "55042",
+      "store_name": "Lotus Songkhla",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "4d018eba-2100-46e1-afed-5e887ca23531",
+      "store_code": "55036",
+      "store_name": "Big C Trang",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "3eb92296-82d3-44c6-b724-e83f6657f1b0",
+      "store_code": "55009",
+      "store_name": "Big C Had Yai 2",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "3372d8e5-0a33-4a28-bed8-00ad9613d202",
+      "store_code": "55040",
+      "store_name": "Lotus Chana",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "6f7d7ebd-bfd7-4ebd-a85f-55af5899de32",
+      "store_code": "55023",
+      "store_name": "Pattani 1",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "909203f7-4355-4df8-a263-ad1fb8bc8085",
+      "store_code": "55024",
+      "store_name": "Lotus Had Yai 2",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "934047e9-d46f-43bd-bc92-59a28c791fa7",
+      "store_code": "55046",
+      "store_name": "Big C Pang Nga",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "f47881de-2c78-49b4-8bc8-9af2da1b66d4",
+      "store_code": "55049",
+      "store_name": "Lotus Yala",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "ee7d4054-261c-4c53-8bc9-d7e4db551394",
+      "store_code": "55041",
+      "store_name": "Lotus Had Yai 1",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "ccdb8aff-61c3-428c-8f3a-7dc419dff76e",
+      "store_code": "55901",
+      "store_name": "Robinson Trang",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "4ff0f2ad-32bf-4824-a084-6e8ed82b681f",
+      "store_code": "51546",
+      "store_name": "Lotus Bang Yai",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "a8cb5fe6-56a4-422a-a9cb-9be6ade40c52",
+      "store_code": "51002",
+      "store_name": "Central Village Temp",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "b241e616-34b4-4442-8968-b20b9cf8e627",
+      "store_code": "51419",
+      "store_name": "Lotus Navanakorn",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "e9cb1bdb-cd59-40d0-81e3-356307872009",
+      "store_code": "54024",
+      "store_name": "Big C Nakhonpathom",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "1309287e-e473-4846-9e49-f64f700d3632",
+      "store_code": "51532",
+      "store_name": "Big C Omyai",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "d5a618de-df92-4ba7-bebf-fbe49884912a",
+      "store_code": "54012",
+      "store_name": "Bic C phetchburi",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "022b710c-551d-488d-8eb7-90034680eb84",
+      "store_code": "51132",
+      "store_name": "Big C Lopburi",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "f8ca5d1f-4e3a-4cc4-b25f-46fa85694a6c",
+      "store_code": "51533",
+      "store_name": "Lotus Lam Luk Ka Klong 2",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "b9f931ef-5ffb-4526-98c7-3f336ff6989d",
+      "store_code": "54016",
+      "store_name": "Big C Chonburi 2",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "65bdd1ae-2a58-4a49-a131-54e77fc5379f",
+      "store_code": "54042",
+      "store_name": "Nakhon Pathom",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "3ecbd462-3d30-4c0c-b43d-bf6798172374",
+      "store_code": "53958",
+      "store_name": "Big C Khon Kaen",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "c30c8e39-a6a1-47d2-8f0f-b05ca62a1811",
+      "store_code": "75014",
+      "store_name": "Ocean Shopping Mall",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "936177b7-06d1-4bcc-96f4-18a4f220fce3",
+      "store_code": "51550",
+      "store_name": "Big C Suksawat",
+      "recovery_status": "Device Not Registered",
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "b3be8065-0db6-4112-a9b9-6f16b23f9838",
+      "store_code": "53905",
+      "store_name": "Big C Loei",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "379eaeb5-be61-420a-a949-34fa3cdc0774",
+      "store_code": "51517",
+      "store_name": "Lotus Salaya",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "fe3e29fc-7869-42fc-84ff-62d68a973c54",
+      "store_code": "51545",
+      "store_name": "Robinson Samut Prakan",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "e980ac94-5447-472f-8fec-0ac1d453dcf8",
+      "store_code": "52008",
+      "store_name": "CentralPlaza Chiang Mai Airport",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "d043a7fb-e189-497a-8682-c81a52dc01ed",
+      "store_code": "51435",
+      "store_name": "Homepro Suvarnabhumi",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "63bc56ca-eb82-4c0c-be9c-43e741a310bc",
+      "store_code": "55038",
+      "store_name": "Central Samui",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "46ff09ce-29e1-4a20-aaf0-a62819f936f2",
+      "store_code": "51905",
+      "store_name": "Central Rama 2",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "ffe2e26f-093d-4718-bbc4-c8b8b7b66b68",
+      "store_code": "55950",
+      "store_name": "Lotus Phuket",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "ccbf7ed7-2aea-47b6-8318-aa97dcba50ee",
+      "store_code": "52023",
+      "store_name": "Phrae",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "a4367fd5-f32c-4d29-a6c1-953c84d24889",
+      "store_code": "52943",
+      "store_name": "Big C Lampang",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "cd17a7ae-98a6-4c95-82ef-837135567172",
+      "store_code": "53003",
+      "store_name": "Taweekit 2",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "33f7bae6-5b2e-46e0-aad2-54a613301b16",
+      "store_code": "51407",
+      "store_name": "The Mall 6",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "e6e09787-8618-4aec-99f6-56bd414fa003",
+      "store_code": "53011",
+      "store_name": "Kalasin Plaza",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "85667393-c300-49d6-bec1-2c1137594b00",
+      "store_code": "54017",
+      "store_name": "Robinson Kanchanaburi",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "37cbddac-c64d-46e2-8709-3472aca7a00d",
+      "store_code": "54046",
+      "store_name": "Central Rayong",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "dd398807-fd2a-45a5-a0ec-a0f8133444b8",
+      "store_code": "53953",
+      "store_name": "Big C Ubon Ratchathani",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "4dcbe3a9-7f86-4863-bf1c-abbc327949f6",
+      "store_code": "52010",
+      "store_name": "Central Phitsanulok",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "698e1980-88e5-4484-b81f-7354d7ad2346",
+      "store_code": "51433",
+      "store_name": "CentralPlaza Salaya",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "2bde0dd0-850b-4a1f-a563-33f7f7406215",
+      "store_code": "51436",
+      "store_name": "Central Westgate",
+      "recovery_status": "Device Not Registered",
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "09b93867-f944-4101-9e89-60cc45959ab8",
+      "store_code": "55001",
+      "store_name": "Huahin Market",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "cdd2ee17-5a83-4059-b662-49ea6827d57c",
+      "store_code": "51512",
+      "store_name": "Seacon Square",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "ff4d4b78-58fd-4a37-bbb8-af5723623c26",
+      "store_code": "54001",
+      "store_name": "Phetchaburi",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "c86de318-7e0d-4f51-8466-9e1f36896167",
+      "store_code": "52017",
+      "store_name": "Lotus Maesot",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "3095e94b-f8f5-413f-848f-a5fb52ca7d49",
+      "store_code": "53002",
+      "store_name": "Big C Udon Thani",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "db2a8da5-7b1c-4852-b283-90b6122b0c45",
+      "store_code": "54045",
+      "store_name": "Robinson Prachinburi",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "636cbcdb-5cf8-4a9a-9f65-dabc5891bf55",
+      "store_code": "51944",
+      "store_name": "MBK",
+      "recovery_status": "Device Not Registered",
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "88517ac5-7d0d-4beb-a874-7476c49f5ede",
+      "store_code": "55012",
+      "store_name": "Central Phuket",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "71070b0f-992a-4ee2-a65c-65aed9c62b1e",
+      "store_code": "51430",
+      "store_name": "Central Rama 9",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "fc041dda-c9e6-47ef-bdd7-b8837903a407",
+      "store_code": "51511",
+      "store_name": "The Mall 7",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "625f80dc-397e-4a83-8921-b313a01ce055",
+      "store_code": "53046",
+      "store_name": "Lotus Khon Kaen 2",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "d98fdc63-c645-4841-a1a3-f37f7a51694e",
+      "store_code": "53021",
+      "store_name": "Lotus Udon Thani",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "84fe5c8a-a0df-4ce7-b793-21b18ad09a87",
+      "store_code": "51431",
+      "store_name": "Mega Bang Na",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "b4300061-f7d6-4c11-be27-bae4db00ad0e",
+      "store_code": "55030",
+      "store_name": "Central Suratthani",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "dcc8080e-de7b-4a58-8be4-3e48304dca3e",
+      "store_code": "54018",
+      "store_name": "Big C Ayutthaya",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "2d49a882-87ba-4584-bed3-dab7e98ab283",
+      "store_code": "54027",
+      "store_name": "Big C Mahachai",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "c7620463-4292-46ca-8b69-2ec04a4d3923",
+      "store_code": "54094",
+      "store_name": "Central Nakornprathom",
+      "recovery_status": "Device Not Registered",
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "22dbe7da-0084-4e45-96ca-f4d24bc1ed01",
+      "store_code": "51906",
+      "store_name": "Seacon Bang Khea",
+      "recovery_status": "Device Not Registered",
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "5ad4de53-8e8c-46cc-a35b-57bd6329f22c",
+      "store_code": "52040",
+      "store_name": "Big C Phitsanulok",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "7433a0e1-2cd0-45d9-baa8-331c2e0bba4a",
+      "store_code": "54023",
+      "store_name": "Central Chonburi",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "8d0cc1e5-43f9-4462-9a32-ca07d6a0319e",
+      "store_code": "51416",
+      "store_name": "The Mall 8",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "cb7d75b5-9f1e-46de-b8c9-45ff3d9dbe48",
+      "store_code": "51428",
+      "store_name": "MBK 2",
+      "recovery_status": "Device Not Registered",
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "254ca04a-d217-4e9d-b6de-b29f9c8b78e9",
+      "store_code": "72011",
+      "store_name": "Charoenphan",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "6625d327-5fc6-46b6-808a-5b89d53ad6ff",
+      "store_code": "54021",
+      "store_name": "Central Pattaya",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "05e2f926-88ef-4799-93c2-602a3444ceee",
+      "store_code": "53031",
+      "store_name": "Central Ubon",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "bb2a3584-a0f0-45e2-81ef-1523380963b5",
+      "store_code": "51403",
+      "store_name": "Future Park",
+      "recovery_status": "Device Not Registered",
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "bc475568-c76d-4ebd-88de-5750668f2c8a",
+      "store_code": "51542",
+      "store_name": "Supreme Complex",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "4d3d5334-fcfd-4de6-a037-d43e1aab77a6",
+      "store_code": "51549",
+      "store_name": "Big C Bangyai",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "51bf8c68-5645-43f7-9dd5-1e9daf3549b5",
+      "store_code": "55008",
+      "store_name": "Jungceylon",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "2dfcf098-5e7b-4777-9f04-09ca0e4520d6",
+      "store_code": "52037",
+      "store_name": "Central Chiang Mai",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "9b647dd1-aab3-42cd-b0e7-a7d716c7af41",
+      "store_code": "52007",
+      "store_name": "Lotus Kamthieng",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "705a2d88-f2d6-4b4e-bb1e-8cc3112a1248",
+      "store_code": "55902",
+      "store_name": "Big C Nakhon Si Thammarat",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "c8d48eae-8ce1-4fc6-9931-e294b9b51ce4",
+      "store_code": "55949",
+      "store_name": "Big C Surat Thani",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "60e0ea7d-9de6-4ea8-8417-998a0cca5f7b",
+      "store_code": "55951",
+      "store_name": "Big C Had Yai",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "d448a7df-bb99-4607-933d-038406fb20c9",
+      "store_code": "75011",
+      "store_name": "Siriban Trang",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "ae8be70a-e34d-491d-bc0e-51cc1fa7e2f8",
+      "store_code": "75012",
+      "store_name": "Vogue Shopping Center",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    },
+    {
+      "id": "2a31ab73-6ca2-4a30-b36b-3d583dc22e08",
+      "store_code": "55906",
+      "store_name": "Big C Satun",
+      "recovery_status": null,
+      "recovery_stage": null,
+      "cause": null,
+      "required_action": null
+    }
+  ],
+  "vendor_quotations": [],
+  "recovery_stage_history": [],
+  "incident_tickets": [
+    {
+      "id": "9ff341fa-e1cd-4075-a6e0-741c570b4946",
+      "store_id": "2bde0dd0-850b-4a1f-a563-33f7f7406215",
+      "issue_type": "HDD Failure",
+      "status": "Completed",
+      "assigned_supplier_id": null,
+      "description": null,
+      "opened_at": "2026-07-08T10:44:26.761417+00:00",
+      "closed_at": null
+    }
+  ]
+}

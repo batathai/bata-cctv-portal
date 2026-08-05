@@ -42,12 +42,12 @@ export default function DeviceStatusPage() {
       {offlineCount > 0 && (
         <div className="flex items-center gap-2 bg-status-offline/10 border border-status-offline/30 text-status-offline text-sm font-medium rounded-md px-4 py-3">
           <WifiOff size={16} />
-          {offlineCount} สาขาในเขตของคุณกำลังออฟไลน์อยู่ตอนนี้
+          {offlineCount} store(s) in your area are currently offline
         </div>
       )}
 
       <div className="flex flex-wrap gap-3">
-        <StatCard label="สาขาทั้งหมด" value={stores.length} onClick={() => setStatusFilter("")} active={statusFilter === ""} />
+        <StatCard label="Total Stores" value={stores.length} onClick={() => setStatusFilter("")} active={statusFilter === ""} />
         <StatCard label="Online" value={counts.Healthy ?? 0} colorClass="text-status-healthy" onClick={() => setStatusFilter("Healthy")} active={statusFilter === "Healthy"} />
         <StatCard label="Partial" value={counts.Partial ?? 0} colorClass="text-status-partial" onClick={() => setStatusFilter("Partial")} active={statusFilter === "Partial"} />
         <StatCard label="Offline" value={offlineCount} colorClass="text-status-offline" onClick={() => setStatusFilter("Offline")} active={statusFilter === "Offline"} />
@@ -56,13 +56,13 @@ export default function DeviceStatusPage() {
 
       <Card className="p-4">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
-          <SectionTitle icon={Radio}>สถานะอุปกรณ์รายสาขา ({filtered.length})</SectionTitle>
+          <SectionTitle icon={Radio}>Device Status by Store ({filtered.length})</SectionTitle>
           <div className="relative">
             <Search size={13} className="absolute left-2.5 top-2.5 text-ink-faint" />
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="ค้นหาสาขา / รหัสสาขา"
+              placeholder="Search store / store code"
               className="pl-8 pr-3 py-1.5 text-sm rounded-md border border-black/10 dark:border-white/10 bg-surface-muted dark:bg-white/5 outline-none focus:border-brand w-60"
             />
           </div>
@@ -80,11 +80,11 @@ export default function DeviceStatusPage() {
                 href={`/recovery/${s.store_code}`}
                 className="flex items-center gap-1.5 text-xs font-medium border border-black/10 dark:border-white/10 rounded-md px-3 py-1.5 hover:bg-surface-muted dark:hover:bg-white/5 shrink-0"
               >
-                <FileText size={13} /> รายละเอียด
+                <FileText size={13} /> Details
               </Link>
             </div>
           ))}
-          {filtered.length === 0 && <p className="text-sm text-ink-faint py-4">ไม่พบสาขาที่ตรงกับคำค้นหา</p>}
+          {filtered.length === 0 && <p className="text-sm text-ink-faint py-4">No stores match your search</p>}
         </div>
       </Card>
     </div>

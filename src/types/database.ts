@@ -200,7 +200,7 @@ export interface VendorQuotation {
 }
 
 // Sprint 4 - Work Orders: append-only log of every recovery_stage change on
-// a store, so the Work Order detail page can show "อัพเดททีละสเตตัส" (a
+// a store, so the Work Order detail page can show step-by-step status updates (a
 // step-by-step timeline) instead of just the current stage. Written
 // alongside every `updateRecoveryStageDb` call — never edited or deleted.
 export interface RecoveryStageHistoryEntry {

@@ -165,7 +165,7 @@ export function isRepairPending(store: StoreWithAssets, tickets: IncidentTicket[
  * incident ticket as "done", since repairs are sometimes closed out via the
  * ticket instead. Code that bucketed stores by raw `recovery_stage` alone
  * (as the Work Orders page used to, in its header count and stage-breakdown
- * cards) disagreed with the "เปิดอยู่ทั้งหมด" card, which already used
+ * cards) disagreed with the "Total Open" card, which already used
  * isRepairCompleted — a store with a closed ticket but a stale/unset
  * recovery_stage got counted as open by one and done by the other, 1 apart.
  * Routing every count through this one function is what keeps them in sync.

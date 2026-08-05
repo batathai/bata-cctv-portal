@@ -2,15 +2,12 @@
 
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import {
-  ArrowLeft, Server, Camera, HardDrive, Wifi, Router, Wrench, ShieldCheck, MapPin, Pencil, Paperclip, Ticket as TicketIcon, Fingerprint,
-} from "lucide-react";
+import { ArrowLeft, Camera, Wrench, MapPin, Pencil, Ticket as TicketIcon, Fingerprint } from "lucide-react";
 import { useAppData } from "@/components/providers/AppDataProvider";
 import { Card, SectionTitle } from "@/components/ui/Card";
 import { StatusBadge } from "@/components/ui/Badge";
 import { RecoveryStatusBadge } from "@/components/recovery/RecoveryBadges";
 import { EditAssetModal } from "@/components/assets/EditAssetModal";
-import { AttachmentsCard } from "@/components/assets/AttachmentsCard";
 import { TicketsCard } from "@/components/assets/TicketsCard";
 import { DeviceIdentityCard } from "@/components/assets/DeviceIdentityCard";
 import { getAreaLabel, getCause, getRequiredAction, RECOVERY_STAGES, deriveRecoveryStatus, getRecoveryRegion } from "@/lib/recovery";
@@ -27,25 +24,6 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-/** Thin horizontal bar showing a health-score component's point contribution — no chart library, just the breakdown. */
-function ScoreBar({ label, points, max, met }: { label: string; points: number; max: number; met: boolean }) {
-  return (
-    <div className="py-1.5">
-      <div className="flex justify-between text-sm mb-1">
-        <span className="text-ink-faint">{label}</span>
-        <span className={met ? "text-status-healthy font-medium" : "text-status-offline font-medium"}>
-          {met ? points : 0}/{max}
-        </span>
-      </div>
-      <div className="h-1.5 rounded-full bg-black/5 dark:bg-white/10 overflow-hidden">
-        <div
-          className="h-full rounded-full"
-          style={{ width: met ? "100%" : "0%", background: met ? "#1E9E5A" : "#D71920" }}
-        />
-      </div>
-    </div>
-  );
-}
 export const runtime = 'edge';
 export default function StoreDetailPage() {
   const { code } = useParams<{ code: string }>();
@@ -67,8 +45,6 @@ export default function StoreDetailPage() {
   const records = maintenance.filter((r) => r.store_id === store.id);
   const canEditMaster = canManageMasterData(role);
   const canLogWork = canLogMaintenance(role);
-
-  const cameraOk = store.asset?.camera_status ? store.asset.camera_status === "OK" : store.asset?.camera_failed === 0;
 
   return (
     <div className="space-y-4">
@@ -146,60 +122,12 @@ export default function StoreDetailPage() {
         </Card>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card className="p-5">
-          <SectionTitle icon={ShieldCheck}>Health Score — {store.healthScore}</SectionTitle>
-          <ScoreBar label="NVR Online" points={30} max={30} met={!!store.asset?.nvr_online} />
-          <ScoreBar label="Playback Working" points={30} max={30} met={store.asset?.playback_status === "Working"} />
-          <ScoreBar label="HDD Healthy" points={20} max={20} met={store.asset?.hdd_status === "Healthy"} />
-          <ScoreBar label="Camera Complete" points={20} max={20} met={!!cameraOk} />
-        </Card>
-
-        <Card className="p-5">
-          <SectionTitle icon={Server}>NVR</SectionTitle>
-          <Row label="Brand / Model" value={`${store.asset?.nvr_brand ?? ""} ${store.asset?.nvr_model ?? ""}`} />
-          <Row label="Serial" value={<span className="font-mono text-xs">{store.asset?.nvr_serial}</span>} />
-          <Row label="Firmware" value={<span className="font-mono text-xs">{store.asset?.nvr_firmware}</span>} />
-          <Row label="MAC" value={<span className="font-mono text-xs">{store.asset?.nvr_mac}</span>} />
-          <Row label="Install Date" value={store.asset?.nvr_install_date} />
-        </Card>
-
-        <Card className="p-5">
-          <SectionTitle icon={Camera}>Cameras</SectionTitle>
-          <Row label="Total" value={store.asset?.camera_total} />
-          <Row label="Working" value={store.asset?.camera_working} />
-          <Row label="Failed" value={store.asset?.camera_failed} />
-          {store.asset?.camera_status && <Row label="Status" value={store.asset.camera_status} />}
-        </Card>
-
-        <Card className="p-5">
-          <SectionTitle icon={HardDrive}>Storage</SectionTitle>
-          <Row label="Capacity" value={store.asset?.hdd_capacity} />
-          <Row label="Status" value={store.asset?.hdd_status} />
-          <Row label="Install Date" value={store.asset?.hdd_install_date} />
-          <Row label="Playback" value={store.asset?.playback_status} />
-        </Card>
-
-        <Card className="p-5">
-          <SectionTitle icon={Wifi}>Network</SectionTitle>
-          <Row label="ISP" value={store.asset?.isp} />
-          <Row label="Router" value={store.asset?.router_model} />
-          <Row label="Internet Type" value={store.asset?.internet_type} />
-        </Card>
-
-        <Card className="p-5">
-          <SectionTitle icon={Router}>Hik-Connect</SectionTitle>
-          <Row label="Device Name" value={<span className="font-mono text-xs">{store.hikconnect?.device_name}</span>} />
-          <Row label="Status" value={store.hikconnect?.hikconnect_status} />
-          <Row label="Owner Account" value={store.hikconnect?.owner_account} />
-          <Row label="Shared Accounts" value={store.hikconnect?.shared_accounts.length} />
-          <Row label="Last Verified" value={store.hikconnect?.last_verified_date} />
-        </Card>
-      </div>
-
       <Card className="p-5">
-        <SectionTitle icon={Paperclip}>Documents &amp; Photos</SectionTitle>
-        <AttachmentsCard store={store} canEdit={canLogWork} />
+        <SectionTitle icon={Camera}>Cameras</SectionTitle>
+        <Row label="Total" value={store.asset?.camera_total} />
+        <Row label="Working" value={store.asset?.camera_working} />
+        <Row label="Failed" value={store.asset?.camera_failed} />
+        {store.asset?.camera_status && <Row label="Status" value={store.asset.camera_status} />}
       </Card>
 
       <Card className="p-5">

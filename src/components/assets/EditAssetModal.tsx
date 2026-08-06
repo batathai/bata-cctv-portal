@@ -149,10 +149,10 @@ export function EditAssetModal({ store, onClose }: Props) {
                 <div className="text-xs font-semibold uppercase tracking-wide text-ink-faint">NVR</div>
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="Brand">
-                    <Select value={nvrBrand} onChange={setNvrBrand} options={withCurrent(NVR_BRANDS, nvrBrand)} placeholder="Brand" />
+                    <Select value={nvrBrand} onChange={setNvrBrand} options={withCurrent(NVR_BRANDS, nvrBrand)} placeholder="Brand" variant="full" />
                   </Field>
                   <Field label="Model">
-                    <Select value={nvrModel} onChange={setNvrModel} options={withCurrent(NVR_MODELS, nvrModel)} placeholder="Model" />
+                    <Select value={nvrModel} onChange={setNvrModel} options={withCurrent(NVR_MODELS, nvrModel)} placeholder="Model" variant="full" />
                   </Field>
                   <Field label="Serial">
                     <input value={nvrSerial} onChange={(e) => setNvrSerial(e.target.value)} className={inputCls} />
@@ -161,7 +161,7 @@ export function EditAssetModal({ store, onClose }: Props) {
                     <input type="date" value={nvrInstallDate ?? ""} onChange={(e) => setNvrInstallDate(e.target.value)} className={inputCls} />
                   </Field>
                   <Field label="Online">
-                    <Select value={nvrOnline} onChange={setNvrOnline} options={["Yes", "No"]} placeholder="Online?" />
+                    <Select value={nvrOnline} onChange={setNvrOnline} options={["Yes", "No"]} placeholder="Online?" variant="full" />
                   </Field>
                 </div>
               </section>
@@ -190,7 +190,7 @@ export function EditAssetModal({ store, onClose }: Props) {
                   <input value={deviceName ?? ""} onChange={(e) => setDeviceName(e.target.value)} className={inputCls} />
                 </Field>
                 <Field label="Status">
-                  <Select value={hikStatus ?? ""} onChange={setHikStatus} options={["Online", "Offline"]} placeholder="Status" />
+                  <Select value={hikStatus ?? ""} onChange={setHikStatus} options={["Online", "Offline"]} placeholder="Status" variant="full" />
                 </Field>
                 <Field label="Owner Account">
                   <input value={ownerAccount ?? ""} onChange={(e) => setOwnerAccount(e.target.value)} className={inputCls} />

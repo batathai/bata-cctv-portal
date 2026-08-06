@@ -47,6 +47,7 @@ export async function fetchStores(): Promise<StoreWithAssets[]> {
       camera_status: s.camera_status ?? null,
       add_device_status: s.add_device_status ?? null,
       repair_date: s.repair_date ?? null,
+      recovery_notes: s.recovery_notes ?? null,
     } as StoreWithAssets;
   });
 }

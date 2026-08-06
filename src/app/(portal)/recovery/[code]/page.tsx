@@ -1,7 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, MapPin, Wifi, UserCheck2, Wrench, History, Ticket as TicketIcon, GitBranch } from "lucide-react";
+import { ArrowLeft, MapPin, Wifi, Wrench, History, Ticket as TicketIcon, GitBranch, Pencil, Loader2 } from "lucide-react";
 import { useAppData } from "@/components/providers/AppDataProvider";
 import { Card, SectionTitle } from "@/components/ui/Card";
 import { StatusBadge } from "@/components/ui/Badge";
@@ -9,8 +10,9 @@ import { RecoveryStatusBadge, RecoveryStageBadge } from "@/components/recovery/R
 import { StageTimeline } from "@/components/recovery/StageTimeline";
 import { TicketsCard } from "@/components/assets/TicketsCard";
 import { IvmsLookup } from "@/components/recovery/IvmsLookup";
-import { getAreaLabel, getCause, getRequiredAction, deriveRecoveryStatus, getRecoveryRegion, getLatestQuotation } from "@/lib/recovery";
+import { zoneCode, getCause, getRequiredAction, deriveRecoveryStatus, getRecoveryRegion } from "@/lib/recovery";
 import { canLogMaintenance } from "@/lib/rbac";
+import type { StoreWithAssets } from "@/types/database";
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -34,7 +36,7 @@ export const runtime = 'edge';
 export default function RecoveryStoreDetailPage() {
   const { code } = useParams<{ code: string }>();
   const router = useRouter();
-  const { stores, vendorQuotations, recoveryStageHistory, loading, role } = useAppData();
+  const { stores, recoveryStageHistory, loading, role } = useAppData();
 
   if (loading) return <div className="text-sm text-ink-faint">Loading…</div>;
 
@@ -50,7 +52,6 @@ export default function RecoveryStoreDetailPage() {
     );
   }
 
-  const quotation = getLatestQuotation(store.id, vendorQuotations);
   const status = deriveRecoveryStatus(store);
   const stage = store.recovery_stage ?? (status === "Normal" ? "Verified" : "Waiting Vendor Quote");
 
@@ -80,7 +81,7 @@ export default function RecoveryStoreDetailPage() {
         <Card className="p-5">
           <SectionTitle icon={MapPin}>Location</SectionTitle>
           <Row label="Region" value={getRecoveryRegion(store.zone)} />
-          <Row label="Area" value={getAreaLabel(store.zone)} />
+          <Row label="Area" value={zoneCode(store.zone)} />
         </Card>
 
         <Card className="p-5">
@@ -90,27 +91,9 @@ export default function RecoveryStoreDetailPage() {
             <StatusBadge status={store.overall_status} />
           </div>
         </Card>
-
-        <Card className="p-5">
-          <SectionTitle icon={Wrench}>Recovery Info</SectionTitle>
-          <Row label="Cause" value={getCause(store) ?? "—"} />
-          <Row label="Required Action" value={getRequiredAction(store) ?? "—"} />
-          <Row label="Repair Date" value={store.repair_date ?? "—"} />
-        </Card>
-
-        {/* Sprint 2 Task 3: Vendor Information — UI + DB structure only, no approval workflow yet. */}
-        <Card className="p-5">
-          <SectionTitle icon={UserCheck2}>Vendor Information</SectionTitle>
-          <Row label="Vendor Name" value={quotation?.vendor_name ?? store.supplierName ?? "—"} />
-          <Row label="Quotation Number" value={quotation?.quotation_number ?? "—"} />
-          <Row
-            label="Estimated Cost"
-            value={quotation?.estimated_cost != null ? `฿${quotation.estimated_cost.toLocaleString()}` : "—"}
-          />
-          <Row label="Quotation Date" value={quotation?.quotation_date ?? "—"} />
-          <Row label="Approval Status" value={quotation?.approval_status ?? "—"} />
-        </Card>
       </div>
+
+      <RecoveryInfoCard store={store} canEdit={canLogMaintenance(role)} />
 
       <Card className="p-5">
         <SectionTitle icon={TicketIcon}>Repair Tickets</SectionTitle>
@@ -135,5 +118,135 @@ function BackButton({ onClick }: { onClick: () => void }) {
     <button onClick={onClick} className="flex items-center gap-1.5 text-sm text-ink-soft dark:text-white/60 hover:text-brand">
       <ArrowLeft size={15} /> Back
     </button>
+  );
+}
+
+/**
+ * Recovery Info — was read-only (nothing in the UI ever wrote to
+ * Cause/Required Action/Repair Date, only the bulk import script did).
+ * Now editable in place, plus a free-text "Details" field
+ * (`stores.recovery_notes`, migration 013) for anything that doesn't fit
+ * Cause/Required Action. Vendor Information card was removed per request —
+ * this card no longer shows vendor/quotation data.
+ */
+function RecoveryInfoCard({ store, canEdit }: { store: StoreWithAssets; canEdit: boolean }) {
+  const { editAssetDetails } = useAppData();
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [cause, setCause] = useState(getCause(store) ?? "");
+  const [requiredAction, setRequiredAction] = useState(getRequiredAction(store) ?? "");
+  const [repairDate, setRepairDate] = useState(store.repair_date ?? "");
+  const [notes, setNotes] = useState(store.recovery_notes ?? "");
+
+  function startEdit() {
+    setCause(getCause(store) ?? "");
+    setRequiredAction(getRequiredAction(store) ?? "");
+    setRepairDate(store.repair_date ?? "");
+    setNotes(store.recovery_notes ?? "");
+    setError(null);
+    setEditing(true);
+  }
+
+  async function save() {
+    setSaving(true);
+    setError(null);
+    try {
+      await editAssetDetails(store.id, {
+        store: {
+          cause: cause || null,
+          required_action: requiredAction || null,
+          repair_date: repairDate || null,
+          recovery_notes: notes || null,
+        },
+      });
+      setEditing(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save Recovery Info.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (!editing) {
+    return (
+      <Card className="p-5">
+        <div className="flex items-center justify-between">
+          <SectionTitle icon={Wrench}>Recovery Info</SectionTitle>
+          {canEdit && (
+            <button
+              onClick={startEdit}
+              className="flex items-center gap-1 text-xs text-ink-soft dark:text-white/60 hover:text-brand"
+            >
+              <Pencil size={12} /> Edit
+            </button>
+          )}
+        </div>
+        <Row label="Cause" value={getCause(store) ?? "—"} />
+        <Row label="Required Action" value={getRequiredAction(store) ?? "—"} />
+        <Row label="Repair Date" value={store.repair_date ?? "—"} />
+        <Row label="Details" value={store.recovery_notes || "—"} />
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="p-5">
+      <SectionTitle icon={Wrench}>Recovery Info</SectionTitle>
+      <div className="space-y-3 mt-1">
+        <Field label="Cause" value={cause} onChange={setCause} />
+        <Field label="Required Action" value={requiredAction} onChange={setRequiredAction} />
+        <div>
+          <label className="text-xs text-ink-faint block mb-1">Repair Date</label>
+          <input
+            type="date"
+            value={repairDate}
+            onChange={(e) => setRepairDate(e.target.value)}
+            className="w-full text-sm border border-black/10 dark:border-white/10 rounded-md px-3 py-2 bg-white dark:bg-surface-dark outline-none focus:border-brand"
+          />
+        </div>
+        <div>
+          <label className="text-xs text-ink-faint block mb-1">Details</label>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            rows={3}
+            placeholder="รายละเอียดเพิ่มเติม..."
+            className="w-full text-sm border border-black/10 dark:border-white/10 rounded-md px-3 py-2 bg-white dark:bg-surface-dark outline-none focus:border-brand resize-none"
+          />
+        </div>
+        {error && <p className="text-xs text-brand">{error}</p>}
+        <div className="flex justify-end gap-2">
+          <button
+            onClick={() => setEditing(false)}
+            disabled={saving}
+            className="text-xs font-medium text-ink-soft dark:text-white/60 rounded-md px-3 py-1.5 disabled:opacity-60"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={save}
+            disabled={saving}
+            className="flex items-center gap-1.5 text-xs font-medium bg-brand text-white rounded-md px-3 py-1.5 disabled:opacity-60"
+          >
+            {saving && <Loader2 size={12} className="animate-spin" />}
+            Save
+          </button>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function Field({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <div>
+      <label className="text-xs text-ink-faint block mb-1">{label}</label>
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full text-sm border border-black/10 dark:border-white/10 rounded-md px-3 py-2 bg-white dark:bg-surface-dark outline-none focus:border-brand"
+      />
+    </div>
   );
 }

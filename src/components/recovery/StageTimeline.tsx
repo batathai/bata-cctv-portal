@@ -47,6 +47,24 @@ export function StageTimeline({
     }
   }
 
+  // Logs a remark against the CURRENT stage without moving the work order
+  // forward — e.g. "รอ vendor นัดวันเข้างาน" while still "Repairing". Reuses
+  // updateRecoveryStage with stage === currentStage (a no-op on the stage
+  // itself) purely so the note gets appended to recovery_stage_history.
+  async function addRemark() {
+    if (!note.trim()) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await updateRecoveryStage(store.id, currentStage, note);
+      setNote("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save remark.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <div className="space-y-5">
       {/* Stepper */}
@@ -86,13 +104,19 @@ export function StageTimeline({
         })}
       </div>
 
-      {/* Advance-stage form */}
-      {canEdit && nextStage && (
+      {/* Remark + advance-stage form — a remark can be logged against the
+          current stage ("Repairing" etc.) any time, without necessarily
+          moving the work order forward. */}
+      {canEdit && (
         <div className="bg-surface-muted dark:bg-white/5 rounded-md p-3 space-y-2">
           <textarea
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            placeholder={`Add a note (optional) before moving to "${nextStage}"`}
+            placeholder={
+              nextStage
+                ? `Add a remark for "${currentStage}", or move to "${nextStage}"`
+                : `Add a remark for "${currentStage}"`
+            }
             rows={2}
             className="w-full text-sm border border-black/10 dark:border-white/10 rounded-md px-3 py-2 bg-white dark:bg-surface-dark outline-none focus:border-brand resize-none"
           />
@@ -101,15 +125,25 @@ export function StageTimeline({
               <AlertCircle size={12} className="shrink-0 mt-0.5" /> {error}
             </p>
           )}
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
             <button
-              onClick={() => advance(nextStage)}
-              disabled={saving}
-              className="flex items-center gap-1.5 text-xs font-medium bg-brand text-white rounded-md px-3 py-1.5 disabled:opacity-60"
+              onClick={addRemark}
+              disabled={saving || !note.trim()}
+              className="flex items-center gap-1.5 text-xs font-medium text-ink-soft dark:text-white/60 border border-black/10 dark:border-white/10 rounded-md px-3 py-1.5 disabled:opacity-60"
             >
               {saving && <Loader2 size={12} className="animate-spin" />}
-              Move to &quot;{nextStage}&quot;
+              Add Remark
             </button>
+            {nextStage && (
+              <button
+                onClick={() => advance(nextStage)}
+                disabled={saving}
+                className="flex items-center gap-1.5 text-xs font-medium bg-brand text-white rounded-md px-3 py-1.5 disabled:opacity-60"
+              >
+                {saving && <Loader2 size={12} className="animate-spin" />}
+                Move to &quot;{nextStage}&quot;
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -129,7 +163,11 @@ export function StageTimeline({
                 </span>
                 <div>
                   <span className="text-ink dark:text-white">
-                    {h.from_stage ? `${h.from_stage} → ${h.to_stage}` : `Opened: ${h.to_stage}`}
+                    {h.from_stage === h.to_stage
+                      ? `Remark — ${h.to_stage}`
+                      : h.from_stage
+                      ? `${h.from_stage} → ${h.to_stage}`
+                      : `Opened: ${h.to_stage}`}
                   </span>
                   {h.note && <div className="text-xs text-ink-soft dark:text-white/60 mt-0.5">{h.note}</div>}
                 </div>

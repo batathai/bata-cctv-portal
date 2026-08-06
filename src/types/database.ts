@@ -52,6 +52,10 @@ export interface Store {
   camera_status?: "OK" | "Partial" | "Not Work" | null;
   add_device_status?: "Registered" | "Not Registered" | null;
   repair_date?: string | null;
+  // Free-text "Details" field on the Recovery Info card — separate from
+  // Cause/Required Action so notes that don't fit either can still be
+  // captured (e.g. "รอ vendor ยืนยันวันเข้างาน").
+  recovery_notes?: string | null;
 }
 
 export interface CctvAsset {

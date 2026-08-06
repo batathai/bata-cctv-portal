@@ -85,6 +85,14 @@ export function getLatestQuotation(storeId: string, quotations: VendorQuotation[
  * requiring every store to be manually tagged.
  */
 export function deriveRecoveryStatus(store: StoreWithAssets): RecoveryStatus {
+  // Once a work order has been marked Completed/Verified, treat the store
+  // as fixed for display — `recovery_status` is set once when the issue is
+  // first opened/imported and nothing ever wrote it back to "Normal" on
+  // completion, so without this a store's badge kept showing its original
+  // failure type (e.g. "DVR Failure") forever after the repair was done and
+  // verified. needsRepair() below adds its own recovery_stage check so this
+  // doesn't drop finished stores out of the Work Orders list.
+  if (store.recovery_stage === "Completed" || store.recovery_stage === "Verified") return "Normal";
   if (store.recovery_status) return store.recovery_status;
   // A store with no asset record yet hasn't actually been surveyed/imported
   // in full — treat it as "not yet checked" rather than guessing it's
@@ -164,11 +172,21 @@ export function isStoreChecked(store: StoreWithAssets, audits: AuditRecord[]): b
 }
 
 export function isHealthy(store: StoreWithAssets, tickets: IncidentTicket[]): boolean {
-  return store.healthScore >= 80 && deriveRecoveryStatus(store) === "Normal" && !hasOpenTicket(store.id, tickets);
+  return (
+    store.healthScore >= 80 &&
+    deriveRecoveryStatus(store) === "Normal" &&
+    !hasOpenTicket(store.id, tickets) &&
+    store.recovery_stage == null
+  );
 }
 
+// A store stays counted as "Need Repair" for as long as it has ever had a
+// work order opened (recovery_stage set) — even after deriveRecoveryStatus
+// reports "Normal" once Completed/Verified — so a finished repair keeps
+// showing up in the Work Orders list/counts instead of silently
+// disappearing the moment it's fixed. See deriveRecoveryStatus's comment.
 export function needsRepair(store: StoreWithAssets, tickets: IncidentTicket[]): boolean {
-  return deriveRecoveryStatus(store) !== "Normal" || hasOpenTicket(store.id, tickets);
+  return deriveRecoveryStatus(store) !== "Normal" || hasOpenTicket(store.id, tickets) || store.recovery_stage != null;
 }
 
 export function isRepairCompleted(store: StoreWithAssets, tickets: IncidentTicket[]): boolean {

@@ -49,7 +49,7 @@ import {
   REPAIR_STATUS_TO_OVERALL_STATUS,
   type MaintenanceFormInput,
 } from "@/lib/maintenanceWrite";
-import { updateRecoveryStageDb, addRecoveryRemarkDb } from "@/lib/recoveryWrite";
+import { updateRecoveryStageDb, addRecoveryRemarkDb, deleteRecoveryRemarkDb } from "@/lib/recoveryWrite";
 import { deriveOverallStatusFromAsset, deriveRecoveryStatusFromAsset, zoneCode, regionFromZone } from "@/lib/recovery";
 import { updateStoreDetailsDb, updateAssetDetailsDb, updateHikconnectDetailsDb, relocateAssetDb, uploadQrCodeDb } from "@/lib/assetWrite";
 import { createIncidentTicketDb, updateIncidentTicketStatusDb, type TicketFormInput } from "@/lib/ticketWrite";
@@ -98,6 +98,7 @@ interface AppDataContextValue {
   deleteMaintenanceRecord: (id: string) => Promise<void>;
   updateRecoveryStage: (storeId: string, stage: RecoveryStage, note?: string) => Promise<void>;
   addRecoveryRemark: (storeId: string, stage: RecoveryStage, note: string) => Promise<void>;
+  deleteRecoveryRemark: (historyId: string) => Promise<void>;
   createTicket: (input: TicketFormInput) => Promise<void>;
   updateTicketStatus: (ticketId: string, status: TicketStatus) => Promise<void>;
   uploadAttachment: (storeCode: string, storeId: string, folder: AttachmentFolder, file: File) => Promise<void>;
@@ -376,6 +377,19 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  // Deletes a remark (from_stage === to_stage) row — real stage-transition
+  // rows are rejected by the DB delete policy itself (migration 014); the
+  // caller (StageTimeline) only ever offers this on remark rows anyway.
+  async function deleteRecoveryRemark(historyId: string) {
+    if (isSupabaseConfigured) {
+      const supabase = createClient();
+      await deleteRecoveryRemarkDb(supabase, historyId);
+      setRecoveryStageHistory(await fetchRecoveryStageHistory());
+    } else {
+      setRecoveryStageHistory((prev) => prev.filter((h) => h.id !== historyId));
+    }
+  }
+
   async function createTicket(input: TicketFormInput) {
     if (isSupabaseConfigured) {
       const supabase = createClient();
@@ -560,6 +574,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     deleteMaintenanceRecord,
     updateRecoveryStage,
     addRecoveryRemark,
+    deleteRecoveryRemark,
     createTicket,
     updateTicketStatus,
     uploadAttachment,

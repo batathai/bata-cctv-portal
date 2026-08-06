@@ -47,3 +47,16 @@ export async function addRecoveryRemarkDb(supabase: SupabaseClient, storeId: str
   });
   if (error) throw new Error(`Failed to save remark: ${error.message}`);
 }
+
+/**
+ * Deletes a remark row (from_stage === to_stage) from recovery_stage_history
+ * — e.g. one logged against the wrong stage by mistake. The DB delete
+ * policy (migration 014) itself only allows this for remark rows, so a real
+ * stage-transition row can never be removed even if this function is
+ * somehow called on one; that check is duplicated here client-side just to
+ * fail with a clear message instead of a silent 0-row delete.
+ */
+export async function deleteRecoveryRemarkDb(supabase: SupabaseClient, historyId: string) {
+  const { error } = await supabase.from("recovery_stage_history").delete().eq("id", historyId);
+  if (error) throw new Error(`Failed to delete remark: ${error.message}`);
+}

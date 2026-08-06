@@ -12,7 +12,7 @@ import { TicketsCard } from "@/components/assets/TicketsCard";
 import { IvmsLookup } from "@/components/recovery/IvmsLookup";
 import { zoneCode, getCause, getRequiredAction, deriveRecoveryStatus, getRecoveryRegion } from "@/lib/recovery";
 import { canLogMaintenance } from "@/lib/rbac";
-import type { StoreWithAssets } from "@/types/database";
+import type { StoreWithAssets, OverallStatus } from "@/types/database";
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -86,10 +86,7 @@ export default function RecoveryStoreDetailPage() {
 
         <Card className="p-5">
           <SectionTitle icon={Wifi}>Device Status</SectionTitle>
-          <div className="flex justify-between items-center py-1.5 text-sm">
-            <span className="text-ink-faint">Status</span>
-            <StatusBadge status={store.overall_status} />
-          </div>
+          <DeviceStatusRow store={store} canEdit={canLogMaintenance(role)} />
         </Card>
       </div>
 
@@ -247,6 +244,94 @@ function Field({ label, value, onChange }: { label: string; value: string; onCha
         onChange={(e) => onChange(e.target.value)}
         className="w-full text-sm border border-black/10 dark:border-white/10 rounded-md px-3 py-2 bg-white dark:bg-surface-dark outline-none focus:border-brand"
       />
+    </div>
+  );
+}
+
+const OVERALL_STATUS_OPTIONS: { value: OverallStatus; label: string }[] = [
+  { value: "Healthy", label: "Online" },
+  { value: "Partial", label: "Partial" },
+  { value: "View Only", label: "View Only" },
+  { value: "Offline", label: "Offline" },
+  { value: "Unknown", label: "Unknown" },
+];
+
+/**
+ * Device Status was read-only — once a repair is actually done, there was
+ * no way to flip the badge back to Online from this page (it's normally
+ * derived from cctv_assets, which this page's audience can't see/edit —
+ * see the file header comment). Lets the status be set directly instead,
+ * same write path as everything else on this page (editAssetDetails ->
+ * updateStoreDetailsDb on `stores.overall_status`).
+ */
+function DeviceStatusRow({ store, canEdit }: { store: StoreWithAssets; canEdit: boolean }) {
+  const { editAssetDetails } = useAppData();
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [value, setValue] = useState<OverallStatus>(store.overall_status);
+
+  async function save(next: OverallStatus) {
+    setValue(next);
+    setSaving(true);
+    setError(null);
+    try {
+      await editAssetDetails(store.id, { store: { overall_status: next } });
+      setEditing(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not update status.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (!editing) {
+    return (
+      <div className="flex justify-between items-center py-1.5 text-sm">
+        <span className="text-ink-faint">Status</span>
+        <div className="flex items-center gap-2">
+          <StatusBadge status={store.overall_status} />
+          {canEdit && (
+            <button
+              onClick={() => {
+                setValue(store.overall_status);
+                setError(null);
+                setEditing(true);
+              }}
+              className="flex items-center gap-1 text-xs text-ink-soft dark:text-white/60 hover:text-brand"
+            >
+              <Pencil size={12} />
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="py-1.5 space-y-2">
+      <div className="flex justify-between items-center text-sm">
+        <span className="text-ink-faint">Status</span>
+        <div className="flex items-center gap-2">
+          <select
+            value={value}
+            onChange={(e) => save(e.target.value as OverallStatus)}
+            disabled={saving}
+            className="text-xs border border-black/10 dark:border-white/10 rounded-md px-2 py-1 bg-white dark:bg-surface-dark outline-none focus:border-brand disabled:opacity-60"
+          >
+            {OVERALL_STATUS_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+          {saving && <Loader2 size={12} className="animate-spin text-ink-faint" />}
+          <button onClick={() => setEditing(false)} className="text-xs text-ink-soft dark:text-white/60 hover:text-brand">
+            Done
+          </button>
+        </div>
+      </div>
+      {error && <p className="text-xs text-brand text-right">{error}</p>}
     </div>
   );
 }

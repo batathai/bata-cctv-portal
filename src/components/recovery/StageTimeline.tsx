@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Check, Loader2, AlertCircle } from "lucide-react";
 import { useAppData } from "@/components/providers/AppDataProvider";
 import { RECOVERY_STAGES } from "@/lib/recovery";
@@ -21,18 +21,30 @@ export function StageTimeline({
   history: RecoveryStageHistoryEntry[];
   canEdit: boolean;
 }) {
-  const { updateRecoveryStage } = useAppData();
+  const { updateRecoveryStage, addRecoveryRemark } = useAppData();
   const currentStage: RecoveryStage = store.recovery_stage ?? "Waiting Vendor Quote";
   const currentIdx = RECOVERY_STAGES.indexOf(currentStage);
 
   const [note, setNote] = useState("");
+  // Which stage the remark is filed against — defaults to the current stage,
+  // but any already-reached stage can be picked (e.g. going back to add a
+  // note on "Repairing" after the job has since moved on to "Verified").
+  const [remarkStage, setRemarkStage] = useState<RecoveryStage>(currentStage);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const nextStage = RECOVERY_STAGES[currentIdx + 1];
+  const reachedStages = RECOVERY_STAGES.slice(0, currentIdx + 1);
   const storeHistory = [...history]
     .filter((h) => h.store_id === store.id)
     .sort((a, b) => (a.changed_at < b.changed_at ? 1 : -1));
+
+  // Keep the remark-stage picker's default in sync with the current stage
+  // as the store advances, rather than freezing at whatever it was on mount.
+  useEffect(() => {
+    setRemarkStage(currentStage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentStage]);
 
   async function advance(stage: RecoveryStage) {
     setSaving(true);
@@ -47,16 +59,16 @@ export function StageTimeline({
     }
   }
 
-  // Logs a remark against the CURRENT stage without moving the work order
-  // forward — e.g. "รอ vendor นัดวันเข้างาน" while still "Repairing". Reuses
-  // updateRecoveryStage with stage === currentStage (a no-op on the stage
-  // itself) purely so the note gets appended to recovery_stage_history.
+  // Logs a remark against `remarkStage` (current or a past stage) without
+  // moving the work order forward or changing its recovery_stage — e.g.
+  // "รอ vendor นัดวันเข้างาน" while still "Repairing", or adding a note to
+  // "Repairing" after the job has already moved on to "Verified".
   async function addRemark() {
     if (!note.trim()) return;
     setSaving(true);
     setError(null);
     try {
-      await updateRecoveryStage(store.id, currentStage, note);
+      await addRecoveryRemark(store.id, remarkStage, note);
       setNote("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save remark.");
@@ -104,18 +116,36 @@ export function StageTimeline({
         })}
       </div>
 
-      {/* Remark + advance-stage form — a remark can be logged against the
-          current stage ("Repairing" etc.) any time, without necessarily
-          moving the work order forward. */}
+      {/* Remark + advance-stage form — a remark can be filed against any
+          already-reached stage (not just the current one), so a forgotten
+          note on e.g. "Repairing" can still be added after the job has
+          since moved on. */}
       {canEdit && (
         <div className="bg-surface-muted dark:bg-white/5 rounded-md p-3 space-y-2">
+          {reachedStages.length > 1 && (
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-ink-faint shrink-0">Remark for stage</label>
+              <select
+                value={remarkStage}
+                onChange={(e) => setRemarkStage(e.target.value as RecoveryStage)}
+                className="text-xs border border-black/10 dark:border-white/10 rounded-md px-2 py-1 bg-white dark:bg-surface-dark outline-none focus:border-brand"
+              >
+                {reachedStages.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                    {s === currentStage ? " (current)" : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <textarea
             value={note}
             onChange={(e) => setNote(e.target.value)}
             placeholder={
               nextStage
-                ? `Add a remark for "${currentStage}", or move to "${nextStage}"`
-                : `Add a remark for "${currentStage}"`
+                ? `Add a remark for "${remarkStage}", or move to "${nextStage}"`
+                : `Add a remark for "${remarkStage}"`
             }
             rows={2}
             className="w-full text-sm border border-black/10 dark:border-white/10 rounded-md px-3 py-2 bg-white dark:bg-surface-dark outline-none focus:border-brand resize-none"

@@ -29,3 +29,21 @@ export async function updateRecoveryStageDb(
   // stage change itself already succeeded and is the more important write.
   if (historyError) console.error("Failed to log recovery stage history:", historyError.message);
 }
+
+/**
+ * Logs a remark against a given stage — current or a PAST one (e.g. adding
+ * a note to "Repairing" after the work order has already moved on to
+ * "Verified", because it was forgotten at the time). Unlike
+ * updateRecoveryStageDb, this never touches `stores.recovery_stage` — it
+ * only appends a history row (from_stage === to_stage === the chosen stage
+ * signals "remark, not a transition" to the UI).
+ */
+export async function addRecoveryRemarkDb(supabase: SupabaseClient, storeId: string, stage: RecoveryStage, note: string) {
+  const { error } = await supabase.from("recovery_stage_history").insert({
+    store_id: storeId,
+    from_stage: stage,
+    to_stage: stage,
+    note,
+  });
+  if (error) throw new Error(`Failed to save remark: ${error.message}`);
+}

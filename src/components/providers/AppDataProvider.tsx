@@ -49,7 +49,7 @@ import {
   REPAIR_STATUS_TO_OVERALL_STATUS,
   type MaintenanceFormInput,
 } from "@/lib/maintenanceWrite";
-import { updateRecoveryStageDb } from "@/lib/recoveryWrite";
+import { updateRecoveryStageDb, addRecoveryRemarkDb } from "@/lib/recoveryWrite";
 import { deriveOverallStatusFromAsset, deriveRecoveryStatusFromAsset, zoneCode, regionFromZone } from "@/lib/recovery";
 import { updateStoreDetailsDb, updateAssetDetailsDb, updateHikconnectDetailsDb, relocateAssetDb, uploadQrCodeDb } from "@/lib/assetWrite";
 import { createIncidentTicketDb, updateIncidentTicketStatusDb, type TicketFormInput } from "@/lib/ticketWrite";
@@ -97,6 +97,7 @@ interface AppDataContextValue {
   updateMaintenanceRecord: (id: string, patch: Partial<MaintenanceFormInput>) => Promise<void>;
   deleteMaintenanceRecord: (id: string) => Promise<void>;
   updateRecoveryStage: (storeId: string, stage: RecoveryStage, note?: string) => Promise<void>;
+  addRecoveryRemark: (storeId: string, stage: RecoveryStage, note: string) => Promise<void>;
   createTicket: (input: TicketFormInput) => Promise<void>;
   updateTicketStatus: (ticketId: string, status: TicketStatus) => Promise<void>;
   uploadAttachment: (storeCode: string, storeId: string, folder: AttachmentFolder, file: File) => Promise<void>;
@@ -353,6 +354,28 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  // Adds a remark to any stage (current or past) WITHOUT changing
+  // stores.recovery_stage — see addRecoveryRemarkDb's comment.
+  async function addRecoveryRemark(storeId: string, stage: RecoveryStage, note: string) {
+    if (isSupabaseConfigured) {
+      const supabase = createClient();
+      await addRecoveryRemarkDb(supabase, storeId, stage, note);
+      setRecoveryStageHistory(await fetchRecoveryStageHistory());
+    } else {
+      setRecoveryStageHistory((prev) => [
+        {
+          id: `rsh_local_${Date.now()}`,
+          store_id: storeId,
+          from_stage: stage,
+          to_stage: stage,
+          note,
+          changed_at: new Date().toISOString(),
+        },
+        ...prev,
+      ]);
+    }
+  }
+
   async function createTicket(input: TicketFormInput) {
     if (isSupabaseConfigured) {
       const supabase = createClient();
@@ -536,6 +559,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     updateMaintenanceRecord,
     deleteMaintenanceRecord,
     updateRecoveryStage,
+    addRecoveryRemark,
     createTicket,
     updateTicketStatus,
     uploadAttachment,

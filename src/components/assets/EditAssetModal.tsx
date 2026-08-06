@@ -28,9 +28,13 @@ function withCurrent(options: string[], current: string): string[] {
   return current && !options.includes(current) ? [...options, current] : options;
 }
 
-const NVR_BRANDS = ["Hikvision", "Dahua", "Uniview", "TP-Link", "Other"];
-const ISP_OPTIONS = ["AIS", "True", "3BB", "TOT", "NT", "Other"];
-const INTERNET_TYPES = ["Fiber", "ADSL", "4G/5G", "Leased Line", "Other"];
+// Every device onboarded is Hikvision, and this exact NVR model — kept as
+// single-option dropdowns (not free text) so nobody can typo a different
+// brand/model in by mistake. withCurrent() still adds back whatever a
+// store's existing value is if it's ever something else, so older/legacy
+// records aren't silently hidden or wiped by narrowing this list.
+const NVR_BRANDS = ["Hikvision"];
+const NVR_MODELS = ["DS-7204HGHI-K1"];
 
 export function EditAssetModal({ store, onClose }: Props) {
   const { editAssetDetails } = useAppData();
@@ -47,28 +51,14 @@ export function EditAssetModal({ store, onClose }: Props) {
   const [nvrBrand, setNvrBrand] = useState(a?.nvr_brand ?? "");
   const [nvrModel, setNvrModel] = useState(a?.nvr_model ?? "");
   const [nvrSerial, setNvrSerial] = useState(a?.nvr_serial ?? "");
-  const [nvrFirmware, setNvrFirmware] = useState(a?.nvr_firmware ?? "");
-  const [nvrMac, setNvrMac] = useState(a?.nvr_mac ?? "");
   const [nvrInstallDate, setNvrInstallDate] = useState(a?.nvr_install_date ?? "");
   const [nvrOnline, setNvrOnline] = useState(a?.nvr_online ? "Yes" : "No");
-  const [hikUid, setHikUid] = useState(a?.hik_uid ?? "");
 
   // Cameras
   const [cameraTotal, setCameraTotal] = useState(a ? String(a.camera_total) : "");
-  const [cameraWorking, setCameraWorking] = useState(a ? String(a.camera_working) : "");
-  const [cameraFailed, setCameraFailed] = useState(a ? String(a.camera_failed) : "");
-  const [cameraStatus, setCameraStatus] = useState(a?.camera_status ?? "");
 
   // Storage
   const [hddCapacity, setHddCapacity] = useState(a?.hdd_capacity ?? "");
-  const [hddStatus, setHddStatus] = useState(a?.hdd_status ?? "");
-  const [hddInstallDate, setHddInstallDate] = useState(a?.hdd_install_date ?? "");
-  const [playbackStatus, setPlaybackStatus] = useState(a?.playback_status ?? "");
-
-  // Network
-  const [isp, setIsp] = useState(a?.isp ?? "");
-  const [routerModel, setRouterModel] = useState(a?.router_model ?? "");
-  const [internetType, setInternetType] = useState(a?.internet_type ?? "");
 
   // Hik-Connect
   const [deviceName, setDeviceName] = useState(h?.device_name ?? "");
@@ -98,22 +88,10 @@ export function EditAssetModal({ store, onClose }: Props) {
               nvr_brand: nvrBrand || null,
               nvr_model: nvrModel || null,
               nvr_serial: nvrSerial || null,
-              nvr_firmware: nvrFirmware || null,
-              nvr_mac: nvrMac || null,
               nvr_install_date: nvrInstallDate || null,
               nvr_online: nvrOnline === "Yes",
-              hik_uid: hikUid || null,
               camera_total: Number(cameraTotal) || 0,
-              camera_working: Number(cameraWorking) || 0,
-              camera_failed: Number(cameraFailed) || 0,
-              camera_status: cameraStatus || null,
               hdd_capacity: hddCapacity || null,
-              hdd_status: hddStatus || null,
-              hdd_install_date: hddInstallDate || null,
-              playback_status: playbackStatus || null,
-              isp: isp || null,
-              router_model: routerModel || null,
-              internet_type: internetType || null,
             }
           : undefined,
         hikconnect: h
@@ -174,19 +152,10 @@ export function EditAssetModal({ store, onClose }: Props) {
                     <Select value={nvrBrand} onChange={setNvrBrand} options={withCurrent(NVR_BRANDS, nvrBrand)} placeholder="Brand" />
                   </Field>
                   <Field label="Model">
-                    <input value={nvrModel} onChange={(e) => setNvrModel(e.target.value)} className={inputCls} />
+                    <Select value={nvrModel} onChange={setNvrModel} options={withCurrent(NVR_MODELS, nvrModel)} placeholder="Model" />
                   </Field>
                   <Field label="Serial">
                     <input value={nvrSerial} onChange={(e) => setNvrSerial(e.target.value)} className={inputCls} />
-                  </Field>
-                  <Field label="Firmware">
-                    <input value={nvrFirmware} onChange={(e) => setNvrFirmware(e.target.value)} className={inputCls} />
-                  </Field>
-                  <Field label="MAC">
-                    <input value={nvrMac} onChange={(e) => setNvrMac(e.target.value)} className={inputCls} />
-                  </Field>
-                  <Field label="Hik UID">
-                    <input value={hikUid} onChange={(e) => setHikUid(e.target.value)} className={inputCls} />
                   </Field>
                   <Field label="Install Date">
                     <input type="date" value={nvrInstallDate ?? ""} onChange={(e) => setNvrInstallDate(e.target.value)} className={inputCls} />
@@ -199,53 +168,16 @@ export function EditAssetModal({ store, onClose }: Props) {
 
               <section className="space-y-3">
                 <div className="text-xs font-semibold uppercase tracking-wide text-ink-faint">Cameras</div>
-                <div className="grid grid-cols-3 gap-3">
-                  <Field label="Total">
-                    <input type="number" min="0" value={cameraTotal} onChange={(e) => setCameraTotal(e.target.value)} className={inputCls} />
-                  </Field>
-                  <Field label="Working">
-                    <input type="number" min="0" value={cameraWorking} onChange={(e) => setCameraWorking(e.target.value)} className={inputCls} />
-                  </Field>
-                  <Field label="Failed">
-                    <input type="number" min="0" value={cameraFailed} onChange={(e) => setCameraFailed(e.target.value)} className={inputCls} />
-                  </Field>
-                </div>
-                <Field label="Camera Status">
-                  <Select value={cameraStatus ?? ""} onChange={setCameraStatus} options={["OK", "Partial", "Not Work"]} placeholder="Status" />
+                <Field label="Total">
+                  <input type="number" min="0" value={cameraTotal} onChange={(e) => setCameraTotal(e.target.value)} className={inputCls} />
                 </Field>
               </section>
 
               <section className="space-y-3">
                 <div className="text-xs font-semibold uppercase tracking-wide text-ink-faint">Storage</div>
-                <div className="grid grid-cols-2 gap-3">
-                  <Field label="HDD Capacity">
-                    <input value={hddCapacity ?? ""} onChange={(e) => setHddCapacity(e.target.value)} className={inputCls} />
-                  </Field>
-                  <Field label="HDD Status">
-                    <Select value={hddStatus ?? ""} onChange={setHddStatus} options={["Healthy", "Warning", "Failed"]} placeholder="HDD Status" />
-                  </Field>
-                  <Field label="HDD Install Date">
-                    <input type="date" value={hddInstallDate ?? ""} onChange={(e) => setHddInstallDate(e.target.value)} className={inputCls} />
-                  </Field>
-                  <Field label="Playback">
-                    <Select value={playbackStatus ?? ""} onChange={setPlaybackStatus} options={["Working", "Not Working"]} placeholder="Playback" />
-                  </Field>
-                </div>
-              </section>
-
-              <section className="space-y-3">
-                <div className="text-xs font-semibold uppercase tracking-wide text-ink-faint">Network</div>
-                <div className="grid grid-cols-3 gap-3">
-                  <Field label="ISP">
-                    <Select value={isp} onChange={setIsp} options={withCurrent(ISP_OPTIONS, isp)} placeholder="ISP" />
-                  </Field>
-                  <Field label="Router Model">
-                    <input value={routerModel ?? ""} onChange={(e) => setRouterModel(e.target.value)} className={inputCls} />
-                  </Field>
-                  <Field label="Internet Type">
-                    <Select value={internetType} onChange={setInternetType} options={withCurrent(INTERNET_TYPES, internetType)} placeholder="Internet Type" />
-                  </Field>
-                </div>
+                <Field label="HDD Capacity">
+                  <input value={hddCapacity ?? ""} onChange={(e) => setHddCapacity(e.target.value)} className={inputCls} />
+                </Field>
               </section>
             </>
           )}

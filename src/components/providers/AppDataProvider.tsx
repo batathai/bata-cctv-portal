@@ -50,7 +50,7 @@ import {
   type MaintenanceFormInput,
 } from "@/lib/maintenanceWrite";
 import { updateRecoveryStageDb, addRecoveryRemarkDb, deleteRecoveryRemarkDb } from "@/lib/recoveryWrite";
-import { deriveOverallStatusFromAsset, deriveRecoveryStatusFromAsset, zoneCode, regionFromZone } from "@/lib/recovery";
+import { zoneCode, regionFromZone } from "@/lib/recovery";
 import { updateStoreDetailsDb, updateAssetDetailsDb, updateHikconnectDetailsDb, relocateAssetDb, uploadQrCodeDb } from "@/lib/assetWrite";
 import { createIncidentTicketDb, updateIncidentTicketStatusDb, type TicketFormInput } from "@/lib/ticketWrite";
 import { uploadAttachment as uploadAttachmentDb, deleteAttachment as deleteAttachmentDb, getAttachmentUrl } from "@/lib/attachmentWrite";
@@ -472,22 +472,25 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     storeId: string,
     patch: { store?: Record<string, any>; asset?: Record<string, any>; hikconnect?: Record<string, any> }
   ) {
-    const currentStore = allStores.find((s) => s.id === storeId);
-    // Recompute both status fields from the resulting asset/hikconnect
-    // condition whenever those are edited — without this, the badges
-    // (overall_status) and the Recovery Tracking classification
-    // (recovery_status) go stale and stop matching what was actually edited.
-    const mergedAsset = patch.asset && currentStore?.asset ? { ...currentStore.asset, ...patch.asset } : patch.asset ?? currentStore?.asset;
-    const mergedHikconnect =
-      patch.hikconnect && currentStore?.hikconnect ? { ...currentStore.hikconnect, ...patch.hikconnect } : patch.hikconnect ?? currentStore?.hikconnect;
-    const statusPatch =
-      patch.asset || patch.hikconnect
-        ? {
-            ...(mergedAsset ? { overall_status: deriveOverallStatusFromAsset(mergedAsset) } : {}),
-            recovery_status: deriveRecoveryStatusFromAsset(mergedAsset ?? null, mergedHikconnect ?? null),
-          }
-        : {};
-    const storePatch = { ...(patch.store ?? {}), ...statusPatch };
+    // overall_status/recovery_status used to be silently recomputed here
+    // from the merged asset/hikconnect condition on every save. That broke
+    // the moment EditableStatusBadge (manual status override) shipped: the
+    // Edit Detail form still always submits an `asset` patch (even when
+    // only e.g. Store Name changed), which re-ran deriveOverallStatusFromAsset
+    // off camera_working/camera_failed/camera_status/hdd_status/
+    // playback_status — fields the form no longer even collects (see
+    // EditAssetModal, pared down to Total/Brand/Model/Serial/Install
+    // Date/Online/HDD Capacity only). Those inputs are permanently stale
+    // now, so the recompute would silently REVERT a manual status override
+    // back to whatever it derived from old import data, the next time
+    // anyone saved an unrelated field on the same store. overall_status is
+    // now purely manual (the pencil-edit on the badge); recovery_status
+    // still gets one narrow, reliable signal — "Device Not Registered" —
+    // from ivms_account, since that field IS still tracked and edited here.
+    const storePatch = { ...(patch.store ?? {}) };
+    if (patch.hikconnect && "ivms_account" in patch.hikconnect && !patch.hikconnect.ivms_account) {
+      storePatch.recovery_status = "Device Not Registered";
+    }
 
     if (isSupabaseConfigured) {
       const supabase = createClient();

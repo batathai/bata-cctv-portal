@@ -125,9 +125,6 @@ export default function StoreDetailPage() {
       <Card className="p-5">
         <SectionTitle icon={Camera}>Cameras</SectionTitle>
         <Row label="Total" value={store.asset?.camera_total} />
-        <Row label="Working" value={store.asset?.camera_working} />
-        <Row label="Failed" value={store.asset?.camera_failed} />
-        {store.asset?.camera_status && <Row label="Status" value={store.asset.camera_status} />}
       </Card>
 
       <Card className="p-5">

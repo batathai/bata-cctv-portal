@@ -77,17 +77,10 @@ export function DeviceIdentityCard({ store, canEdit }: { store: StoreWithAssets;
         <Row label="Brand" value={a.nvr_brand} />
         <Row label="Model" value={a.nvr_model} />
         <Row label="Serial Number" value={<span className="font-mono text-xs">{a.nvr_serial}</span>} />
-        <Row label="Firmware" value={<span className="font-mono text-xs">{a.nvr_firmware}</span>} />
-        <Row label="MAC Address" value={<span className="font-mono text-xs">{a.nvr_mac}</span>} />
-        <Row label="Hik UID" value={<span className="font-mono text-xs">{a.hik_uid ?? "—"}</span>} />
-        <Row label="NVR Install Date" value={a.nvr_install_date} />
         <Row label="Current Store" value={<span className="font-mono text-xs">{store.store_code}</span>} />
 
         <div className="text-xs font-semibold text-ink-faint uppercase tracking-wide mt-4 mb-1">Storage</div>
         <Row label="Capacity" value={a.hdd_capacity} />
-        <Row label="Status" value={a.hdd_status} />
-        <Row label="HDD Install Date" value={a.hdd_install_date} />
-        <Row label="Playback" value={a.playback_status} />
 
         {canEdit && (
           <form onSubmit={handleMove} className="mt-3 flex items-center gap-2 flex-wrap">

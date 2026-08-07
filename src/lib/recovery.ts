@@ -219,11 +219,16 @@ export function getEffectiveRecoveryStage(store: StoreWithAssets, tickets: Incid
 }
 
 /**
- * Recomputes `overall_status` from the asset's own condition — used after
- * Edit Detail saves NVR/Camera/HDD/Playback changes, so the status badge
- * shown everywhere (Device Status, Asset Register, Store Detail) reflects
- * what was actually edited instead of staying stale. Mirrors the same
- * signals as the Health Score breakdown (NVR online, playback, HDD, camera).
+ * NOT currently called from the app — kept for the Health Score module and
+ * as a reference implementation. Used to also run automatically inside
+ * editAssetDetails() on every Edit Detail save, but that broke once
+ * EditableStatusBadge (manual status override) shipped: the Edit Detail
+ * form no longer even collects camera_working/camera_failed/camera_status/
+ * hdd_status/playback_status (see EditAssetModal, pared down to
+ * Total/Brand/Model/Serial/Install Date/Online/HDD Capacity), so this was
+ * silently recomputing off permanently-stale inputs and reverting a manual
+ * status override on the next unrelated save. overall_status is now purely
+ * manual — see AppDataProvider.editAssetDetails's comment.
  *
  * "View Only" is distinct from "Partial": the device can still be watched
  * live (NVR online, camera OK) but has no working recording (HDD failed or
@@ -247,12 +252,10 @@ export function deriveOverallStatusFromAsset(asset: {
 }
 
 /**
- * Recomputes the Recovery Status classification (Normal / Camera Issue /
- * DVR Failure / Device Not Registered) from current asset condition — used
- * alongside deriveOverallStatusFromAsset after Edit Detail changes, so the
- * Recovery Tracking card, Dashboard buckets, and Store List filter all stay
- * in sync with what was actually edited (previously only the health-score
- * style overall_status was recomputed; recovery_status stayed stale).
+ * NOT currently called from the app — see deriveOverallStatusFromAsset's
+ * comment, same reasoning applies. AppDataProvider.editAssetDetails now
+ * only derives the narrower "Device Not Registered" signal directly from
+ * ivms_account (still a reliably-tracked field), rather than calling this.
  */
 export function deriveRecoveryStatusFromAsset(
   asset: {

@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Camera, Wrench, MapPin, Pencil, Ticket as TicketIcon, Fingerprint } from "lucide-react";
 import { useAppData } from "@/components/providers/AppDataProvider";
 import { Card, SectionTitle } from "@/components/ui/Card";
-import { StatusBadge } from "@/components/ui/Badge";
+import { EditableStatusBadge } from "@/components/ui/EditableStatusBadge";
 import { RecoveryStatusBadge } from "@/components/recovery/RecoveryBadges";
 import { EditAssetModal } from "@/components/assets/EditAssetModal";
 import { TicketsCard } from "@/components/assets/TicketsCard";
@@ -79,7 +79,7 @@ export default function StoreDetailPage() {
               <div className="text-xs text-ink-soft dark:text-white/60 mt-1">Tel: {store.phone}</div>
             )}
           </div>
-          <StatusBadge status={store.overall_status} />
+          <EditableStatusBadge storeId={store.id} status={store.overall_status} canEdit={canEditMaster} />
         </div>
       </Card>
 

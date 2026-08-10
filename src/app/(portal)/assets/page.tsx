@@ -14,13 +14,27 @@ import { zoneCode, getAreaLabel, regionFromZone } from "@/lib/recovery";
 export default function AssetRegisterPage() {
   const { stores, loading } = useAppData();
   const [q, setQ] = useState("");
+  const [regionFilter, setRegionFilter] = useState("");
   const [zoneFilter, setZoneFilter] = useState("");
 
+  // Zone options narrow to whichever region is selected, so picking
+  // "Bangkok" doesn't leave stale Upcountry zone codes (520/530/...)
+  // selectable/shown in the Zone dropdown.
+  const zoneOptions = regionFilter ? ZONES.filter((z) => z.region === regionFilter) : ZONES;
+
   const filtered = stores
+    .filter((s) => !regionFilter || regionFromZone(s.zone) === regionFilter)
     .filter((s) => !zoneFilter || zoneCode(s.zone) === zoneFilter)
     .filter((s) =>
       (s.store_name + s.store_code + (s.province ?? "") + zoneCode(s.zone) + getAreaLabel(s.zone)).toLowerCase().includes(q.toLowerCase())
     );
+
+  function onRegionChange(next: string) {
+    setRegionFilter(next);
+    // Drop the zone filter if it no longer belongs to the newly-selected
+    // region (e.g. was "520" and region switched to "Bangkok").
+    if (next && zoneFilter && regionFromZone(zoneFilter) !== next) setZoneFilter("");
+  }
 
   if (loading) return <div className="text-sm text-ink-faint">Loading asset register…</div>;
 
@@ -29,7 +43,8 @@ export default function AssetRegisterPage() {
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <SectionTitle icon={Server}>Asset Register ({filtered.length})</SectionTitle>
         <div className="flex items-center gap-2">
-          <Select value={zoneFilter} onChange={setZoneFilter} options={ZONES.map((z) => z.code)} placeholder="Zone" />
+          <Select value={regionFilter} onChange={onRegionChange} options={["Bangkok", "Upcountry"]} placeholder="Region" />
+          <Select value={zoneFilter} onChange={setZoneFilter} options={zoneOptions.map((z) => z.code)} placeholder="Zone" />
           <div className="relative">
             <Search size={13} className="absolute left-2.5 top-2.5 text-ink-faint" />
             <input

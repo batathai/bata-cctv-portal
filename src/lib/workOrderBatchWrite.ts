@@ -1,4 +1,5 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
+// See src/lib/importWrite.ts for why this is `any`.
+type SupabaseClient = any;
 
 export async function createWorkOrderBatchDb(supabase: SupabaseClient, name: string) {
   const { data, error } = await supabase.from("work_order_batches").insert({ name, status: "Active" }).select().single();

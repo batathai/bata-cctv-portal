@@ -27,11 +27,20 @@ export async function fetchStores(): Promise<StoreWithAssets[]> {
     const asset = Array.isArray(s.cctv_assets) ? s.cctv_assets[0] : s.cctv_assets;
     const hikconnect = Array.isArray(s.hikconnect_devices) ? s.hikconnect_devices[0] : s.hikconnect_devices;
     const cameraOk = asset?.camera_status ? asset.camera_status === "OK" : asset?.camera_failed === 0;
-    const score =
-      (asset?.nvr_online ? 30 : 0) +
-      (asset?.playback_status === "Working" ? 30 : 0) +
-      (asset?.hdd_status === "Healthy" ? 20 : 0) +
-      (asset && cameraOk ? 20 : 0);
+    // A Verified/Completed store is confirmed fixed — treat it as full
+    // marks rather than whatever this formula computes off asset
+    // sub-fields (nvr_online/playback_status/hdd_status/camera_status),
+    // which the Edit Detail form hasn't collected in a long time and so
+    // stay frozen at whatever they were on import. Without this, a store
+    // could show "Healthy" (see overall_status's Verified sync above) next
+    // to a stale, contradictory-looking low Score in the same report row.
+    const isVerifiedDone = s.recovery_stage === "Completed" || s.recovery_stage === "Verified";
+    const score = isVerifiedDone
+      ? 100
+      : (asset?.nvr_online ? 30 : 0) +
+        (asset?.playback_status === "Working" ? 30 : 0) +
+        (asset?.hdd_status === "Healthy" ? 20 : 0) +
+        (asset && cameraOk ? 20 : 0);
     return {
       ...s,
       asset: asset ?? null,

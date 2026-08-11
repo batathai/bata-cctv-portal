@@ -355,16 +355,31 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  // Reaching "Verified" means the repair is confirmed done — sync
+  // overall_status to "Healthy" at that exact moment, once. This is
+  // intentionally narrower than the old "recompute on every save" behavior
+  // removed earlier (see editAssetDetails's comment) — it only fires on
+  // this one unambiguous business event, so it can't clobber a manual
+  // status edit made afterward the way the old blanket recompute did.
+  // Without this, overall_status (what Reports/Dashboard/Asset Register
+  // actually read) never reflects a Work Order being finished at all —
+  // it's a completely separate field from recovery_stage/recovery_status,
+  // and nothing else ever writes to it except the manual pencil-edit badge.
   async function updateRecoveryStage(storeId: string, stage: RecoveryStage, note?: string) {
     const currentStore = allStores.find((s) => s.id === storeId);
     const fromStage = currentStore?.recovery_stage ?? null;
     if (isSupabaseConfigured) {
       const supabase = createClient();
       await updateRecoveryStageDb(supabase, storeId, stage, fromStage, note);
+      if (stage === "Verified") {
+        await updateStoreDetailsDb(supabase, storeId, { overall_status: "Healthy" });
+      }
       setAllStores(await fetchStores());
       setRecoveryStageHistory(await fetchRecoveryStageHistory());
     } else {
-      setAllStores((prev) => prev.map((s) => (s.id === storeId ? { ...s, recovery_stage: stage } : s)));
+      setAllStores((prev) =>
+        prev.map((s) => (s.id === storeId ? { ...s, recovery_stage: stage, ...(stage === "Verified" ? { overall_status: "Healthy" as const } : {}) } : s))
+      );
       setRecoveryStageHistory((prev) => [
         {
           id: `rsh_local_${Date.now()}`,

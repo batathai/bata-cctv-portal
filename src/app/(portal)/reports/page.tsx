@@ -2,17 +2,18 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { FileBarChart, FileText, FileSpreadsheet, UploadCloud, WifiOff } from "lucide-react";
+import { FileBarChart, FileText, FileSpreadsheet, UploadCloud, WifiOff, ClipboardList } from "lucide-react";
 import { useAppData } from "@/components/providers/AppDataProvider";
 import { Card, SectionTitle } from "@/components/ui/Card";
 import { Select } from "@/components/ui/Select";
 import { exportExecutivePdf, exportStoreDetailPdf, exportOfflineStoresPdf } from "@/lib/reports/exportPdf";
-import { exportExecutiveSummaryToExcel, exportStoresToExcel } from "@/lib/reports/exportExcel";
+import { exportExecutiveSummaryToExcel, exportStoresToExcel, exportWorkOrdersToExcel } from "@/lib/reports/exportExcel";
 import { canManageMasterData } from "@/lib/rbac";
 
 export default function ReportsPage() {
-  const { stores, maintenance, role, loading } = useAppData();
+  const { stores, tickets, maintenance, workOrderBatches, role, loading } = useAppData();
   const [selectedCode, setSelectedCode] = useState("");
+  const [selectedBatchName, setSelectedBatchName] = useState("");
 
   if (loading) return <div className="text-sm text-ink-faint">Loading reports…</div>;
 
@@ -89,6 +90,29 @@ export default function ReportsPage() {
               <FileSpreadsheet size={13} className="text-status-healthy" /> Excel
             </button>
           </div>
+        </Card>
+
+        <Card className="p-5 flex flex-col">
+          <SectionTitle icon={ClipboardList}>Work Order Summary</SectionTitle>
+          <p className="text-xs text-ink-faint mb-3">
+            Same layout as the team&apos;s &quot;50 Stores Summary&quot; sheet — Code, Store Name, DM, Status, Online Status, Camera Status,
+            Add Device Status, Cause — computed live from each store&apos;s current Work Order state.
+          </p>
+          <div className="mb-4">
+            <Select value={selectedBatchName} onChange={setSelectedBatchName} options={workOrderBatches.map((b) => b.name)} placeholder="Choose a job" />
+          </div>
+          <button
+            disabled={!selectedBatchName}
+            onClick={() => {
+              const batch = workOrderBatches.find((b) => b.name === selectedBatchName);
+              if (!batch) return;
+              const batchStores = stores.filter((s) => s.batch_id === batch.id);
+              exportWorkOrdersToExcel(batchStores, tickets, `${batch.name.replace(/[^\w\- ]+/g, "").trim()}.xlsx`);
+            }}
+            className="flex items-center justify-center gap-1.5 text-xs font-medium border border-black/10 dark:border-white/10 rounded-md py-2 hover:bg-surface-muted dark:hover:bg-white/5 disabled:opacity-40"
+          >
+            <FileSpreadsheet size={13} className="text-status-healthy" /> Export Excel
+          </button>
         </Card>
       </div>
     </div>

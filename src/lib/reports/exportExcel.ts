@@ -1,5 +1,5 @@
 import * as XLSX from "xlsx";
-import type { StoreWithAssets, MaintenanceRecord, IncidentTicket, RecoveryStatus } from "@/types/database";
+import type { StoreWithAssets, MaintenanceRecord, IncidentTicket, RecoveryStatus, RecoveryStageHistoryEntry } from "@/types/database";
 import { regionFromZone, zoneCode, deriveRecoveryStatus, getEffectiveRecoveryStage } from "@/lib/recovery";
 
 function download(wb: XLSX.WorkBook, filename: string) {
@@ -95,12 +95,28 @@ function addDeviceStatusLabel(store: StoreWithAssets): string {
 /**
  * Matches the exact column layout of the team's own "50 Stores Summary"
  * reference file (Code / Store Name / DM / Status / Online Status / Camera
- * Status / Add Device Status / Cause) — every value is computed live from
- * the current store + ticket state, not the original import snapshot.
+ * Status / Add Device Status / Cause), plus a Remark column — every value
+ * is computed live from the current store + ticket + stage-history state,
+ * not the original import snapshot. That's intentional: a store that's
+ * since been fixed and Verified will show "ใช้งานปกติ"/"OK"/"Online" here
+ * even though the original reference file recorded it as "DVR Failure" —
+ * this export reflects the CURRENT Work Order state. `history` should be
+ * the full recoveryStageHistory list (unfiltered — this function filters
+ * per store itself).
  */
-export function exportWorkOrdersToExcel(stores: StoreWithAssets[], tickets: IncidentTicket[], filename = "work-orders-summary.xlsx") {
+export function exportWorkOrdersToExcel(
+  stores: StoreWithAssets[],
+  tickets: IncidentTicket[],
+  history: RecoveryStageHistoryEntry[],
+  filename = "work-orders-summary.xlsx"
+) {
   const rows = stores.map((s) => {
     const stage = getEffectiveRecoveryStage(s, tickets);
+    // Most recent note left against this store, current-stage remarks and
+    // actual stage-transition notes alike — whichever was logged last.
+    const latestNote = [...history]
+      .filter((h) => h.store_id === s.id && h.note)
+      .sort((a, b) => (a.changed_at < b.changed_at ? 1 : -1))[0]?.note;
     return {
       Code: s.store_code,
       "Store Name": s.store_name,
@@ -110,6 +126,7 @@ export function exportWorkOrdersToExcel(stores: StoreWithAssets[], tickets: Inci
       "Camera Status": cameraStatusLabel(s),
       "Add Device Status": addDeviceStatusLabel(s),
       Cause: CAUSE_LABEL[deriveRecoveryStatus(s)],
+      Remark: latestNote ?? s.recovery_notes ?? "",
     };
   });
   const ws = XLSX.utils.json_to_sheet(rows);

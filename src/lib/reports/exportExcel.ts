@@ -1,6 +1,7 @@
 import * as XLSX from "xlsx";
 import type { StoreWithAssets, MaintenanceRecord, IncidentTicket, RecoveryStatus, RecoveryStageHistoryEntry } from "@/types/database";
 import { regionFromZone, zoneCode, deriveRecoveryStatus, getEffectiveRecoveryStage } from "@/lib/recovery";
+import { getStatusLabel } from "@/components/ui/Badge";
 
 function download(wb: XLSX.WorkBook, filename: string) {
   XLSX.writeFile(wb, filename);
@@ -14,8 +15,7 @@ export function exportStoresToExcel(stores: StoreWithAssets[], filename = "bata-
     Zone: zoneCode(s.zone),
     Province: s.province,
     Supplier: s.supplierName,
-    "Overall Status": s.overall_status,
-    "Health Score": s.healthScore,
+    Status: getStatusLabel(s.overall_status),
     "NVR Brand": s.asset?.nvr_brand,
     "NVR Model": s.asset?.nvr_model,
     "NVR Serial": s.asset?.nvr_serial,
@@ -135,27 +135,39 @@ export function exportWorkOrdersToExcel(
   download(wb, filename);
 }
 
+/**
+ * "Healthy"/"Health Score" are internal keys/metrics that don't exist
+ * anywhere in the actual product UI — the app only ever shows the person
+ * Online/Partial/Offline/Unknown (see the status-edit dropdown on any store),
+ * and no numeric score at all. This export mirrors exactly that: real status
+ * labels via getStatusLabel (the same mapping the on-screen badges use), no
+ * score/points anywhere.
+ */
 export function exportExecutiveSummaryToExcel(stores: StoreWithAssets[], filename = "bata-executive-summary.xlsx") {
   const counts = { Healthy: 0, Partial: 0, Offline: 0, Unknown: 0 } as Record<string, number>;
   stores.forEach((s) => (counts[s.overall_status] = (counts[s.overall_status] ?? 0) + 1));
-  const avg = stores.length ? Math.round(stores.reduce((a, s) => a + s.healthScore, 0) / stores.length) : 0;
 
   const summaryRows = [
     { Metric: "Total Stores", Value: stores.length },
-    { Metric: "Healthy", Value: counts.Healthy ?? 0 },
+    { Metric: "Online", Value: counts.Healthy ?? 0 },
     { Metric: "Partial", Value: counts.Partial ?? 0 },
     { Metric: "Offline", Value: counts.Offline ?? 0 },
     { Metric: "Unknown", Value: counts.Unknown ?? 0 },
-    { Metric: "Average Health Score", Value: avg },
   ];
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryRows), "Summary");
   XLSX.utils.book_append_sheet(
     wb,
     XLSX.utils.json_to_sheet(
-      stores.map((s) => ({ "Store Code": s.store_code, "Store Name": s.store_name, Zone: s.zone, Status: s.overall_status, Score: s.healthScore }))
+      stores.map((s) => ({
+        "Store Code": s.store_code,
+        "Store Name": s.store_name,
+        Region: regionFromZone(s.zone),
+        Zone: zoneCode(s.zone),
+        Status: getStatusLabel(s.overall_status),
+      }))
     ),
-    "Store Scores"
+    "Store Status"
   );
   download(wb, filename);
 }

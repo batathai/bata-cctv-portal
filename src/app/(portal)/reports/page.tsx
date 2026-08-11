@@ -81,7 +81,7 @@ export default function ReportsPage() {
         <Card className="p-5 flex flex-col">
           <SectionTitle icon={FileBarChart}>Executive Report</SectionTitle>
           <p className="text-xs text-ink-faint flex-1 mb-4">
-            Fleet-wide status breakdown, average health score, and full store ranking — for leadership review.
+            Fleet-wide status breakdown and full store list — for leadership review.
           </p>
           <div className="flex gap-2">
             <button onClick={() => exportExecutivePdf(stores)} className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium border border-black/10 dark:border-white/10 rounded-md py-2 hover:bg-surface-muted dark:hover:bg-white/5">

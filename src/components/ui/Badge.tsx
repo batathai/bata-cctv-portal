@@ -8,6 +8,13 @@ const CONFIG: Record<OverallStatus, { color: string; bg: string; icon: any; labe
   Unknown: { color: "text-status-unknown", bg: "bg-status-unknown/10 border-status-unknown/30", icon: HelpCircle, label: "Unknown" },
 };
 
+// The rest of the app (reports, exports, anywhere else) should call this
+// instead of re-typing "Healthy" -> "Online" itself — CONFIG above is the
+// one place that mapping is defined.
+export function getStatusLabel(status: OverallStatus): string {
+  return CONFIG[status]?.label ?? status;
+}
+
 export function StatusBadge({ status }: { status: OverallStatus }) {
   // Defensive fallback: renders Unknown instead of crashing if `status` is
   // ever something CONFIG doesn't recognize — e.g. a store still carrying

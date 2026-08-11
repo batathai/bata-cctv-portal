@@ -2,6 +2,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { StoreWithAssets, MaintenanceRecord } from "@/types/database";
 import { regionFromZone, zoneCode } from "@/lib/recovery";
+import { getStatusLabel } from "@/components/ui/Badge";
 
 const BRAND_RED = "#D71920";
 
@@ -36,25 +37,24 @@ export function exportExecutivePdf(stores: StoreWithAssets[]) {
 
   const counts = { Healthy: 0, Partial: 0, Offline: 0, Unknown: 0 } as Record<string, number>;
   stores.forEach((s) => (counts[s.overall_status] = (counts[s.overall_status] ?? 0) + 1));
-  const avg = stores.length ? Math.round(stores.reduce((a, s) => a + s.healthScore, 0) / stores.length) : 0;
 
   doc.setFontSize(11);
-  doc.text(`Total stores: ${stores.length}    Average health score: ${avg}`, 14, 30);
+  doc.text(`Total stores: ${stores.length}`, 14, 30);
 
   autoTable(doc, {
     startY: 36,
     head: [["Status", "Count"]],
-    body: (["Healthy", "Partial", "Offline", "Unknown"] as const).map((k) => [k, String(counts[k] ?? 0)]),
+    body: (["Healthy", "Partial", "Offline", "Unknown"] as const).map((k) => [getStatusLabel(k), String(counts[k] ?? 0)]),
     headStyles: { fillColor: [51, 51, 51] },
   });
 
   const y = (doc as any).lastAutoTable.finalY + 10;
   autoTable(doc, {
     startY: y,
-    head: [["Store Code", "Store Name", "Zone", "Status", "Score"]],
+    head: [["Store Code", "Store Name", "Zone", "Status"]],
     body: [...stores]
-      .sort((a, b) => b.healthScore - a.healthScore)
-      .map((s) => [s.store_code, s.store_name, zoneCode(s.zone), s.overall_status, String(s.healthScore)]),
+      .sort((a, b) => a.store_code.localeCompare(b.store_code))
+      .map((s) => [s.store_code, s.store_name, zoneCode(s.zone), getStatusLabel(s.overall_status)]),
     headStyles: { fillColor: [215, 25, 32] },
     styles: { fontSize: 8 },
   });
@@ -71,7 +71,7 @@ export function exportStoreDetailPdf(store: StoreWithAssets, records: Maintenanc
   doc.text(`${store.store_name} (${store.store_code})`, 14, 30);
   doc.setFontSize(9);
   doc.text(`${regionFromZone(store.zone)} / Zone ${zoneCode(store.zone)} — ${store.province ?? ""}`, 14, 36);
-  doc.text(`Overall Status: ${store.overall_status}    Health Score: ${store.healthScore}`, 14, 42);
+  doc.text(`Overall Status: ${getStatusLabel(store.overall_status)}`, 14, 42);
 
   autoTable(doc, {
     startY: 48,
@@ -116,7 +116,7 @@ export function exportOfflineStoresPdf(stores: StoreWithAssets[]) {
       s.store_code,
       s.store_name,
       zoneCode(s.zone),
-      s.overall_status,
+      getStatusLabel(s.overall_status),
       s.supplierName,
       s.asset?.nvr_online ? "Yes" : "No",
       s.hikconnect?.last_verified_date ?? "—",

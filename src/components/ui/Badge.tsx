@@ -9,7 +9,13 @@ const CONFIG: Record<OverallStatus, { color: string; bg: string; icon: any; labe
 };
 
 export function StatusBadge({ status }: { status: OverallStatus }) {
-  const c = CONFIG[status];
+  // Defensive fallback: renders Unknown instead of crashing if `status` is
+  // ever something CONFIG doesn't recognize — e.g. a store still carrying
+  // the retired "View Only" value because migration 015 (which reclassifies
+  // it to "Partial") hasn't been run against the live database yet. Without
+  // this, CONFIG[status] is undefined and the whole page throws a client-side
+  // exception the moment it tries to render that one store's badge.
+  const c = CONFIG[status] ?? CONFIG.Unknown;
   const Icon = c.icon;
   return (
     <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border ${c.color} ${c.bg}`}>

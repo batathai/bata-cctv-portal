@@ -19,6 +19,7 @@ import type { RecoveryStage, StoreWithAssets } from "@/types/database";
  * (migration 017) existed; scoping logic is otherwise unchanged, just
  * filtered by `batch_id === this batch` instead of `is_recovery50`.
  */
+export const runtime = 'edge';
 export default function WorkOrderBatchDetailPage() {
   const { batchId } = useParams<{ batchId: string }>();
   const router = useRouter();

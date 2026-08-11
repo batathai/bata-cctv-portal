@@ -5,7 +5,7 @@
 
 import type { UserRole } from "@/lib/rbac";
 export type { UserRole } from "@/lib/rbac";
-export type OverallStatus = "Healthy" | "Partial" | "View Only" | "Offline" | "Unknown";
+export type OverallStatus = "Healthy" | "Partial" | "Offline" | "Unknown";
 
 // --- Sprint 1: Recovery Dashboard (first 50 priority stores) ---
 export type RecoveryRegion = "BKK" | "Country";
@@ -56,6 +56,24 @@ export interface Store {
   // Cause/Required Action so notes that don't fit either can still be
   // captured (e.g. "รอ vendor ยืนยันวันเข้างาน").
   recovery_notes?: string | null;
+  // Which Work Order "Job" this store currently belongs to (migration 017)
+  // — replaces is_recovery50 as the actual scoping mechanism; that field is
+  // left in place but unused going forward (it could only ever represent
+  // one batch). null = not currently part of any job.
+  batch_id?: string | null;
+}
+
+// A round of work orders — "Job 1: 50-Store Pilot", "Job 2: ...", etc. The
+// Work Orders page lists these; opening one shows just the stores whose
+// `batch_id` matches. Closing a batch (status: "Closed") moves it to the
+// History section without touching any of the stores/tickets/stage data
+// underneath — purely a grouping/visibility concept.
+export interface WorkOrderBatch {
+  id: string;
+  name: string;
+  status: "Active" | "Closed";
+  created_at: string;
+  closed_at: string | null;
 }
 
 export interface CctvAsset {

@@ -2,92 +2,41 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ClipboardList, Search, FileText, Plus } from "lucide-react";
+import { ClipboardList, Plus, Archive, CheckCircle2, Loader2, AlertCircle } from "lucide-react";
 import { useAppData } from "@/components/providers/AppDataProvider";
 import { Card, SectionTitle } from "@/components/ui/Card";
-import { StatCard } from "@/components/ui/StatCard";
-import { StatusBadge } from "@/components/ui/Badge";
-import { RecoveryStageBadge } from "@/components/recovery/RecoveryBadges";
-import { NewTicketModal } from "@/components/work-orders/NewTicketModal";
-import { RECOVERY_STAGES, needsRepair, getEffectiveRecoveryStage, getRecoveryRegion, getAreaLabel } from "@/lib/recovery";
+import { needsRepair, getEffectiveRecoveryStage } from "@/lib/recovery";
 import { canLogMaintenance } from "@/lib/rbac";
-import type { RecoveryStage, StoreWithAssets } from "@/types/database";
 
 /**
- * Sprint 4 - Work Orders: a dedicated, actionable list of every
- * store currently in the repair pipeline — separate from the general
- * Store List, which mixes in every store regardless of repair status.
- * Clicking a row opens /recovery/[code], which now has the stage timeline
- * + update form (see StageTimeline.tsx).
+ * Work Orders "Jobs" — a round of work orders (e.g. "Job 1: 50-Store
+ * Pilot") is its own batch (migration 017), not a single hardcoded scope
+ * like the old is_recovery50 flag. This page lists every batch; opening one
+ * (/work-orders/[batchId]) shows just its stores — what used to be this
+ * entire page. Closing a batch here moves it to History without touching
+ * any of the underlying store/ticket/stage data.
  */
-export default function WorkOrdersPage() {
-  const { stores, tickets, recoveryStageHistory, loading, role } = useAppData();
-  const [stageFilter, setStageFilter] = useState<RecoveryStage | "">("");
-  const [showDone, setShowDone] = useState(false);
-  const [q, setQ] = useState("");
-  const [showNewTicket, setShowNewTicket] = useState(false);
-  const canOpenTicket = canLogMaintenance(role);
+export default function WorkOrdersBatchListPage() {
+  const { stores, tickets, workOrderBatches, loading, role } = useAppData();
+  const [showNewBatch, setShowNewBatch] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const canManage = canLogMaintenance(role);
 
-  const workOrderStores = useMemo(() => stores.filter((s) => needsRepair(s, tickets)), [stores, tickets]);
-
-  // Every count on this page is derived from the same per-store bucket
-  // (getEffectiveRecoveryStage) so they can never drift apart again: the
-  // stage-breakdown cards sum to workOrderStores.length by construction, and
-  // "Total Open" is that same total (every work order ever opened for a
-  // store, regardless of how far along it is — including Completed/Verified).
-  const stageCounts = useMemo(() => {
-    const c: Record<RecoveryStage, number> = {
-      "Waiting Vendor Quote": 0,
-      "Waiting Approval": 0,
-      "Waiting Repair": 0,
-      Repairing: 0,
-      Completed: 0,
-      Verified: 0,
-    };
-    workOrderStores.forEach((s) => {
+  const countsByBatch = useMemo(() => {
+    const m = new Map<string, { total: number; open: number }>();
+    stores.forEach((s) => {
+      if (!s.batch_id) return;
+      const entry = m.get(s.batch_id) ?? { total: 0, open: 0 };
+      entry.total += 1;
       const stage = getEffectiveRecoveryStage(s, tickets);
-      c[stage] = (c[stage] ?? 0) + 1;
-    });
-    return c;
-  }, [workOrderStores, tickets]);
-
-  const openCount = useMemo(() => RECOVERY_STAGES.reduce((sum, stage) => sum + stageCounts[stage], 0), [stageCounts]);
-
-  const earliestChangeByStore = useMemo(() => {
-    const m = new Map<string, string>();
-    recoveryStageHistory.forEach((h) => {
-      const existing = m.get(h.store_id);
-      if (!existing || h.changed_at < existing) m.set(h.store_id, h.changed_at);
+      if (needsRepair(s, tickets) && stage !== "Completed" && stage !== "Verified") entry.open += 1;
+      m.set(s.batch_id, entry);
     });
     return m;
-  }, [recoveryStageHistory]);
+  }, [stores, tickets]);
 
-  function daysOpen(store: StoreWithAssets): number | null {
-    const opened = earliestChangeByStore.get(store.id);
-    if (!opened) return null;
-    return Math.max(0, Math.floor((Date.now() - new Date(opened).getTime()) / 86400000));
-  }
-
-  const filtered = useMemo(() => {
-    return workOrderStores.filter((s) => {
-      const stage = getEffectiveRecoveryStage(s, tickets);
-      if (!showDone && (stage === "Completed" || stage === "Verified")) return false;
-      if (stageFilter && stage !== stageFilter) return false;
-      if (q && !(s.store_name + s.store_code).toLowerCase().includes(q.toLowerCase())) return false;
-      return true;
-    });
-  }, [workOrderStores, tickets, showDone, stageFilter, q]);
-
-  const sorted = useMemo(
-    () =>
-      [...filtered].sort((a, b) => {
-        const ai = RECOVERY_STAGES.indexOf(getEffectiveRecoveryStage(a, tickets));
-        const bi = RECOVERY_STAGES.indexOf(getEffectiveRecoveryStage(b, tickets));
-        if (ai !== bi) return ai - bi;
-        return a.store_code.localeCompare(b.store_code);
-      }),
-    [filtered, tickets]
-  );
+  const active = workOrderBatches.filter((b) => b.status === "Active").sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+  const closed = workOrderBatches.filter((b) => b.status === "Closed").sort((a, b) => ((a.closed_at ?? "") < (b.closed_at ?? "") ? 1 : -1));
 
   if (loading) return <div className="text-sm text-ink-faint">Loading work orders…</div>;
 
@@ -96,94 +45,138 @@ export default function WorkOrdersPage() {
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h1 className="font-display text-lg font-bold text-ink dark:text-white">Work Orders</h1>
-          <p className="text-sm text-ink-faint mt-0.5">
-            {openCount} store(s) tracked in the work order system &middot; click a row to view details and update its status step by step
-          </p>
+          <p className="text-sm text-ink-faint mt-0.5">Each round of work is its own job — open one to track and update its stores.</p>
         </div>
-        {canOpenTicket && (
+        {canManage && (
           <button
-            onClick={() => setShowNewTicket(true)}
+            onClick={() => setShowNewBatch(true)}
             className="flex items-center gap-1.5 text-xs font-medium bg-brand text-white rounded-md px-3 py-2 shrink-0 hover:opacity-90"
           >
-            <Plus size={14} /> New Ticket
+            <Plus size={14} /> New Job
           </button>
         )}
       </div>
 
-      {showNewTicket && <NewTicketModal onClose={() => setShowNewTicket(false)} />}
-
-      <div className="flex flex-wrap gap-3">
-        <StatCard
-          label="Total Open"
-          value={openCount}
-          colorClass="text-brand"
-          onClick={() => {
-            setStageFilter("");
-            setShowDone(true);
-          }}
-          active={!stageFilter && showDone}
-        />
-        {RECOVERY_STAGES.map((stage) => (
-          <StatCard
-            key={stage}
-            label={stage}
-            value={stageCounts[stage]}
-            onClick={() => {
-              setStageFilter(stage);
-              setShowDone(stage === "Completed" || stage === "Verified");
-            }}
-            active={stageFilter === stage}
-          />
-        ))}
-      </div>
+      {showNewBatch && <NewBatchModal onClose={() => setShowNewBatch(false)} />}
 
       <Card className="p-4">
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
-          <SectionTitle icon={ClipboardList}>Work Orders ({sorted.length})</SectionTitle>
-          <div className="flex items-center gap-3">
-            <label className="flex items-center gap-1.5 text-xs text-ink-soft dark:text-white/60">
-              <input type="checkbox" checked={showDone} onChange={(e) => setShowDone(e.target.checked)} />
-              Show completed too
-            </label>
-            <div className="relative">
-              <Search size={13} className="absolute left-2.5 top-2.5 text-ink-faint" />
-              <input
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                placeholder="Search store / store code"
-                className="pl-8 pr-3 py-1.5 text-sm rounded-md border border-black/10 dark:border-white/10 bg-surface-muted dark:bg-white/5 outline-none focus:border-brand w-60"
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="divide-y divide-black/5 dark:divide-white/5">
-          {sorted.map((s) => {
-            const days = daysOpen(s);
+        <SectionTitle icon={ClipboardList}>Active Jobs ({active.length})</SectionTitle>
+        {active.length === 0 && <p className="text-sm text-ink-faint py-3">No active jobs. Create one to start tracking work orders.</p>}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-2">
+          {active.map((b) => {
+            const c = countsByBatch.get(b.id) ?? { total: 0, open: 0 };
             return (
               <Link
-                key={s.id}
-                href={`/recovery/${s.store_code}`}
-                className="flex items-center gap-3 py-3 flex-wrap hover:bg-surface-muted dark:hover:bg-white/5 -mx-2 px-2 rounded-md"
+                key={b.id}
+                href={`/work-orders/${b.id}`}
+                className="block rounded-md border border-black/10 dark:border-white/10 p-4 hover:border-brand hover:shadow-sm transition"
               >
-                <div className="min-w-0 flex-1">
-                  <div className="text-sm font-medium text-ink dark:text-white truncate">{s.store_name}</div>
-                  <div className="font-mono text-[11px] text-ink-faint">
-                    {s.store_code} &middot; {getRecoveryRegion(s.zone)} &middot; {getAreaLabel(s.zone)}
+                <div className="text-sm font-medium text-ink dark:text-white">{b.name}</div>
+                <div className="text-xs text-ink-faint mt-1">
+                  Opened {new Date(b.created_at).toLocaleDateString("th-TH", { dateStyle: "medium" })}
+                </div>
+                <div className="flex items-center gap-3 mt-3">
+                  <div>
+                    <div className="font-display text-xl font-bold text-brand">{c.open}</div>
+                    <div className="text-[11px] text-ink-faint uppercase tracking-wide">Open</div>
+                  </div>
+                  <div>
+                    <div className="font-display text-xl font-bold text-ink dark:text-white">{c.total}</div>
+                    <div className="text-[11px] text-ink-faint uppercase tracking-wide">Total</div>
                   </div>
                 </div>
-                {days != null && <span className="text-xs text-ink-faint shrink-0 hidden sm:inline">{days} days</span>}
-                <StatusBadge status={s.overall_status} />
-                <RecoveryStageBadge stage={getEffectiveRecoveryStage(s, tickets)} />
-                <span className="flex items-center gap-1.5 text-xs font-medium border border-black/10 dark:border-white/10 rounded-md px-3 py-1.5 shrink-0">
-                  <FileText size={13} /> View Order
-                </span>
               </Link>
             );
           })}
-          {sorted.length === 0 && <p className="text-sm text-ink-faint py-4">No work orders match the current filter</p>}
         </div>
       </Card>
+
+      <Card className="p-4">
+        <button onClick={() => setShowHistory((v) => !v)} className="flex items-center gap-2 w-full">
+          <Archive size={15} className="text-ink-faint" />
+          <span className="text-sm font-semibold text-ink dark:text-white">History — Closed Jobs ({closed.length})</span>
+        </button>
+        {showHistory && (
+          <div className="mt-3 divide-y divide-black/5 dark:divide-white/5">
+            {closed.length === 0 && <p className="text-sm text-ink-faint py-3">No closed jobs yet.</p>}
+            {closed.map((b) => {
+              const c = countsByBatch.get(b.id) ?? { total: 0, open: 0 };
+              return (
+                <Link
+                  key={b.id}
+                  href={`/work-orders/${b.id}`}
+                  className="flex items-center justify-between gap-3 py-3 hover:bg-surface-muted dark:hover:bg-white/5 -mx-2 px-2 rounded-md"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <CheckCircle2 size={15} className="text-status-healthy shrink-0" />
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium text-ink dark:text-white truncate">{b.name}</div>
+                      <div className="text-xs text-ink-faint">
+                        Closed {b.closed_at ? new Date(b.closed_at).toLocaleDateString("th-TH", { dateStyle: "medium" }) : "—"}
+                      </div>
+                    </div>
+                  </div>
+                  <span className="text-xs text-ink-faint shrink-0">{c.total} store(s)</span>
+                </Link>
+              );
+            })}
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+function NewBatchModal({ onClose }: { onClose: () => void }) {
+  const { createWorkOrderBatch } = useAppData();
+  const [name, setName] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function save() {
+    if (!name.trim()) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const batch = await createWorkOrderBatch(name.trim());
+      window.location.href = `/work-orders/${batch.id}`;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not create job.");
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="bg-white dark:bg-surface-dark rounded-lg shadow-xl w-full max-w-sm p-5" onClick={(e) => e.stopPropagation()}>
+        <h2 className="text-sm font-semibold text-ink dark:text-white mb-3">New Job</h2>
+        <label className="text-xs text-ink-faint block mb-1">Job name</label>
+        <input
+          autoFocus
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder='e.g. "Job 2: Q3 Round"'
+          className="w-full text-sm border border-black/10 dark:border-white/10 rounded-md px-3 py-2 bg-surface-muted dark:bg-white/5 outline-none focus:border-brand"
+        />
+        {error && (
+          <p className="text-xs text-brand flex items-start gap-1.5 mt-2">
+            <AlertCircle size={12} className="shrink-0 mt-0.5" /> {error}
+          </p>
+        )}
+        <div className="flex justify-end gap-2 mt-4">
+          <button onClick={onClose} disabled={saving} className="text-xs font-medium text-ink-soft dark:text-white/60 rounded-md px-3 py-1.5 disabled:opacity-60">
+            Cancel
+          </button>
+          <button
+            onClick={save}
+            disabled={saving || !name.trim()}
+            className="flex items-center gap-1.5 text-xs font-medium bg-brand text-white rounded-md px-3 py-1.5 disabled:opacity-60"
+          >
+            {saving && <Loader2 size={12} className="animate-spin" />}
+            Create &amp; open
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

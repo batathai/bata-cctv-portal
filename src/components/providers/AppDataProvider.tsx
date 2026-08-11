@@ -9,6 +9,7 @@ import {
   fetchIncidentTickets,
   fetchAttachments,
   fetchRecoveryStageHistory,
+  fetchWorkOrderBatches,
 } from "@/lib/data";
 import { fetchCurrentProfile } from "@/lib/profile";
 import { type UserRole, ROLE_LABELS } from "@/lib/rbac";
@@ -22,6 +23,7 @@ import type {
   Attachment,
   AttachmentFolder,
   RecoveryStageHistoryEntry,
+  WorkOrderBatch,
 } from "@/types/database";
 import { SUPPLIERS } from "@/lib/mockData";
 import {
@@ -50,6 +52,7 @@ import {
   type MaintenanceFormInput,
 } from "@/lib/maintenanceWrite";
 import { updateRecoveryStageDb, addRecoveryRemarkDb, deleteRecoveryRemarkDb } from "@/lib/recoveryWrite";
+import { createWorkOrderBatchDb, setWorkOrderBatchStatusDb } from "@/lib/workOrderBatchWrite";
 import { zoneCode, regionFromZone } from "@/lib/recovery";
 import { updateStoreDetailsDb, updateAssetDetailsDb, updateHikconnectDetailsDb, relocateAssetDb, uploadQrCodeDb } from "@/lib/assetWrite";
 import { createIncidentTicketDb, updateIncidentTicketStatusDb, type TicketFormInput } from "@/lib/ticketWrite";
@@ -83,6 +86,7 @@ interface AppDataContextValue {
   vendorQuotations: VendorQuotation[];
   tickets: IncidentTicket[];
   recoveryStageHistory: RecoveryStageHistoryEntry[];
+  workOrderBatches: WorkOrderBatch[];
   attachments: Attachment[];
   suppliers: string[];
   importBatches: ImportBatch[];
@@ -99,6 +103,10 @@ interface AppDataContextValue {
   updateRecoveryStage: (storeId: string, stage: RecoveryStage, note?: string) => Promise<void>;
   addRecoveryRemark: (storeId: string, stage: RecoveryStage, note: string) => Promise<void>;
   deleteRecoveryRemark: (historyId: string) => Promise<void>;
+  createWorkOrderBatch: (name: string) => Promise<WorkOrderBatch>;
+  closeWorkOrderBatch: (batchId: string) => Promise<void>;
+  reopenWorkOrderBatch: (batchId: string) => Promise<void>;
+  assignStoreToBatch: (storeId: string, batchId: string) => Promise<void>;
   createTicket: (input: TicketFormInput) => Promise<void>;
   updateTicketStatus: (ticketId: string, status: TicketStatus) => Promise<void>;
   uploadAttachment: (storeCode: string, storeId: string, folder: AttachmentFolder, file: File) => Promise<void>;
@@ -127,6 +135,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   const [vendorQuotations, setVendorQuotations] = useState<VendorQuotation[]>([]);
   const [tickets, setTickets] = useState<IncidentTicket[]>([]);
   const [recoveryStageHistory, setRecoveryStageHistory] = useState<RecoveryStageHistoryEntry[]>([]);
+  const [workOrderBatches, setWorkOrderBatches] = useState<WorkOrderBatch[]>([]);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [importBatches, setImportBatches] = useState<ImportBatch[]>([]);
 
@@ -141,7 +150,8 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       fetchIncidentTickets(),
       fetchAttachments(),
       fetchRecoveryStageHistory(),
-    ]).then(([s, m, a, profileResult, vq, tk, att, rsh]) => {
+      fetchWorkOrderBatches(),
+    ]).then(([s, m, a, profileResult, vq, tk, att, rsh, wob]) => {
         if (!mounted) return;
         setAllStores(s);
         setMaintenance(m);
@@ -150,6 +160,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         setTickets(tk);
         setAttachments(att);
         setRecoveryStageHistory(rsh);
+        setWorkOrderBatches(wob);
         if (profileResult.status === "ok") {
           setRole(profileResult.profile.role);
         } else if (profileResult.status === "not_provisioned") {
@@ -390,6 +401,39 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  async function createWorkOrderBatch(name: string): Promise<WorkOrderBatch> {
+    if (isSupabaseConfigured) {
+      const supabase = createClient();
+      const created = await createWorkOrderBatchDb(supabase, name);
+      setWorkOrderBatches(await fetchWorkOrderBatches());
+      return created as WorkOrderBatch;
+    }
+    const batch: WorkOrderBatch = { id: `batch_local_${Date.now()}`, name, status: "Active", created_at: new Date().toISOString(), closed_at: null };
+    setWorkOrderBatches((prev) => [batch, ...prev]);
+    return batch;
+  }
+
+  async function setBatchStatus(batchId: string, status: "Active" | "Closed") {
+    if (isSupabaseConfigured) {
+      const supabase = createClient();
+      await setWorkOrderBatchStatusDb(supabase, batchId, status);
+      setWorkOrderBatches(await fetchWorkOrderBatches());
+    } else {
+      setWorkOrderBatches((prev) =>
+        prev.map((b) => (b.id === batchId ? { ...b, status, closed_at: status === "Closed" ? new Date().toISOString() : null } : b))
+      );
+    }
+  }
+  const closeWorkOrderBatch = (batchId: string) => setBatchStatus(batchId, "Closed");
+  const reopenWorkOrderBatch = (batchId: string) => setBatchStatus(batchId, "Active");
+
+  // Assigning a store to a batch is just a normal store field patch — reuses
+  // the same write path as everything else in editAssetDetails, no new DB
+  // function needed.
+  async function assignStoreToBatch(storeId: string, batchId: string) {
+    await editAssetDetails(storeId, { store: { batch_id: batchId } });
+  }
+
   async function createTicket(input: TicketFormInput) {
     if (isSupabaseConfigured) {
       const supabase = createClient();
@@ -567,6 +611,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     vendorQuotations,
     tickets,
     recoveryStageHistory,
+    workOrderBatches,
     attachments,
     suppliers: SUPPLIERS,
     importBatches,
@@ -578,6 +623,10 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     updateRecoveryStage,
     addRecoveryRemark,
     deleteRecoveryRemark,
+    createWorkOrderBatch,
+    closeWorkOrderBatch,
+    reopenWorkOrderBatch,
+    assignStoreToBatch,
     createTicket,
     updateTicketStatus,
     uploadAttachment,

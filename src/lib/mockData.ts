@@ -11,6 +11,7 @@ import type {
   TicketStatus,
   Attachment,
   RecoveryStageHistoryEntry,
+  WorkOrderBatch,
 } from "@/types/database";
 
 // Deterministic PRNG so demo data is stable across reloads.
@@ -341,5 +342,16 @@ export function generateMockData() {
       notes: null,
     }));
 
-  return { stores, records, audits, vendorQuotations, tickets, attachments, recoveryStageHistory: stageHistory };
+  // Sprint 5 - Work Order "Jobs": mock data has always been exactly the 50
+  // pilot stores (ZONES' counts sum to 50), so there's no "stray" bucket to
+  // demo here — just the one batch, all 50 stores in it.
+  const WORK_ORDER_BATCH_ID = "batch_0001";
+  const workOrderBatches: WorkOrderBatch[] = [
+    { id: WORK_ORDER_BATCH_ID, name: "Job 1: 50-Store Pilot", status: "Active", created_at: "2026-07-01T00:00:00.000Z", closed_at: null },
+  ];
+  stores.forEach((s) => {
+    s.batch_id = WORK_ORDER_BATCH_ID;
+  });
+
+  return { stores, records, audits, vendorQuotations, tickets, attachments, recoveryStageHistory: stageHistory, workOrderBatches };
 }

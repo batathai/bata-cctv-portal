@@ -9,16 +9,21 @@ import { needsRepair } from "@/lib/recovery";
 import type { StoreWithAssets, TicketIssueType } from "@/types/database";
 
 /**
- * Sprint 5 - lets a manager open a Work Order directly from the Work Orders
- * page, instead of having to open each store's Asset Register detail page
- * first. Under the hood this creates an incident_ticket exactly like
- * TicketsCard does (see src/components/assets/TicketsCard.tsx) — the store
- * then shows up on this page automatically via needsRepair(), no separate
- * "work order" row to create. Built for onboarding a batch of real stores
- * (e.g. the first 50) quickly, one after another.
+ * Sprint 5 - lets a manager open a Work Order directly from a Job's page,
+ * instead of having to open each store's Asset Register detail page first.
+ * Under the hood this creates an incident_ticket exactly like TicketsCard
+ * does (see src/components/assets/TicketsCard.tsx) — the store then shows
+ * up on the job's page automatically via needsRepair(), no separate "work
+ * order" row to create.
+ *
+ * `assignToBatchId`, when set, also assigns the picked store into that job
+ * (store.batch_id) alongside creating the ticket — this is literally how a
+ * store gets added to a job. Search is intentionally NOT restricted to
+ * current job members (a fresh job has none yet); it searches every store,
+ * with a warning if the picked one already belongs to a different active job.
  */
-export function NewTicketModal({ onClose }: { onClose: () => void }) {
-  const { stores, tickets, createTicket } = useAppData();
+export function NewTicketModal({ onClose, assignToBatchId }: { onClose: () => void; assignToBatchId?: string }) {
+  const { stores, tickets, workOrderBatches, createTicket, assignStoreToBatch } = useAppData();
   const [query, setQuery] = useState("");
   const [selectedStore, setSelectedStore] = useState<StoreWithAssets | null>(null);
   const [issueType, setIssueType] = useState<TicketIssueType>("Camera Failure");
@@ -32,6 +37,13 @@ export function NewTicketModal({ onClose }: { onClose: () => void }) {
     const q = query.toLowerCase();
     return stores.filter((s) => (s.store_name + s.store_code).toLowerCase().includes(q)).slice(0, 8);
   }, [stores, query]);
+
+  // If the picked store already belongs to a different ACTIVE job, flag it —
+  // creating the ticket here will move it into this job instead.
+  const conflictBatch =
+    assignToBatchId && selectedStore?.batch_id && selectedStore.batch_id !== assignToBatchId
+      ? workOrderBatches.find((b) => b.id === selectedStore.batch_id && b.status === "Active")
+      : null;
 
   function pickStore(s: StoreWithAssets) {
     setSelectedStore(s);
@@ -57,6 +69,7 @@ export function NewTicketModal({ onClose }: { onClose: () => void }) {
     setError(null);
     try {
       await createTicket({ store_id: selectedStore.id, issue_type: issueType, description: description || null });
+      if (assignToBatchId) await assignStoreToBatch(selectedStore.id, assignToBatchId);
       // Onboarding a batch of stores is the main use case here, so stay open
       // and ready for the next store instead of closing after every single one.
       setJustCreatedFor(selectedStore.store_name);
@@ -90,14 +103,21 @@ export function NewTicketModal({ onClose }: { onClose: () => void }) {
           <div>
             <label className="text-xs font-medium text-ink-faint mb-1 block">Store</label>
             {selectedStore ? (
-              <div className="flex items-center justify-between text-sm border border-black/10 dark:border-white/10 rounded-md px-3 py-2">
-                <div>
-                  <div className="font-medium text-ink dark:text-white">{selectedStore.store_name}</div>
-                  <div className="font-mono text-[11px] text-ink-faint">{selectedStore.store_code}</div>
+              <div>
+                <div className="flex items-center justify-between text-sm border border-black/10 dark:border-white/10 rounded-md px-3 py-2">
+                  <div>
+                    <div className="font-medium text-ink dark:text-white">{selectedStore.store_name}</div>
+                    <div className="font-mono text-[11px] text-ink-faint">{selectedStore.store_code}</div>
+                  </div>
+                  <button type="button" onClick={() => setSelectedStore(null)} className="text-xs text-brand font-medium shrink-0">
+                    Change
+                  </button>
                 </div>
-                <button type="button" onClick={() => setSelectedStore(null)} className="text-xs text-brand font-medium shrink-0">
-                  Change
-                </button>
+                {conflictBatch && (
+                  <p className="text-[11px] text-status-partial mt-1.5">
+                    Currently in &quot;{conflictBatch.name}&quot; — opening this ticket will move it into this job instead.
+                  </p>
+                )}
               </div>
             ) : (
               <div className="relative">

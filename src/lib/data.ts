@@ -1,6 +1,6 @@
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { generateMockData } from "@/lib/mockData";
-import type { StoreWithAssets, MaintenanceRecord, AuditRecord, VendorQuotation, IncidentTicket, Attachment, RecoveryStageHistoryEntry } from "@/types/database";
+import type { StoreWithAssets, MaintenanceRecord, AuditRecord, VendorQuotation, IncidentTicket, Attachment, RecoveryStageHistoryEntry, WorkOrderBatch } from "@/types/database";
 
 /**
  * Data access layer. Tries Supabase first; if the project has not been
@@ -48,6 +48,7 @@ export async function fetchStores(): Promise<StoreWithAssets[]> {
       add_device_status: s.add_device_status ?? null,
       repair_date: s.repair_date ?? null,
       recovery_notes: s.recovery_notes ?? null,
+      batch_id: s.batch_id ?? null,
     } as StoreWithAssets;
   });
 }
@@ -79,6 +80,20 @@ export async function fetchAudits(): Promise<AuditRecord[]> {
     return generateMockData().audits;
   }
   return data as AuditRecord[];
+}
+
+/** Sprint 5 - Work Order "Jobs": groups stores into rounds of work (replaces is_recovery50). */
+export async function fetchWorkOrderBatches(): Promise<WorkOrderBatch[]> {
+  if (!isSupabaseConfigured) return generateMockData().workOrderBatches;
+
+  const supabase = createClient();
+  const { data, error } = await supabase.from("work_order_batches").select("*").order("created_at", { ascending: false });
+
+  if (error || !data) {
+    console.error("Supabase fetchWorkOrderBatches failed, falling back to demo data:", error?.message);
+    return generateMockData().workOrderBatches;
+  }
+  return data as WorkOrderBatch[];
 }
 
 /** Sprint 2 - Recovery Center, Task 3: vendor quotations per store (no workflow yet — plain CRUD data). */

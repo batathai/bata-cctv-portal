@@ -28,7 +28,7 @@ export const runtime = 'edge';
 export default function StoreDetailPage() {
   const { code } = useParams<{ code: string }>();
   const router = useRouter();
-  const { stores, maintenance, loading, role, updateRecoveryStage } = useAppData();
+  const { stores, maintenance, loading, role, updateRecoveryStage, workOrderBatches } = useAppData();
   const [editing, setEditing] = useState(false);
 
   if (loading) return <div className="text-sm text-ink-faint">Loading…</div>;
@@ -89,9 +89,13 @@ export default function StoreDetailPage() {
       </Card>
 
 
-      {store.is_recovery50 && (
+      {/* Gated on batch_id rather than the old is_recovery50 (migration 017)
+          — this card now shows for a store in ANY job, not just the
+          original 50-store pilot, and names which job it's in. */}
+      {store.batch_id && (
         <Card className="p-5">
           <SectionTitle icon={MapPin}>Recovery Tracking</SectionTitle>
+          <Row label="Job" value={workOrderBatches.find((b) => b.id === store.batch_id)?.name ?? "—"} />
           <Row label="Region" value={getRecoveryRegion(store.zone)} />
           <Row label="Area" value={getAreaLabel(store.zone)} />
           <Row label="Cause" value={getCause(store) ?? "—"} />

@@ -56,8 +56,15 @@ export default function DashboardPage() {
   const counts = useMemo(() => {
     const checked = stores.filter((s) => isStoreChecked(s, audits)).length;
     const repair = stores.filter((s) => hasOpenTicket(s.id, tickets)).length;
-    const c: Record<string, number> = { Healthy: 0, Partial: 0, "View Only": 0, Offline: 0, Unknown: 0 };
-    stores.forEach((s) => (c[s.overall_status] = (c[s.overall_status] ?? 0) + 1));
+    const c: Record<string, number> = { Healthy: 0, Partial: 0, Offline: 0, Unknown: 0 };
+    // Defensive fallback only — no live code path writes "View Only" anymore
+    // (see deriveOverallStatusFromAsset's comment), but if a store somehow
+    // still has that legacy value un-migrated, fold it into Partial rather
+    // than silently dropping it from every count below.
+    stores.forEach((s) => {
+      const key = (s.overall_status as string) === "View Only" ? "Partial" : s.overall_status;
+      c[key] = (c[key] ?? 0) + 1;
+    });
     return {
       checked,
       repair,

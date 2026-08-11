@@ -230,10 +230,12 @@ export function getEffectiveRecoveryStage(store: StoreWithAssets, tickets: Incid
  * status override on the next unrelated save. overall_status is now purely
  * manual — see AppDataProvider.editAssetDetails's comment.
  *
- * "View Only" is distinct from "Partial": the device can still be watched
- * live (NVR online, camera OK) but has no working recording (HDD failed or
- * playback broken) — a materially different situation from an actual camera
- * problem, worth its own status rather than lumping both into "Partial".
+ * OverallStatus dropped "View Only" as a distinct status (folded into
+ * "Partial") — it used to mean "camera OK but recording/playback broken",
+ * a real distinction, but recording health (hdd_status/playback_status)
+ * isn't tracked through any UI anymore, so a status nobody could ever set
+ * or fix just added confusion. "Partial" now covers any online-but-something's-
+ * wrong case.
  */
 export function deriveOverallStatusFromAsset(asset: {
   nvr_online?: boolean | null;
@@ -241,14 +243,14 @@ export function deriveOverallStatusFromAsset(asset: {
   hdd_status?: string | null;
   camera_status?: string | null;
   camera_failed?: number | null;
-}): "Healthy" | "Partial" | "View Only" | "Offline" {
+}): "Healthy" | "Partial" | "Offline" {
   if (!asset.nvr_online) return "Offline";
   const cameraOk = asset.camera_status ? asset.camera_status === "OK" : (asset.camera_failed ?? 0) === 0;
   if (!cameraOk) return "Partial";
   const playbackOk = asset.playback_status === "Working";
   const hddOk = asset.hdd_status === "Healthy";
   if (playbackOk && hddOk) return "Healthy";
-  return "View Only";
+  return "Partial";
 }
 
 /**

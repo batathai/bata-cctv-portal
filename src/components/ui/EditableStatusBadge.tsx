@@ -9,7 +9,6 @@ import type { OverallStatus } from "@/types/database";
 const OVERALL_STATUS_OPTIONS: { value: OverallStatus; label: string }[] = [
   { value: "Healthy", label: "Online" },
   { value: "Partial", label: "Partial" },
-  { value: "View Only", label: "View Only" },
   { value: "Offline", label: "Offline" },
   { value: "Unknown", label: "Unknown" },
 ];

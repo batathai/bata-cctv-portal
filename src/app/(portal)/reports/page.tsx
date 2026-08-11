@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { FileBarChart, FileText, FileSpreadsheet, UploadCloud, WifiOff, ClipboardList } from "lucide-react";
+import { FileBarChart, FileText, FileSpreadsheet, UploadCloud, WifiOff, ClipboardList, RefreshCw } from "lucide-react";
 import { useAppData } from "@/components/providers/AppDataProvider";
 import { Card, SectionTitle } from "@/components/ui/Card";
 import { Select } from "@/components/ui/Select";
@@ -11,9 +11,35 @@ import { exportExecutiveSummaryToExcel, exportStoresToExcel, exportWorkOrdersToE
 import { canManageMasterData } from "@/lib/rbac";
 
 export default function ReportsPage() {
-  const { stores, tickets, maintenance, workOrderBatches, role, loading } = useAppData();
+  const { stores, tickets, maintenance, workOrderBatches, recoveryStageHistory, role, loading, refreshAllData } = useAppData();
   const [selectedCode, setSelectedCode] = useState("");
-  const [selectedBatchName, setSelectedBatchName] = useState("");
+  // Defaults to the 50-store pilot job specifically — that's the one with a
+  // known reference file to cross-check against; other jobs can still be
+  // picked from the dropdown same as before.
+  const [selectedBatchName, setSelectedBatchName] = useState("Job 1: 50-Store Pilot");
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
+
+  // AppDataProvider fetches once per browser session (see its comment) — a
+  // report is meant to be a point-in-time accurate snapshot, so force a
+  // fresh pull the moment this page is opened rather than trusting whatever
+  // was cached whenever the session started. The manual Refresh button lets
+  // the same be done again without leaving the page or reloading the tab.
+  useEffect(() => {
+    setRefreshing(true);
+    refreshAllData().finally(() => {
+      setRefreshing(false);
+      setLastRefreshed(new Date());
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function handleManualRefresh() {
+    setRefreshing(true);
+    await refreshAllData();
+    setRefreshing(false);
+    setLastRefreshed(new Date());
+  }
 
   if (loading) return <div className="text-sm text-ink-faint">Loading reports…</div>;
 
@@ -23,7 +49,24 @@ export default function ReportsPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <SectionTitle icon={FileBarChart}>Reports</SectionTitle>
+        <div>
+          <SectionTitle icon={FileBarChart}>Reports</SectionTitle>
+          <div className="flex items-center gap-2 mt-1">
+            <button
+              onClick={handleManualRefresh}
+              disabled={refreshing}
+              className="flex items-center gap-1 text-[11px] text-ink-faint hover:text-brand disabled:opacity-60"
+            >
+              <RefreshCw size={11} className={refreshing ? "animate-spin" : ""} />
+              {refreshing ? "Refreshing…" : "Refresh data"}
+            </button>
+            {!refreshing && lastRefreshed && (
+              <span className="text-[11px] text-ink-faint">
+                &middot; as of {lastRefreshed.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })}
+              </span>
+            )}
+          </div>
+        </div>
         {canManageMasterData(role) && (
           <Link
             href="/reports/import"
@@ -96,7 +139,7 @@ export default function ReportsPage() {
           <SectionTitle icon={ClipboardList}>Work Order Summary</SectionTitle>
           <p className="text-xs text-ink-faint mb-3">
             Same layout as the team&apos;s &quot;50 Stores Summary&quot; sheet — Code, Store Name, DM, Status, Online Status, Camera Status,
-            Add Device Status, Cause — computed live from each store&apos;s current Work Order state.
+            Add Device Status, Cause, Remark — computed live from each store&apos;s current Work Order state.
           </p>
           <div className="mb-4">
             <Select value={selectedBatchName} onChange={setSelectedBatchName} options={workOrderBatches.map((b) => b.name)} placeholder="Choose a job" />
@@ -107,7 +150,7 @@ export default function ReportsPage() {
               const batch = workOrderBatches.find((b) => b.name === selectedBatchName);
               if (!batch) return;
               const batchStores = stores.filter((s) => s.batch_id === batch.id);
-              exportWorkOrdersToExcel(batchStores, tickets, `${batch.name.replace(/[^\w\- ]+/g, "").trim()}.xlsx`);
+              exportWorkOrdersToExcel(batchStores, tickets, recoveryStageHistory, `${batch.name.replace(/[^\w\- ]+/g, "").trim()}.xlsx`);
             }}
             className="flex items-center justify-center gap-1.5 text-xs font-medium border border-black/10 dark:border-white/10 rounded-md py-2 hover:bg-surface-muted dark:hover:bg-white/5 disabled:opacity-40"
           >

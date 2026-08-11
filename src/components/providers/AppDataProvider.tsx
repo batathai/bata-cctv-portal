@@ -107,6 +107,7 @@ interface AppDataContextValue {
   closeWorkOrderBatch: (batchId: string) => Promise<void>;
   reopenWorkOrderBatch: (batchId: string) => Promise<void>;
   assignStoreToBatch: (storeId: string, batchId: string) => Promise<void>;
+  refreshAllData: () => Promise<void>;
   createTicket: (input: TicketFormInput) => Promise<void>;
   updateTicketStatus: (ticketId: string, status: TicketStatus) => Promise<void>;
   uploadAttachment: (storeCode: string, storeId: string, folder: AttachmentFolder, file: File) => Promise<void>;
@@ -139,9 +140,8 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [importBatches, setImportBatches] = useState<ImportBatch[]>([]);
 
-  useEffect(() => {
-    let mounted = true;
-    Promise.all([
+  async function refreshAllData() {
+    const [s, m, a, profileResult, vq, tk, att, rsh, wob] = await Promise.all([
       fetchStores(),
       fetchMaintenance(),
       fetchAudits(),
@@ -151,26 +151,39 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       fetchAttachments(),
       fetchRecoveryStageHistory(),
       fetchWorkOrderBatches(),
-    ]).then(([s, m, a, profileResult, vq, tk, att, rsh, wob]) => {
-        if (!mounted) return;
-        setAllStores(s);
-        setMaintenance(m);
-        setAudits(a);
-        setVendorQuotations(vq);
-        setTickets(tk);
-        setAttachments(att);
-        setRecoveryStageHistory(rsh);
-        setWorkOrderBatches(wob);
-        if (profileResult.status === "ok") {
-          setRole(profileResult.profile.role);
-        } else if (profileResult.status === "not_provisioned") {
-          setAccountNotProvisioned(true);
-          setUnprovisionedEmail(profileResult.email);
-        }
-        setProfileLoaded(true);
-        setLoading(false);
-      }
-    );
+    ]);
+    setAllStores(s);
+    setMaintenance(m);
+    setAudits(a);
+    setVendorQuotations(vq);
+    setTickets(tk);
+    setAttachments(att);
+    setRecoveryStageHistory(rsh);
+    setWorkOrderBatches(wob);
+    if (profileResult.status === "ok") {
+      setRole(profileResult.profile.role);
+    } else if (profileResult.status === "not_provisioned") {
+      setAccountNotProvisioned(true);
+      setUnprovisionedEmail(profileResult.email);
+    }
+    setProfileLoaded(true);
+  }
+
+  useEffect(() => {
+    // This provider wraps the whole (portal) layout and mounts once per
+    // browser session — plain client-side navigation between pages (e.g.
+    // Dashboard -> Reports) does NOT re-run this, so anything changed in
+    // Supabase after the tab was first opened (by this admin in another
+    // tab, a teammate, a direct SQL edit, etc.) stays invisible until a
+    // full page reload. refreshAllData is exposed via context specifically
+    // so pages where staleness actually matters (Reports, in particular —
+    // it's meant to be a point-in-time accurate snapshot) can force a
+    // refetch on their own mount instead of trusting whatever was cached
+    // whenever the session started.
+    let mounted = true;
+    refreshAllData().then(() => {
+      if (mounted) setLoading(false);
+    });
     return () => {
       mounted = false;
     };
@@ -627,6 +640,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     closeWorkOrderBatch,
     reopenWorkOrderBatch,
     assignStoreToBatch,
+    refreshAllData,
     createTicket,
     updateTicketStatus,
     uploadAttachment,

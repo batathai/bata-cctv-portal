@@ -1,4 +1,4 @@
-import type { RecoveryRegion, RecoveryStage, RecoveryStatus, StoreWithAssets, VendorQuotation, AuditRecord, IncidentTicket } from "@/types/database";
+import type { RecoveryRegion, RecoveryStage, RecoveryStatus, StoreWithAssets, VendorQuotation, AuditRecord, IncidentTicket, RecoveryStageHistoryEntry } from "@/types/database";
 import { ZONES } from "@/lib/mockData";
 import { hasOpenTicket, ticketsForStore } from "@/lib/tickets";
 
@@ -128,6 +128,23 @@ export function getCause(store: StoreWithAssets): string | null {
 
 export function getRequiredAction(store: StoreWithAssets): string | null {
   return store.required_action ?? DEFAULT_ACTION[deriveRecoveryStatus(store)];
+}
+
+/**
+ * The remark to show next to a store's status badge in list views (Work
+ * Orders, Dashboard, Status). Prefers the most recently logged entry in
+ * recovery_stage_history that actually has a note — i.e. whatever was last
+ * typed via "Add Remark" / a stage move on the Work Order Progress screen —
+ * over the store's static `cause`/`recovery_notes` fields, which are only
+ * set once at import time and go stale the moment someone logs a real
+ * update. Falls back to cause+details only when no history note exists yet.
+ */
+export function getLatestRemark(store: StoreWithAssets, history: RecoveryStageHistoryEntry[]): string | null {
+  const latest = history
+    .filter((h) => h.store_id === store.id && h.note && h.note.trim())
+    .sort((a, b) => (a.changed_at < b.changed_at ? 1 : -1))[0];
+  if (latest) return latest.note;
+  return [getCause(store), store.recovery_notes].filter(Boolean).join(" — ") || null;
 }
 
 /**

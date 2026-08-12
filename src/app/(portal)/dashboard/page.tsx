@@ -21,7 +21,7 @@ import {
   isRepairCompleted,
   isRepairPending,
   zoneCode,
-  getCause,
+  getLatestRemark,
 } from "@/lib/recovery";
 import type { StoreWithAssets } from "@/types/database";
 
@@ -50,7 +50,7 @@ function bucketMatches(bucket: Bucket, s: StoreWithAssets, audits: any[], ticket
 }
 
 export default function DashboardPage() {
-  const { stores, audits, tickets, loading, filters, setFilters } = useAppData();
+  const { stores, audits, tickets, recoveryStageHistory, loading, filters, setFilters } = useAppData();
   const [bucket, setBucket] = useState<Bucket>("all");
   const [q, setQ] = useState("");
 
@@ -237,7 +237,7 @@ export default function DashboardPage() {
                   {s.store_name} &middot; {getRecoveryRegion(s.zone)}
                 </div>
                 {(() => {
-                  const remark = [getCause(s), s.recovery_notes].filter(Boolean).join(" — ");
+                  const remark = getLatestRemark(s, recoveryStageHistory);
                   return remark ? (
                     <div className="text-[11px] text-status-partial mt-0.5 truncate" title={remark}>
                       Remark: {remark}

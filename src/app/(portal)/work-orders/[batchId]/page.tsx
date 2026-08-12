@@ -10,7 +10,7 @@ import { StatCard } from "@/components/ui/StatCard";
 import { StatusBadge } from "@/components/ui/Badge";
 import { RecoveryStageBadge } from "@/components/recovery/RecoveryBadges";
 import { NewTicketModal } from "@/components/work-orders/NewTicketModal";
-import { RECOVERY_STAGES, needsRepair, getEffectiveRecoveryStage, getRecoveryRegion, getAreaLabel, getCause } from "@/lib/recovery";
+import { RECOVERY_STAGES, needsRepair, getEffectiveRecoveryStage, getRecoveryRegion, getAreaLabel, getLatestRemark } from "@/lib/recovery";
 import { canLogMaintenance } from "@/lib/rbac";
 import type { RecoveryStage, StoreWithAssets } from "@/types/database";
 
@@ -214,7 +214,7 @@ export default function WorkOrderBatchDetailPage() {
                     {s.store_code} &middot; {getRecoveryRegion(s.zone)} &middot; {getAreaLabel(s.zone)}
                   </div>
                   {(() => {
-                    const remark = [getCause(s), s.recovery_notes].filter(Boolean).join(" — ");
+                    const remark = getLatestRemark(s, recoveryStageHistory);
                     return remark ? (
                       <div className="text-[11px] text-status-partial mt-0.5 truncate" title={remark}>
                         Remark: {remark}

@@ -7,7 +7,7 @@ import { useAppData } from "@/components/providers/AppDataProvider";
 import { Card, SectionTitle } from "@/components/ui/Card";
 import { StatusBadge } from "@/components/ui/Badge";
 import { StatCard } from "@/components/ui/StatCard";
-import { getCause } from "@/lib/recovery";
+import { getLatestRemark } from "@/lib/recovery";
 
 /**
  * Lightweight status view: just the stores, and whether each one is
@@ -16,7 +16,7 @@ import { getCause } from "@/lib/recovery";
  * Dashboard / Asset Register.
  */
 export default function DeviceStatusPage() {
-  const { stores, loading } = useAppData();
+  const { stores, recoveryStageHistory, loading } = useAppData();
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");
 
@@ -76,7 +76,7 @@ export default function DeviceStatusPage() {
                 <div className="text-sm font-medium text-ink dark:text-white truncate">{s.store_name}</div>
                 <div className="font-mono text-[11px] text-ink-faint">{s.store_code} &middot; {s.province}</div>
                 {(() => {
-                  const remark = [getCause(s), s.recovery_notes].filter(Boolean).join(" — ");
+                  const remark = getLatestRemark(s, recoveryStageHistory);
                   return remark ? (
                     <div className="text-[11px] text-status-partial mt-0.5 truncate" title={remark}>
                       Remark: {remark}

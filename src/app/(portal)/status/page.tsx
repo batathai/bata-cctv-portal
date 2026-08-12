@@ -7,6 +7,7 @@ import { useAppData } from "@/components/providers/AppDataProvider";
 import { Card, SectionTitle } from "@/components/ui/Card";
 import { StatusBadge } from "@/components/ui/Badge";
 import { StatCard } from "@/components/ui/StatCard";
+import { getCause } from "@/lib/recovery";
 
 /**
  * Lightweight status view: just the stores, and whether each one is
@@ -74,6 +75,14 @@ export default function DeviceStatusPage() {
               <div className="min-w-0 flex-1">
                 <div className="text-sm font-medium text-ink dark:text-white truncate">{s.store_name}</div>
                 <div className="font-mono text-[11px] text-ink-faint">{s.store_code} &middot; {s.province}</div>
+                {(() => {
+                  const remark = [getCause(s), s.recovery_notes].filter(Boolean).join(" — ");
+                  return remark ? (
+                    <div className="text-[11px] text-status-partial mt-0.5 truncate" title={remark}>
+                      Remark: {remark}
+                    </div>
+                  ) : null;
+                })()}
               </div>
               <StatusBadge status={s.overall_status} />
               <Link

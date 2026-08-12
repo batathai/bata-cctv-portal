@@ -21,6 +21,7 @@ import {
   isRepairCompleted,
   isRepairPending,
   zoneCode,
+  getCause,
 } from "@/lib/recovery";
 import type { StoreWithAssets } from "@/types/database";
 
@@ -215,6 +216,14 @@ export default function DashboardPage() {
                 <div className="font-mono text-[11px] text-ink-faint">
                   {s.store_code} &middot; {getRecoveryRegion(s.zone)}
                 </div>
+                {(() => {
+                  const remark = [getCause(s), s.recovery_notes].filter(Boolean).join(" — ");
+                  return remark ? (
+                    <div className="text-[11px] text-status-partial mt-0.5 truncate" title={remark}>
+                      Remark: {remark}
+                    </div>
+                  ) : null;
+                })()}
               </div>
               <StatusBadge status={s.overall_status} />
               <Link

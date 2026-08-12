@@ -46,7 +46,7 @@ export function exportAssetRegisterPdf(stores: StoreWithAssets[]) {
       s.store_name,
       zoneCode(s.zone),
       s.asset?.nvr_serial ?? "",
-      `${s.asset?.camera_working ?? ""}/${s.asset?.camera_total ?? ""}`,
+      s.asset?.camera_total != null ? String(s.asset.camera_total) : "",
       getStatusLabel(s.overall_status),
     ]),
     headStyles: { fillColor: [215, 25, 32] },

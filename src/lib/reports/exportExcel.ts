@@ -16,7 +16,7 @@ export function exportStoresToExcel(stores: StoreWithAssets[], filename = "bata-
     "Store Name": s.store_name,
     Zone: zoneCode(s.zone),
     "Serial No.": s.asset?.nvr_serial ?? "",
-    Cameras: `${s.asset?.camera_working ?? ""}/${s.asset?.camera_total ?? ""}`,
+    Cameras: s.asset?.camera_total ?? "",
     Status: getStatusLabel(s.overall_status),
   }));
   const ws = XLSX.utils.json_to_sheet(rows);

@@ -82,7 +82,7 @@ export default function AssetRegisterPage() {
                 <td className="py-2 pr-3">{s.store_name}</td>
                 <td className="py-2 pr-3 text-ink-soft dark:text-white/60">{zoneCode(s.zone)}</td>
                 <td className="py-2 pr-3 font-mono text-xs text-ink-soft dark:text-white/60">{s.asset?.nvr_serial}</td>
-                <td className="py-2 pr-3 text-ink-soft dark:text-white/60">{s.asset?.camera_working}/{s.asset?.camera_total}</td>
+                <td className="py-2 pr-3 text-ink-soft dark:text-white/60">{s.asset?.camera_total ?? "—"}</td>
                 <td className="py-2 pr-3"><StatusBadge status={s.overall_status} /></td>
                 <td className="py-2 pr-3 text-right">
                   <Link

@@ -15,25 +15,53 @@ import { ZONES } from "@/lib/mockData";
 import { hasOpenTicket } from "@/lib/tickets";
 import {
   RECOVERY_STAGES,
-  deriveRecoveryStatus,
   getRecoveryRegion,
   isStoreChecked,
-  isHealthy,
-  isRepairCompleted,
-  isRepairPending,
+  needsRepair,
+  getEffectiveRecoveryStage,
   zoneCode,
   getLatestRemark,
 } from "@/lib/recovery";
 import type { StoreWithAssets } from "@/types/database";
 
-// Retail/Operations-friendly labels per the FINAL REQUIREMENT doc — avoid
-// IT jargon like "Healthy" / "Pending" / "Asset Health".
-const BUCKET_COLORS: Record<string, string> = {
-  Normal: "#1E9E5A",
-  "Under Repair": "#E2A400",
-  Completed: "#333333",
-  Other: "#8A8A8A",
+// Same Online/Partial/Offline/Unknown palette as StatusBadge (Badge.tsx) and
+// the StatCards right above these charts — so "Store Status" always agrees
+// with the numbers the person just looked at, instead of a separate
+// ticket-derived Normal/Under Repair/Completed/Other breakdown that could
+// disagree with them.
+const STATUS_COLORS: Record<string, string> = {
+  Online: "#1E9E5A",
+  Partial: "#E2A400",
+  Offline: "#D71920",
+  Unknown: "#8A8A8A",
 };
+
+// One color per Work Order stage, in RECOVERY_STAGES order — a warm
+// amber-to-red "still waiting/working" run that resolves to green once
+// Completed/Verified, instead of the old grey/black/mixed set.
+const STAGE_COLORS: Record<string, string> = {
+  "Waiting Vendor Quote": "#E2A400",
+  "Waiting Approval": "#F0B429",
+  "Waiting Repair": "#F04952",
+  Repairing: "#D71920",
+  Completed: "#5CB88B",
+  Verified: "#1E9E5A",
+};
+
+// Recharts' default Tooltip cursor is a full-width/height grey rectangle
+// spanning the whole category band, which reads as an oversized grey smear
+// on hover. This draws a narrower, brand-tinted highlight instead — shrink
+// along whichever axis the bars run (width for vertical bars, height for
+// horizontal/layout="vertical" bars).
+function BarCursor({ horizontal, x, y, width, height }: { horizontal?: boolean; x?: number; y?: number; width?: number; height?: number }) {
+  if (x == null || y == null || width == null || height == null) return null;
+  if (horizontal) {
+    const pad = height * 0.22;
+    return <rect x={x} y={y + pad} width={width} height={Math.max(height - pad * 2, 2)} fill="#D71920" fillOpacity={0.07} rx={4} />;
+  }
+  const pad = width * 0.28;
+  return <rect x={x + pad} y={y} width={Math.max(width - pad * 2, 2)} height={height} fill="#D71920" fillOpacity={0.07} rx={4} />;
+}
 
 type Bucket = "all" | "checked" | "Healthy" | "Partial" | "Offline" | "Unknown" | "repair";
 
@@ -93,33 +121,33 @@ function DashboardContent() {
     };
   }, [stores, audits, tickets]);
 
-  const donut = useMemo(() => {
-    let normal = 0,
-      underRepair = 0,
-      completed = 0,
-      other = 0;
-    stores.forEach((s) => {
-      if (isHealthy(s, tickets)) normal++;
-      else if (isRepairPending(s, tickets)) underRepair++;
-      else if (isRepairCompleted(s, tickets)) completed++;
-      else other++;
-    });
-    return [
-      { name: "Normal", value: normal },
-      { name: "Under Repair", value: underRepair },
-      { name: "Completed", value: completed },
-      { name: "Other", value: other },
-    ].filter((d) => d.value > 0);
-  }, [stores, tickets]);
+  // Mirrors the StatCards above exactly (same counts object) so this chart
+  // can never show a different picture than the numbers right above it.
+  const donut = useMemo(
+    () =>
+      [
+        { name: "Online", value: counts.Healthy ?? 0 },
+        { name: "Partial", value: counts.Partial ?? 0 },
+        { name: "Offline", value: counts.Offline ?? 0 },
+        { name: "Unknown", value: counts.Unknown ?? 0 },
+      ].filter((d) => d.value > 0),
+    [counts]
+  );
 
   const byRegion = (["BKK", "Country"] as const).map((r) => ({
     name: r,
     value: stores.filter((s) => getRecoveryRegion(s.zone) === r).length,
   }));
 
+  // Scoped to stores actually in a Work Order (needsRepair — the same test
+  // the Work Orders page itself uses), not every store. Counting all 197
+  // stores here meant every healthy store that never had an issue defaulted
+  // into "Verified", drowning out the real pipeline in one giant bar that
+  // didn't match the Work Orders page at all.
+  const workOrderStores = useMemo(() => stores.filter((s) => needsRepair(s, tickets)), [stores, tickets]);
   const byStage = RECOVERY_STAGES.map((stage) => ({
     name: stage,
-    value: stores.filter((s) => (s.recovery_stage ?? (deriveRecoveryStatus(s) === "Normal" ? "Verified" : "Waiting Vendor Quote")) === stage).length,
+    value: workOrderStores.filter((s) => getEffectiveRecoveryStage(s, tickets) === stage).length,
   }));
 
   const filtered = useMemo(
@@ -143,12 +171,12 @@ function DashboardContent() {
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
         <Card className="p-4">
-          <SectionTitle icon={Activity}>Repair Status</SectionTitle>
+          <SectionTitle icon={Activity}>Store Status</SectionTitle>
           <ResponsiveContainer width="100%" height={190}>
             <PieChart>
               <Pie data={donut} dataKey="value" nameKey="name" innerRadius={45} outerRadius={72} paddingAngle={3}>
                 {donut.map((d) => (
-                  <Cell key={d.name} fill={BUCKET_COLORS[d.name]} stroke="none" />
+                  <Cell key={d.name} fill={STATUS_COLORS[d.name]} stroke="none" />
                 ))}
               </Pie>
               <Tooltip />
@@ -157,7 +185,7 @@ function DashboardContent() {
           <div className="flex justify-center gap-3 flex-wrap mt-1 text-xs text-ink-soft dark:text-white/60">
             {donut.map((d) => (
               <div key={d.name} className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full inline-block" style={{ background: BUCKET_COLORS[d.name] }} />
+                <span className="w-2 h-2 rounded-full inline-block" style={{ background: STATUS_COLORS[d.name] }} />
                 {d.name}
               </div>
             ))}
@@ -170,7 +198,7 @@ function DashboardContent() {
             <BarChart data={byRegion} layout="vertical" margin={{ left: 0 }}>
               <XAxis type="number" hide />
               <YAxis type="category" dataKey="name" width={70} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-              <Tooltip />
+              <Tooltip cursor={<BarCursor horizontal />} />
               <Bar
                 dataKey="value"
                 fill="#333333"
@@ -192,7 +220,7 @@ function DashboardContent() {
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
               <XAxis dataKey="name" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-              <Tooltip />
+              <Tooltip cursor={<BarCursor />} />
               <Bar
                 dataKey="value"
                 fill="#D71920"
@@ -210,7 +238,7 @@ function DashboardContent() {
 
         <Card className="p-4">
           <div className="flex items-center justify-between gap-2">
-            <SectionTitle icon={ListChecks}>Store Distribution</SectionTitle>
+            <SectionTitle icon={ListChecks}>Work Order Pipeline</SectionTitle>
             <Link href="/work-orders" className="text-xs font-medium text-brand hover:underline shrink-0 mb-3">
               View all work orders →
             </Link>
@@ -220,10 +248,10 @@ function DashboardContent() {
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
               <XAxis dataKey="name" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} interval={0} angle={-15} textAnchor="end" height={50} />
               <YAxis tick={{ fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
-              <Tooltip />
+              <Tooltip cursor={<BarCursor />} />
               <Bar dataKey="value" radius={[4, 4, 0, 0]} barSize={26}>
-                {byStage.map((b, i) => (
-                  <Cell key={b.name} fill={["#8A8A8A", "#E2A400", "#E2A400", "#D71920", "#333333", "#1E9E5A"][i]} />
+                {byStage.map((b) => (
+                  <Cell key={b.name} fill={STAGE_COLORS[b.name]} />
                 ))}
               </Bar>
             </BarChart>

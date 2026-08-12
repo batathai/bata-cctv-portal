@@ -3,7 +3,7 @@
 import { FileSpreadsheet, FileText } from "lucide-react";
 import { useAppData } from "@/components/providers/AppDataProvider";
 import { exportStoresToExcel, exportMaintenanceToExcel } from "@/lib/reports/exportExcel";
-import { exportExecutivePdf, exportOfflineStoresPdf } from "@/lib/reports/exportPdf";
+import { exportExecutivePdf, exportOfflineStoresPdf, exportAssetRegisterPdf } from "@/lib/reports/exportPdf";
 import type { StoreWithAssets } from "@/types/database";
 
 export function ExportButtons({
@@ -26,6 +26,7 @@ export function ExportButtons({
 
   function handlePdf() {
     if (reportType === "offline") exportOfflineStoresPdf(stores);
+    else if (reportType === "asset-register") exportAssetRegisterPdf(stores);
     else exportExecutivePdf(stores);
   }
 

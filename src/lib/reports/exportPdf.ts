@@ -31,6 +31,32 @@ function footer(doc: jsPDF) {
   }
 }
 
+// Mirrors exactly the columns shown on the Asset Register table on screen
+// (Store Code / Store Name / Zone / Serial No. / Cameras / Status) — kept
+// deliberately minimal per request, rather than every raw asset field.
+export function exportAssetRegisterPdf(stores: StoreWithAssets[]) {
+  const doc = new jsPDF();
+  header(doc, "Asset Register");
+
+  autoTable(doc, {
+    startY: 28,
+    head: [["Store Code", "Store Name", "Zone", "Serial No.", "Cameras", "Status"]],
+    body: stores.map((s) => [
+      s.store_code,
+      s.store_name,
+      zoneCode(s.zone),
+      s.asset?.nvr_serial ?? "",
+      `${s.asset?.camera_working ?? ""}/${s.asset?.camera_total ?? ""}`,
+      getStatusLabel(s.overall_status),
+    ]),
+    headStyles: { fillColor: [215, 25, 32] },
+    styles: { fontSize: 8 },
+  });
+
+  footer(doc);
+  doc.save("bata-asset-register.pdf");
+}
+
 export function exportExecutivePdf(stores: StoreWithAssets[]) {
   const doc = new jsPDF();
   header(doc, "Executive Report");

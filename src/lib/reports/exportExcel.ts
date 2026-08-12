@@ -7,17 +7,24 @@ function download(wb: XLSX.WorkBook, filename: string) {
   XLSX.writeFile(wb, filename);
 }
 
-// Mirrors exactly the columns shown on the Asset Register table on screen
-// (Store Code / Store Name / Zone / Serial No. / Cameras / Status) — kept
-// deliberately minimal per request, rather than every raw asset field.
+// Trimmed from the original ~20-column dump down to what was asked to be
+// kept: dropped HDD Status, Playback Status, ISP, Hik-Connect Status,
+// Hik-Connect Owner, Cameras Working, Cameras Failed, Province, Supplier —
+// everything else (including NVR Brand/Model/Serial/Online, Cameras Total,
+// HDD Capacity) stays, since those were never asked to be removed.
 export function exportStoresToExcel(stores: StoreWithAssets[], filename = "bata-asset-register.xlsx") {
   const rows = stores.map((s) => ({
     "Store Code": s.store_code,
     "Store Name": s.store_name,
+    Region: regionFromZone(s.zone),
     Zone: zoneCode(s.zone),
-    "Serial No.": s.asset?.nvr_serial ?? "",
-    Cameras: s.asset?.camera_total ?? "",
     Status: getStatusLabel(s.overall_status),
+    "NVR Brand": s.asset?.nvr_brand ?? "",
+    "NVR Model": s.asset?.nvr_model ?? "",
+    "NVR Serial": s.asset?.nvr_serial ?? "",
+    "NVR Online": s.asset?.nvr_online ? "Yes" : "No",
+    "Cameras Total": s.asset?.camera_total ?? "",
+    "HDD Capacity": s.asset?.hdd_capacity ?? "",
   }));
   const ws = XLSX.utils.json_to_sheet(rows);
   const wb = XLSX.utils.book_new();

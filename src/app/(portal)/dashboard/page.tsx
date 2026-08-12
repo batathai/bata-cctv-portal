@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from "recharts";
@@ -49,9 +50,25 @@ function bucketMatches(bucket: Bucket, s: StoreWithAssets, audits: any[], ticket
   }
 }
 
-export default function DashboardPage() {
+// useSearchParams() below opts this page into client-side rendering, which
+// Next.js requires wrapping in Suspense — see default export at the bottom.
+function DashboardContent() {
   const { stores, audits, tickets, recoveryStageHistory, loading, filters, setFilters } = useAppData();
-  const [bucket, setBucket] = useState<Bucket>("all");
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  // Bucket lives in the URL (?status=Partial), not just useState, so that
+  // clicking a StatCard, opening a store's Details, then hitting Back
+  // returns to this same filtered view instead of resetting to "all" — a
+  // plain useState is lost on remount since Back re-mounts this page fresh.
+  const bucket = (searchParams.get("status") as Bucket | null) ?? "all";
+  function setBucket(next: Bucket) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (next === "all") params.delete("status");
+    else params.set("status", next);
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  }
   const [q, setQ] = useState("");
 
   const counts = useMemo(() => {
@@ -258,5 +275,13 @@ export default function DashboardPage() {
         </div>
       </Card>
     </div>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={<div className="text-sm text-ink-faint">Loading store data…</div>}>
+      <DashboardContent />
+    </Suspense>
   );
 }

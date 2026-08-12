@@ -31,26 +31,30 @@ function footer(doc: jsPDF) {
   }
 }
 
-// Mirrors exactly the columns shown on the Asset Register table on screen
-// (Store Code / Store Name / Zone / Serial No. / Cameras / Status) — kept
-// deliberately minimal per request, rather than every raw asset field.
+// Same column set as exportStoresToExcel (the Excel export) — kept in sync
+// so the two buttons never disagree on what "Asset Register" contains.
 export function exportAssetRegisterPdf(stores: StoreWithAssets[]) {
   const doc = new jsPDF();
   header(doc, "Asset Register");
 
   autoTable(doc, {
     startY: 28,
-    head: [["Store Code", "Store Name", "Zone", "Serial No.", "Cameras", "Status"]],
+    head: [["Store Code", "Store Name", "Region", "Zone", "Status", "NVR Brand", "NVR Model", "NVR Serial", "NVR Online", "Cameras Total", "HDD Capacity"]],
     body: stores.map((s) => [
       s.store_code,
       s.store_name,
+      regionFromZone(s.zone),
       zoneCode(s.zone),
-      s.asset?.nvr_serial ?? "",
-      s.asset?.camera_total != null ? String(s.asset.camera_total) : "",
       getStatusLabel(s.overall_status),
+      s.asset?.nvr_brand ?? "",
+      s.asset?.nvr_model ?? "",
+      s.asset?.nvr_serial ?? "",
+      s.asset?.nvr_online ? "Yes" : "No",
+      s.asset?.camera_total != null ? String(s.asset.camera_total) : "",
+      s.asset?.hdd_capacity ?? "",
     ]),
     headStyles: { fillColor: [215, 25, 32] },
-    styles: { fontSize: 8 },
+    styles: { fontSize: 7 },
   });
 
   footer(doc);

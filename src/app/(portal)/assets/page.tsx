@@ -64,9 +64,8 @@ export default function AssetRegisterPage() {
             <tr className="text-left text-[11px] uppercase tracking-wide text-ink-faint border-b border-black/5 dark:border-white/10">
               <th className="py-2 pr-3">Store Code</th>
               <th className="py-2 pr-3">Store Name</th>
-              <th className="py-2 pr-3">Region / Zone</th>
-              <th className="py-2 pr-3">Province</th>
-              <th className="py-2 pr-3">NVR Model</th>
+              <th className="py-2 pr-3">Zone</th>
+              <th className="py-2 pr-3">Serial No.</th>
               <th className="py-2 pr-3">Cameras</th>
               <th className="py-2 pr-3">Status</th>
               <th className="py-2 pr-3 text-right">Action</th>
@@ -81,9 +80,8 @@ export default function AssetRegisterPage() {
                   </Link>
                 </td>
                 <td className="py-2 pr-3">{s.store_name}</td>
-                <td className="py-2 pr-3 text-ink-soft dark:text-white/60">{regionFromZone(s.zone)} &middot; {zoneCode(s.zone)}</td>
-                <td className="py-2 pr-3 text-ink-soft dark:text-white/60">{s.province}</td>
-                <td className="py-2 pr-3 font-mono text-xs text-ink-soft dark:text-white/60">{s.asset?.nvr_model}</td>
+                <td className="py-2 pr-3 text-ink-soft dark:text-white/60">{zoneCode(s.zone)}</td>
+                <td className="py-2 pr-3 font-mono text-xs text-ink-soft dark:text-white/60">{s.asset?.nvr_serial}</td>
                 <td className="py-2 pr-3 text-ink-soft dark:text-white/60">{s.asset?.camera_working}/{s.asset?.camera_total}</td>
                 <td className="py-2 pr-3"><StatusBadge status={s.overall_status} /></td>
                 <td className="py-2 pr-3 text-right">

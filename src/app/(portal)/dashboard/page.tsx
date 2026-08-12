@@ -50,7 +50,7 @@ function bucketMatches(bucket: Bucket, s: StoreWithAssets, audits: any[], ticket
 }
 
 export default function DashboardPage() {
-  const { stores, audits, tickets, loading } = useAppData();
+  const { stores, audits, tickets, loading, filters, setFilters } = useAppData();
   const [bucket, setBucket] = useState<Bucket>("all");
   const [q, setQ] = useState("");
 
@@ -154,7 +154,17 @@ export default function DashboardPage() {
               <XAxis type="number" hide />
               <YAxis type="category" dataKey="name" width={70} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
               <Tooltip />
-              <Bar dataKey="value" fill="#333333" radius={[0, 4, 4, 0]} barSize={16} />
+              <Bar
+                dataKey="value"
+                fill="#333333"
+                radius={[0, 4, 4, 0]}
+                barSize={16}
+                cursor="pointer"
+                onClick={(data: any) => {
+                  const region = data.name === "BKK" ? "Bangkok" : "Upcountry";
+                  setFilters({ ...filters, region: filters.region === region ? "" : region });
+                }}
+              />
             </BarChart>
           </ResponsiveContainer>
           <ResponsiveContainer width="100%" height={140}>
@@ -166,7 +176,17 @@ export default function DashboardPage() {
               <XAxis dataKey="name" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
               <Tooltip />
-              <Bar dataKey="value" fill="#D71920" radius={[4, 4, 0, 0]} barSize={20} />
+              <Bar
+                dataKey="value"
+                fill="#D71920"
+                radius={[4, 4, 0, 0]}
+                barSize={20}
+                cursor="pointer"
+                onClick={(data: any) => {
+                  const zone = data.name as string;
+                  setFilters({ ...filters, zone: filters.zone === zone ? "" : zone });
+                }}
+              />
             </BarChart>
           </ResponsiveContainer>
         </Card>
@@ -212,9 +232,9 @@ export default function DashboardPage() {
           {sorted.map((s) => (
             <div key={s.id} className="flex items-center gap-3 py-3 flex-wrap">
               <div className="min-w-0 flex-1">
-                <div className="text-sm font-medium text-ink dark:text-white truncate">{s.store_name}</div>
-                <div className="font-mono text-[11px] text-ink-faint">
-                  {s.store_code} &middot; {getRecoveryRegion(s.zone)}
+                <div className="text-sm font-mono font-semibold text-ink dark:text-white truncate">{s.store_code}</div>
+                <div className="text-[11px] text-ink-faint">
+                  {s.store_name} &middot; {getRecoveryRegion(s.zone)}
                 </div>
                 {(() => {
                   const remark = [getCause(s), s.recovery_notes].filter(Boolean).join(" — ");

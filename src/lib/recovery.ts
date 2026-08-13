@@ -209,7 +209,16 @@ export function needsRepair(store: StoreWithAssets, tickets: IncidentTicket[]): 
 export function isRepairCompleted(store: StoreWithAssets, tickets: IncidentTicket[]): boolean {
   if (!needsRepair(store, tickets)) return false;
   if (store.recovery_stage === "Completed" || store.recovery_stage === "Verified") return true;
-  return ticketsForStore(store.id, tickets).some((t) => t.status === "Completed" || t.status === "Closed");
+  // Every ticket for this store must be resolved, not just one of them —
+  // e.g. Kalasin Plaza (53011) had "NVR Offline" Completed but "Camera
+  // Failure" still Open, and recovery_stage was explicitly "Waiting
+  // Repair" — that's still an open work order, not a finished one. The old
+  // `.some(...)` here counted the store as Completed off the one closed
+  // ticket alone, overriding the explicit stage. hasOpenTicket already
+  // checks "none of this store's tickets are open", so require that plus
+  // at least one ticket existing at all.
+  const storeTickets = ticketsForStore(store.id, tickets);
+  return storeTickets.length > 0 && !hasOpenTicket(store.id, tickets);
 }
 
 export function isRepairPending(store: StoreWithAssets, tickets: IncidentTicket[]): boolean {

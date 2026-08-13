@@ -51,14 +51,19 @@ export function exportMaintenanceToExcel(records: MaintenanceRecord[], storeMap:
   download(wb, filename);
 }
 
-// Column labels below are derived from deriveRecoveryStatus(store) — the
-// same single source of truth the rest of the app uses for the Recovery
-// Status badge — rather than the frozen store.cause/store.overall_status
-// snapshot from whenever the store was first imported/opened. Without this,
-// a store that's since been fixed and Verified would still export as "DVR
-// Failure" forever, the exact staleness bug already fixed for the on-screen
-// badges (see recovery.ts's deriveRecoveryStatus comment) — this export is
-// meant to reflect the CURRENT Work Order state, not the original snapshot.
+// deriveRecoveryStatus(store) reads `recovery_status` — a category set once
+// at import time — falling back to raw asset fields if it's null. It does
+// NOT know about `overall_status`, the field EditableStatusBadge actually
+// writes to everywhere else in the app (Asset Register, Work Orders,
+// Dashboard, Status, Store Detail). Once someone manually flips a store's
+// status to Offline/Partial there, `recovery_status` is never updated to
+// match, so deriveRecoveryStatus keeps reporting "Normal" forever — e.g.
+// store 54022 (Central Mahachai) exported as Online Status "Online" /
+// Cause "ใช้งานปกติ" here while the app itself showed it as Offline.
+// `overall_status` is the live, single source of truth (see
+// EditableStatusBadge's comment), so every label below is anchored to it —
+// deriveRecoveryStatus is only used to add finer detail (which kind of
+// problem) when it doesn't contradict that live status.
 const CAUSE_LABEL: Record<RecoveryStatus, string> = {
   Normal: "ใช้งานปกติ ",
   "Camera Issue": "CCTV Camera Failure",
@@ -67,21 +72,28 @@ const CAUSE_LABEL: Record<RecoveryStatus, string> = {
 };
 
 function onlineStatusLabel(store: StoreWithAssets): "Online" | "Offline" | "Unknown" {
-  const status = deriveRecoveryStatus(store);
-  if (status === "Device Not Registered") return "Unknown";
-  if (status === "DVR Failure") return "Offline";
-  return "Online"; // Normal or Camera Issue — the NVR itself is still reachable
+  if (store.overall_status === "Offline") return "Offline";
+  if (store.overall_status === "Unknown") return "Unknown";
+  return "Online"; // Healthy or Partial — the NVR itself is still reachable, only camera coverage may be degraded
 }
 
 function cameraStatusLabel(store: StoreWithAssets): "OK" | "Partial" | "Not Work" {
-  const status = deriveRecoveryStatus(store);
-  if (status === "Device Not Registered" || status === "DVR Failure") return "Not Work";
-  if (status === "Normal") return "OK";
-  // Camera Issue — distinguish "every camera down" from "some still working"
-  const total = store.asset?.camera_total ?? 0;
-  const failed = store.asset?.camera_failed ?? 0;
-  if (total > 0 && failed >= total) return "Not Work";
-  return "Partial";
+  if (store.overall_status === "Healthy") return "OK";
+  if (store.overall_status === "Partial") return "Partial";
+  return "Not Work"; // Offline or Unknown
+}
+
+function causeLabel(store: StoreWithAssets): string {
+  const derived = deriveRecoveryStatus(store);
+  // Trust the finer Camera Issue / DVR Failure / Device Not Registered
+  // classification only when it agrees the store actually has a problem.
+  // If overall_status says something's wrong but recovery_status was never
+  // updated to match (still reads "Normal"), report the real live status
+  // instead of the stale "ใช้งานปกติ".
+  if (store.overall_status !== "Healthy" && derived === "Normal") {
+    return getStatusLabel(store.overall_status);
+  }
+  return CAUSE_LABEL[derived];
 }
 
 function addDeviceStatusLabel(store: StoreWithAssets): string {
@@ -121,7 +133,7 @@ export function exportWorkOrdersToExcel(
       "Online Status": onlineStatusLabel(s),
       "Camera Status": cameraStatusLabel(s),
       "Add Device Status": addDeviceStatusLabel(s),
-      Cause: CAUSE_LABEL[deriveRecoveryStatus(s)],
+      Cause: causeLabel(s),
       Remark: latestNote ?? s.recovery_notes ?? "",
     };
   });

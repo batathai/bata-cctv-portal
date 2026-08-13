@@ -1,6 +1,6 @@
 import * as XLSX from "xlsx";
 import type { StoreWithAssets, MaintenanceRecord, IncidentTicket, RecoveryStatus, RecoveryStageHistoryEntry } from "@/types/database";
-import { regionFromZone, zoneCode, deriveRecoveryStatus, getEffectiveRecoveryStage } from "@/lib/recovery";
+import { regionFromZone, zoneCode, deriveRecoveryStatus, getEffectiveRecoveryStage, needsRepair } from "@/lib/recovery";
 import { getStatusLabel } from "@/components/ui/Badge";
 
 function download(wb: XLSX.WorkBook, filename: string) {
@@ -100,6 +100,16 @@ function addDeviceStatusLabel(store: StoreWithAssets): string {
   return store.hikconnect?.ivms_account ? "Registered / Added Successfully" : "Not Yet Registered in the System";
 }
 
+// Most recent note left against this store — current-stage remarks and
+// actual stage-transition notes alike, whichever was logged last. Shared by
+// both exportWorkOrdersToExcel and exportExecutiveSummaryToExcel so the two
+// files never disagree on what a store's Remark says.
+function latestNoteFor(storeId: string, history: RecoveryStageHistoryEntry[]): string | undefined {
+  return [...history]
+    .filter((h) => h.store_id === storeId && h.note)
+    .sort((a, b) => (a.changed_at < b.changed_at ? 1 : -1))[0]?.note ?? undefined;
+}
+
 /**
  * Matches the exact column layout of the team's own "50 Stores Summary"
  * reference file (Code / Store Name / DM / Status / Online Status / Camera
@@ -120,11 +130,6 @@ export function exportWorkOrdersToExcel(
 ) {
   const rows = stores.map((s) => {
     const stage = getEffectiveRecoveryStage(s, tickets);
-    // Most recent note left against this store, current-stage remarks and
-    // actual stage-transition notes alike — whichever was logged last.
-    const latestNote = [...history]
-      .filter((h) => h.store_id === s.id && h.note)
-      .sort((a, b) => (a.changed_at < b.changed_at ? 1 : -1))[0]?.note;
     return {
       Code: s.store_code,
       "Store Name": s.store_name,
@@ -134,7 +139,7 @@ export function exportWorkOrdersToExcel(
       "Camera Status": cameraStatusLabel(s),
       "Add Device Status": addDeviceStatusLabel(s),
       Cause: causeLabel(s),
-      Remark: latestNote ?? s.recovery_notes ?? "",
+      Remark: latestNoteFor(s.id, history) ?? s.recovery_notes ?? "",
     };
   });
   const ws = XLSX.utils.json_to_sheet(rows);
@@ -150,8 +155,25 @@ export function exportWorkOrdersToExcel(
  * and no numeric score at all. This export mirrors exactly that: real status
  * labels via getStatusLabel (the same mapping the on-screen badges use), no
  * score/points anywhere.
+ *
+ * "Store Status" also carries the Work Order Summary columns (Work Order
+ * Status / Online Status / Camera Status / Cause / Remark) — matched onto
+ * each row by store code, same as the Work Orders Summary export, so the
+ * two never need to be merged by hand. `tickets`/`history` are optional so
+ * existing callers that only pass `stores` still compile; without them
+ * those five columns are simply left blank for every row. Stores that were
+ * never part of any Work Order (needsRepair false — never had an issue,
+ * never got a ticket, never got a recovery_stage) are also left blank
+ * rather than computed, since getEffectiveRecoveryStage would otherwise
+ * default them to "Waiting Vendor Quote" / "Open" — misleading for a store
+ * that was simply always fine.
  */
-export function exportExecutiveSummaryToExcel(stores: StoreWithAssets[], filename = "bata-executive-summary.xlsx") {
+export function exportExecutiveSummaryToExcel(
+  stores: StoreWithAssets[],
+  tickets: IncidentTicket[] = [],
+  history: RecoveryStageHistoryEntry[] = [],
+  filename = "bata-executive-summary.xlsx"
+) {
   const counts = { Healthy: 0, Partial: 0, Offline: 0, Unknown: 0 } as Record<string, number>;
   stores.forEach((s) => (counts[s.overall_status] = (counts[s.overall_status] ?? 0) + 1));
 
@@ -167,13 +189,22 @@ export function exportExecutiveSummaryToExcel(stores: StoreWithAssets[], filenam
   XLSX.utils.book_append_sheet(
     wb,
     XLSX.utils.json_to_sheet(
-      stores.map((s) => ({
-        "Store Code": s.store_code,
-        "Store Name": s.store_name,
-        Region: regionFromZone(s.zone),
-        Zone: zoneCode(s.zone),
-        Status: getStatusLabel(s.overall_status),
-      }))
+      stores.map((s) => {
+        const inWorkOrder = needsRepair(s, tickets);
+        const stage = inWorkOrder ? getEffectiveRecoveryStage(s, tickets) : null;
+        return {
+          "Store Code": s.store_code,
+          "Store Name": s.store_name,
+          Region: regionFromZone(s.zone),
+          Zone: zoneCode(s.zone),
+          Status: getStatusLabel(s.overall_status),
+          "Work Order Status": stage ? (stage === "Verified" || stage === "Completed" ? "Closed" : "Open") : "",
+          "Online Status": inWorkOrder ? onlineStatusLabel(s) : "",
+          "Camera Status": inWorkOrder ? cameraStatusLabel(s) : "",
+          Cause: inWorkOrder ? causeLabel(s) : "",
+          Remark: inWorkOrder ? latestNoteFor(s.id, history) ?? s.recovery_notes ?? "" : "",
+        };
+      })
     ),
     "Store Status"
   );

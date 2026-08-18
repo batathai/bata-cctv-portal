@@ -123,7 +123,7 @@ export default function ReportsPage() {
           <div className="mt-4 pt-4 border-t border-black/5 dark:border-white/10">
             <p className="text-xs text-ink-faint mb-3">
               Or export every store in one zone — same columns as Work Order Summary (Code, Store Name, DM, Status, Online
-              Status, Camera Status, Add Device Status, Cause, Remark).
+              Status, Camera Status, Cause, Remark).
             </p>
             <div className="mb-3">
               <Select value={selectedZone} onChange={setSelectedZone} options={ZONES.map((z) => z.code)} placeholder="Choose a zone" />
@@ -163,7 +163,7 @@ export default function ReportsPage() {
           <SectionTitle icon={ClipboardList}>Work Order Summary</SectionTitle>
           <p className="text-xs text-ink-faint mb-3">
             Same layout as the team&apos;s &quot;50 Stores Summary&quot; sheet — Code, Store Name, DM, Status, Online Status, Camera Status,
-            Add Device Status, Cause, Remark — computed live from each store&apos;s current Work Order state.
+            Cause, Remark — computed live from each store&apos;s current Work Order state.
           </p>
           <div className="mb-4">
             <Select value={selectedBatchName} onChange={setSelectedBatchName} options={workOrderBatches.map((b) => b.name)} placeholder="Choose a job" />

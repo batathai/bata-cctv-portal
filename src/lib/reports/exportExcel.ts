@@ -96,10 +96,6 @@ function causeLabel(store: StoreWithAssets): string {
   return CAUSE_LABEL[derived];
 }
 
-function addDeviceStatusLabel(store: StoreWithAssets): string {
-  return store.hikconnect?.ivms_account ? "Registered / Added Successfully" : "Not Yet Registered in the System";
-}
-
 // Most recent note left against this store — current-stage remarks and
 // actual stage-transition notes alike, whichever was logged last. Shared by
 // both exportWorkOrdersToExcel and exportExecutiveSummaryToExcel so the two
@@ -113,7 +109,7 @@ function latestNoteFor(storeId: string, history: RecoveryStageHistoryEntry[]): s
 /**
  * Matches the exact column layout of the team's own "50 Stores Summary"
  * reference file (Code / Store Name / DM / Status / Online Status / Camera
- * Status / Add Device Status / Cause), plus a Remark column — every value
+ * Status / Cause), plus a Remark column — every value
  * is computed live from the current store + ticket + stage-history state,
  * not the original import snapshot. That's intentional: a store that's
  * since been fixed and Verified will show "ใช้งานปกติ"/"OK"/"Online" here
@@ -137,7 +133,6 @@ export function exportWorkOrdersToExcel(
       Status: stage === "Verified" || stage === "Completed" ? "Closed" : "Open",
       "Online Status": onlineStatusLabel(s),
       "Camera Status": cameraStatusLabel(s),
-      "Add Device Status": addDeviceStatusLabel(s),
       Cause: causeLabel(s),
       Remark: latestNoteFor(s.id, history) ?? s.recovery_notes ?? "",
     };

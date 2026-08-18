@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Search, Server, FileText } from "lucide-react";
+import { Search, Server, FileText, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { useAppData } from "@/components/providers/AppDataProvider";
 import { Card, SectionTitle } from "@/components/ui/Card";
 import { StatusBadge } from "@/components/ui/Badge";
@@ -10,12 +10,46 @@ import { Select } from "@/components/ui/Select";
 import { ExportButtons } from "@/components/reports/ExportButtons";
 import { ZONES } from "@/lib/mockData";
 import { zoneCode, getAreaLabel, regionFromZone } from "@/lib/recovery";
+import type { StoreWithAssets } from "@/types/database";
+
+type SortKey = "store_code" | "store_name" | "zone" | "serial" | "cameras" | "status";
+
+const SORT_COLUMNS: { key: SortKey; label: string }[] = [
+  { key: "store_code", label: "Store Code" },
+  { key: "store_name", label: "Store Name" },
+  { key: "zone", label: "Zone" },
+  { key: "serial", label: "Serial No." },
+  { key: "cameras", label: "Cameras" },
+  { key: "status", label: "Status" },
+];
+
+function sortValue(s: StoreWithAssets, key: SortKey): string | number {
+  switch (key) {
+    case "store_code":
+      return s.store_code;
+    case "store_name":
+      return s.store_name;
+    case "zone":
+      return zoneCode(s.zone);
+    case "serial":
+      return s.asset?.nvr_serial ?? "";
+    case "cameras":
+      // Stores with no synced asset have no camera count yet — sort them to
+      // the low end (like a blank cell in a spreadsheet) rather than
+      // crashing a numeric comparison against `undefined`.
+      return s.asset?.camera_total ?? -1;
+    case "status":
+      return s.overall_status;
+  }
+}
 
 export default function AssetRegisterPage() {
   const { stores, loading } = useAppData();
   const [q, setQ] = useState("");
   const [regionFilter, setRegionFilter] = useState("");
   const [zoneFilter, setZoneFilter] = useState("");
+  const [sortKey, setSortKey] = useState<SortKey>("store_code");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
   // Zone options narrow to whichever region is selected, so picking
   // "Bangkok" doesn't leave stale Upcountry zone codes (520/530/...)
@@ -28,6 +62,25 @@ export default function AssetRegisterPage() {
     .filter((s) =>
       (s.store_name + s.store_code + (s.province ?? "") + zoneCode(s.zone) + getAreaLabel(s.zone)).toLowerCase().includes(q.toLowerCase())
     );
+
+  const sorted = useMemo(() => {
+    const dir = sortDir === "asc" ? 1 : -1;
+    return [...filtered].sort((a, b) => {
+      const av = sortValue(a, sortKey);
+      const bv = sortValue(b, sortKey);
+      if (typeof av === "number" && typeof bv === "number") return (av - bv) * dir;
+      return String(av).localeCompare(String(bv)) * dir;
+    });
+  }, [filtered, sortKey, sortDir]);
+
+  function toggleSort(key: SortKey) {
+    if (key === sortKey) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+  }
 
   function onRegionChange(next: string) {
     setRegionFilter(next);
@@ -62,17 +115,27 @@ export default function AssetRegisterPage() {
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-[11px] uppercase tracking-wide text-ink-faint border-b border-black/5 dark:border-white/10">
-              <th className="py-2 pr-3">Store Code</th>
-              <th className="py-2 pr-3">Store Name</th>
-              <th className="py-2 pr-3">Zone</th>
-              <th className="py-2 pr-3">Serial No.</th>
-              <th className="py-2 pr-3">Cameras</th>
-              <th className="py-2 pr-3">Status</th>
+              {SORT_COLUMNS.map((col) => (
+                <th key={col.key} className="py-2 pr-3">
+                  <button
+                    type="button"
+                    onClick={() => toggleSort(col.key)}
+                    className="flex items-center gap-1 hover:text-ink dark:hover:text-white"
+                  >
+                    {col.label}
+                    {sortKey === col.key ? (
+                      sortDir === "asc" ? <ArrowUp size={12} /> : <ArrowDown size={12} />
+                    ) : (
+                      <ArrowUpDown size={12} className="opacity-30" />
+                    )}
+                  </button>
+                </th>
+              ))}
               <th className="py-2 pr-3 text-right">Action</th>
             </tr>
           </thead>
           <tbody>
-            {filtered.map((s) => (
+            {sorted.map((s) => (
               <tr key={s.id} className="border-b border-black/5 dark:border-white/5 hover:bg-surface-muted dark:hover:bg-white/5">
                 <td className="py-2 pr-3">
                   <Link href={`/assets/${s.store_code}`} className="font-mono text-xs text-brand hover:underline">

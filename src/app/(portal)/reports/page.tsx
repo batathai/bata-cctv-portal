@@ -9,10 +9,13 @@ import { Select } from "@/components/ui/Select";
 import { exportExecutivePdf, exportStoreDetailPdf, exportOfflineStoresPdf } from "@/lib/reports/exportPdf";
 import { exportExecutiveSummaryToExcel, exportStoresToExcel, exportWorkOrdersToExcel } from "@/lib/reports/exportExcel";
 import { canManageMasterData } from "@/lib/rbac";
+import { zoneCode } from "@/lib/recovery";
+import { ZONES } from "@/lib/mockData";
 
 export default function ReportsPage() {
   const { stores, tickets, maintenance, workOrderBatches, recoveryStageHistory, role, loading, refreshAllData } = useAppData();
   const [selectedCode, setSelectedCode] = useState("");
+  const [selectedZone, setSelectedZone] = useState("");
   // Defaults to the 50-store pilot job specifically — that's the one with a
   // known reference file to cross-check against; other jobs can still be
   // picked from the dropdown same as before.
@@ -116,6 +119,26 @@ export default function ReportsPage() {
           >
             <FileText size={13} className="text-brand" /> Generate PDF
           </button>
+
+          <div className="mt-4 pt-4 border-t border-black/5 dark:border-white/10">
+            <p className="text-xs text-ink-faint mb-3">
+              Or export every store in one zone — same columns as Work Order Summary (Code, Store Name, DM, Status, Online
+              Status, Camera Status, Add Device Status, Cause, Remark).
+            </p>
+            <div className="mb-3">
+              <Select value={selectedZone} onChange={setSelectedZone} options={ZONES.map((z) => z.code)} placeholder="Choose a zone" />
+            </div>
+            <button
+              disabled={!selectedZone}
+              onClick={() => {
+                const zoneStores = stores.filter((s) => zoneCode(s.zone) === selectedZone);
+                exportWorkOrdersToExcel(zoneStores, tickets, recoveryStageHistory, `zone-${selectedZone}-store-detail.xlsx`);
+              }}
+              className="w-full flex items-center justify-center gap-1.5 text-xs font-medium border border-black/10 dark:border-white/10 rounded-md py-2 hover:bg-surface-muted dark:hover:bg-white/5 disabled:opacity-40"
+            >
+              <FileSpreadsheet size={13} className="text-status-healthy" /> Export Zone (Excel)
+            </button>
+          </div>
         </Card>
 
         <Card className="p-5 flex flex-col">

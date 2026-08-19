@@ -10,7 +10,7 @@ import { StatCard } from "@/components/ui/StatCard";
 import { StatusBadge } from "@/components/ui/Badge";
 import { RecoveryStageBadge } from "@/components/recovery/RecoveryBadges";
 import { NewTicketModal } from "@/components/work-orders/NewTicketModal";
-import { RECOVERY_STAGES, needsRepair, getEffectiveRecoveryStage, getRecoveryRegion, getAreaLabel, getLatestRemark } from "@/lib/recovery";
+import { RECOVERY_STAGES, needsRepair, getEffectiveRecoveryStage, getRecoveryRegion, zoneCode, getLatestRemark } from "@/lib/recovery";
 import { canLogMaintenance } from "@/lib/rbac";
 import type { RecoveryStage, StoreWithAssets } from "@/types/database";
 
@@ -52,7 +52,19 @@ export default function WorkOrderBatchDetailPage() {
     return c;
   }, [workOrderStores, tickets]);
 
-  const openCount = useMemo(() => RECOVERY_STAGES.reduce((sum, stage) => sum + stageCounts[stage], 0), [stageCounts]);
+  // Every store tracked in this job, regardless of stage — for the "N
+  // store(s) tracked in this job" subtitle. Kept separate from openCount
+  // below since "tracked" and "still open" are different questions and
+  // conflating them (as a single `openCount` used to) is what made the
+  // "Total Open" card read 50 while the list — which hides Completed/
+  // Verified by default — only ever showed the remaining ~29.
+  const totalCount = useMemo(() => RECOVERY_STAGES.reduce((sum, stage) => sum + stageCounts[stage], 0), [stageCounts]);
+  // Stores NOT yet Completed/Verified — what "Open" should actually mean,
+  // and what matches the list's own default (showDone unchecked) view.
+  const openCount = useMemo(
+    () => RECOVERY_STAGES.filter((s) => s !== "Completed" && s !== "Verified").reduce((sum, stage) => sum + stageCounts[stage], 0),
+    [stageCounts]
+  );
 
   const earliestChangeByStore = useMemo(() => {
     const m = new Map<string, string>();
@@ -127,7 +139,7 @@ export default function WorkOrderBatchDetailPage() {
             )}
           </div>
           <p className="text-sm text-ink-faint mt-0.5">
-            {openCount} store(s) tracked in this job &middot; click a row to view details and update its status step by step
+            {totalCount} store(s) tracked in this job &middot; click a row to view details and update its status step by step
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -156,14 +168,14 @@ export default function WorkOrderBatchDetailPage() {
 
       <div className="flex flex-wrap gap-3">
         <StatCard
-          label="Total Open"
+          label="Open"
           value={openCount}
           colorClass="text-brand"
           onClick={() => {
             setStageFilter("");
-            setShowDone(true);
+            setShowDone(false);
           }}
-          active={!stageFilter && showDone}
+          active={!stageFilter && !showDone}
         />
         {RECOVERY_STAGES.map((stage) => (
           <StatCard
@@ -211,7 +223,7 @@ export default function WorkOrderBatchDetailPage() {
                 <div className="min-w-0 flex-1">
                   <div className="text-sm font-medium text-ink dark:text-white truncate">{s.store_name}</div>
                   <div className="font-mono text-[11px] text-ink-faint">
-                    {s.store_code} &middot; {getRecoveryRegion(s.zone)} &middot; {getAreaLabel(s.zone)}
+                    {s.store_code} &middot; {zoneCode(s.zone)} &middot; {getRecoveryRegion(s.zone)}
                   </div>
                   {(() => {
                     const remark = getLatestRemark(s, recoveryStageHistory);

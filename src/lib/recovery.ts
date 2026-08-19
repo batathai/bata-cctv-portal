@@ -8,19 +8,19 @@ import { hasOpenTicket, ticketsForStore } from "@/lib/tickets";
  * This matches `Store.region` ("Bangkok" / "Upcountry") everywhere in the
  * app now that zone "550" is classified as Bangkok in mockData.ts,
  * importWrite.ts, and importHistory.ts (previously inconsistent — some
- * treated it as Upcountry). Kept as a separate BKK/Country-labeled map here
- * because the Recovery Dashboard's stat cards and store list use "BKK" /
- * "Country" labels rather than "Bangkok" / "Upcountry".
+ * treated it as Upcountry). Kept as a separate BKK/Upcountry-labeled map
+ * here because the Recovery Dashboard's stat cards and store list use "BKK"
+ * rather than "Bangkok" for the other region.
  */
 export const RECOVERY_REGION_BY_ZONE: Record<string, RecoveryRegion> = {
   "511": "BKK",
   "512": "BKK",
   "513": "BKK",
   "550": "BKK",
-  "520": "Country",
-  "530": "Country",
-  "540": "Country",
-  "560": "Country",
+  "520": "Upcountry",
+  "530": "Upcountry",
+  "540": "Upcountry",
+  "560": "Upcountry",
 };
 
 /**
@@ -35,7 +35,7 @@ export function zoneCode(zone: string): string {
 }
 
 export function getRecoveryRegion(zone: string): RecoveryRegion {
-  return RECOVERY_REGION_BY_ZONE[zoneCode(zone)] ?? "Country";
+  return RECOVERY_REGION_BY_ZONE[zoneCode(zone)] ?? "Upcountry";
 }
 
 /**
@@ -43,8 +43,8 @@ export function getRecoveryRegion(zone: string): RecoveryRegion {
  * same source of truth as getRecoveryRegion (511/512/513/550 -> Bangkok,
  * 520/530/540/560 -> Upcountry) but returning the "Bangkok"/"Upcountry"
  * labels used by `stores.region`, the TopBar Region filter, and Asset
- * Register, instead of the "BKK"/"Country" labels used by the Recovery/Work
- * Order pages. Use this instead of trusting a store's stored `region`
+ * Register, instead of the "BKK" label used by the Recovery/Work
+ * Order pages for the Bangkok side. Use this instead of trusting a store's stored `region`
  * column, which can drift out of sync with its `zone` after a messy import.
  */
 export function regionFromZone(zone: string): "Bangkok" | "Upcountry" {

@@ -134,7 +134,7 @@ function DashboardContent() {
     [counts]
   );
 
-  const byRegion = (["BKK", "Country"] as const).map((r) => ({
+  const byRegion = (["BKK", "Upcountry"] as const).map((r) => ({
     name: r,
     value: stores.filter((s) => getRecoveryRegion(s.zone) === r).length,
   }));
@@ -193,7 +193,7 @@ function DashboardContent() {
         </Card>
 
         <Card className="p-4">
-          <SectionTitle icon={MapPin}>Stores by Region (BKK / Country)</SectionTitle>
+          <SectionTitle icon={MapPin}>Stores by Region (BKK / Upcountry)</SectionTitle>
           <ResponsiveContainer width="100%" height={90}>
             <BarChart data={byRegion} layout="vertical" margin={{ left: 0 }}>
               <XAxis type="number" hide />

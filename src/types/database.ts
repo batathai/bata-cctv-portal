@@ -8,7 +8,7 @@ export type { UserRole } from "@/lib/rbac";
 export type OverallStatus = "Healthy" | "Partial" | "Offline" | "Unknown";
 
 // --- Sprint 1: Recovery Dashboard (first 50 priority stores) ---
-export type RecoveryRegion = "BKK" | "Country";
+export type RecoveryRegion = "BKK" | "Upcountry";
 export type RecoveryStatus = "Normal" | "Camera Issue" | "DVR Failure" | "Device Not Registered";
 export type RecoveryStage =
   | "Waiting Vendor Quote"

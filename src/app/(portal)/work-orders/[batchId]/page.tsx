@@ -168,8 +168,8 @@ export default function WorkOrderBatchDetailPage() {
 
       <div className="flex flex-wrap gap-3">
         <StatCard
-          label="Open"
-          value={openCount}
+          label={showDone ? "Total" : "Open"}
+          value={showDone ? totalCount : openCount}
           colorClass="text-brand"
           onClick={() => {
             setStageFilter("");

@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Search, Server, FileText, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { useAppData } from "@/components/providers/AppDataProvider";
 import { Card, SectionTitle } from "@/components/ui/Card";
@@ -43,13 +44,35 @@ function sortValue(s: StoreWithAssets, key: SortKey): string | number {
   }
 }
 
-export default function AssetRegisterPage() {
+// useSearchParams() below opts this page into client-side rendering, which
+// Next.js requires wrapping in Suspense — see default export at the bottom.
+function AssetRegisterContent() {
   const { stores, loading } = useAppData();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  // Region/Zone live in the URL (?region=...&zone=...), not just useState, so
+  // that opening a store's Details then hitting Back (router.back(), see
+  // assets/[code]/page.tsx) returns to this same filtered view instead of
+  // resetting to "all" — a plain useState is lost on remount since Back
+  // re-mounts this page fresh. Mirrors the same fix on the Dashboard page.
+  const regionFilter = searchParams.get("region") ?? "";
+  const zoneFilter = searchParams.get("zone") ?? "";
   const [q, setQ] = useState("");
-  const [regionFilter, setRegionFilter] = useState("");
-  const [zoneFilter, setZoneFilter] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("store_code");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+
+  function setFilters(next: { region?: string; zone?: string }) {
+    const params = new URLSearchParams(searchParams.toString());
+    const nextRegion = next.region ?? regionFilter;
+    const nextZone = next.zone ?? zoneFilter;
+    if (nextRegion) params.set("region", nextRegion);
+    else params.delete("region");
+    if (nextZone) params.set("zone", nextZone);
+    else params.delete("zone");
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  }
 
   // Zone options narrow to whichever region is selected, so picking
   // "Bangkok" doesn't leave stale Upcountry zone codes (520/530/...)
@@ -83,10 +106,10 @@ export default function AssetRegisterPage() {
   }
 
   function onRegionChange(next: string) {
-    setRegionFilter(next);
     // Drop the zone filter if it no longer belongs to the newly-selected
     // region (e.g. was "520" and region switched to "Bangkok").
-    if (next && zoneFilter && regionFromZone(zoneFilter) !== next) setZoneFilter("");
+    const dropZone = next && zoneFilter && regionFromZone(zoneFilter) !== next;
+    setFilters({ region: next, zone: dropZone ? "" : undefined });
   }
 
   if (loading) return <div className="text-sm text-ink-faint">Loading asset register…</div>;
@@ -97,7 +120,7 @@ export default function AssetRegisterPage() {
         <SectionTitle icon={Server}>Asset Register ({filtered.length})</SectionTitle>
         <div className="flex items-center gap-2">
           <Select value={regionFilter} onChange={onRegionChange} options={["Bangkok", "Upcountry"]} placeholder="Region" />
-          <Select value={zoneFilter} onChange={setZoneFilter} options={zoneOptions.map((z) => z.code)} placeholder="Zone" />
+          <Select value={zoneFilter} onChange={(v) => setFilters({ zone: v })} options={zoneOptions.map((z) => z.code)} placeholder="Zone" />
           <div className="relative">
             <Search size={13} className="absolute left-2.5 top-2.5 text-ink-faint" />
             <input
@@ -161,5 +184,13 @@ export default function AssetRegisterPage() {
         </table>
       </div>
     </Card>
+  );
+}
+
+export default function AssetRegisterPage() {
+  return (
+    <Suspense fallback={<div className="text-sm text-ink-faint">Loading asset register…</div>}>
+      <AssetRegisterContent />
+    </Suspense>
   );
 }

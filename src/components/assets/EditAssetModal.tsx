@@ -4,6 +4,7 @@ import { useState } from "react";
 import { X, Loader2, AlertCircle } from "lucide-react";
 import { useAppData } from "@/components/providers/AppDataProvider";
 import { Select } from "@/components/ui/Select";
+import { HDD_CAPACITIES, HDD_RETENTION_DAYS } from "@/lib/recovery";
 import type { StoreWithAssets } from "@/types/database";
 
 interface Props {
@@ -176,7 +177,14 @@ export function EditAssetModal({ store, onClose }: Props) {
               <section className="space-y-3">
                 <div className="text-xs font-semibold uppercase tracking-wide text-ink-faint">Storage</div>
                 <Field label="HDD Capacity">
-                  <input value={hddCapacity ?? ""} onChange={(e) => setHddCapacity(e.target.value)} className={inputCls} />
+                  <Select
+                    value={hddCapacity}
+                    onChange={setHddCapacity}
+                    options={withCurrent(HDD_CAPACITIES, hddCapacity)}
+                    optionLabel={(v) => (HDD_RETENTION_DAYS[v] ? `${v} (≈ ${HDD_RETENTION_DAYS[v]} days)` : v)}
+                    placeholder="HDD Capacity"
+                    variant="full"
+                  />
                 </Field>
               </section>
             </>

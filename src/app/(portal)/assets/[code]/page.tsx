@@ -2,18 +2,15 @@
 
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Camera, Wrench, MapPin, Pencil, Ticket as TicketIcon, Fingerprint } from "lucide-react";
+import { ArrowLeft, Camera, Pencil, Ticket as TicketIcon, Fingerprint } from "lucide-react";
 import { useAppData } from "@/components/providers/AppDataProvider";
 import { Card, SectionTitle } from "@/components/ui/Card";
 import { EditableStatusBadge } from "@/components/ui/EditableStatusBadge";
-import { RecoveryStatusBadge } from "@/components/recovery/RecoveryBadges";
 import { EditAssetModal } from "@/components/assets/EditAssetModal";
 import { TicketsCard } from "@/components/assets/TicketsCard";
 import { DeviceIdentityCard } from "@/components/assets/DeviceIdentityCard";
-import { getAreaLabel, getCause, getRequiredAction, RECOVERY_STAGES, deriveRecoveryStatus, getRecoveryRegion } from "@/lib/recovery";
-import { IvmsLookup } from "@/components/recovery/IvmsLookup";
+import { getAreaLabel, getRecoveryRegion } from "@/lib/recovery";
 import { canManageMasterData, canLogMaintenance } from "@/lib/rbac";
-import type { RecoveryStage } from "@/types/database";
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -28,7 +25,7 @@ export const runtime = 'edge';
 export default function StoreDetailPage() {
   const { code } = useParams<{ code: string }>();
   const router = useRouter();
-  const { stores, maintenance, loading, role, updateRecoveryStage, workOrderBatches } = useAppData();
+  const { stores, loading, role } = useAppData();
   const [editing, setEditing] = useState(false);
 
   if (loading) return <div className="text-sm text-ink-faint">Loading…</div>;
@@ -42,7 +39,6 @@ export default function StoreDetailPage() {
     );
   }
 
-  const records = maintenance.filter((r) => r.store_id === store.id);
   const canEditMaster = canManageMasterData(role);
   const canLogWork = canLogMaintenance(role);
 
@@ -69,6 +65,9 @@ export default function StoreDetailPage() {
           <div>
             <div className="font-display text-lg font-bold text-ink dark:text-white">{store.store_name}</div>
             <div className="font-mono text-xs text-ink-faint">{store.store_code} &middot; {store.province}</div>
+            <div className="text-xs text-ink-soft dark:text-white/60 mt-1">
+              Region: {getRecoveryRegion(store.zone)} &middot; Area: {getAreaLabel(store.zone)}
+            </div>
             {store.store_group && (
               <div className="text-xs text-ink-soft dark:text-white/60 mt-1">Group: {store.store_group}</div>
             )}
@@ -88,44 +87,6 @@ export default function StoreDetailPage() {
         <DeviceIdentityCard store={store} canEdit={canEditMaster} />
       </Card>
 
-
-      {/* Gated on batch_id rather than the old is_recovery50 (migration 017)
-          — this card now shows for a store in ANY job, not just the
-          original 50-store pilot, and names which job it's in. */}
-      {store.batch_id && (
-        <Card className="p-5">
-          <SectionTitle icon={MapPin}>Recovery Tracking</SectionTitle>
-          <Row label="Job" value={workOrderBatches.find((b) => b.id === store.batch_id)?.name ?? "—"} />
-          <Row label="Region" value={getRecoveryRegion(store.zone)} />
-          <Row label="Area" value={getAreaLabel(store.zone)} />
-          <Row label="Cause" value={getCause(store) ?? "—"} />
-          <Row label="Required Action" value={getRequiredAction(store) ?? "—"} />
-          <Row label="Vendor" value={store.supplierName} />
-          <Row label="Recovery Status" value={<RecoveryStatusBadge status={deriveRecoveryStatus(store)} />} />
-          <div className="flex justify-between items-center py-1.5 text-sm">
-            <span className="text-ink-faint">Recovery Stage</span>
-            {canEditMaster ? (
-              <select
-                value={store.recovery_stage ?? (deriveRecoveryStatus(store) === "Normal" ? "Verified" : "Waiting Vendor Quote")}
-                onChange={(e) => updateRecoveryStage(store.id, e.target.value as RecoveryStage)}
-                className="text-xs rounded-md border border-black/10 dark:border-white/10 bg-surface-muted dark:bg-white/5 px-2 py-1 outline-none focus:border-brand"
-              >
-                {RECOVERY_STAGES.map((stg) => (
-                  <option key={stg} value={stg}>
-                    {stg}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <span className="text-ink dark:text-white">{store.recovery_stage ?? "—"}</span>
-            )}
-          </div>
-          <div className="mt-3">
-            <IvmsLookup store={store} />
-          </div>
-        </Card>
-      )}
-
       <Card className="p-5">
         <SectionTitle icon={Camera}>Cameras</SectionTitle>
         <Row label="Total" value={store.asset?.camera_total} />
@@ -134,30 +95,6 @@ export default function StoreDetailPage() {
       <Card className="p-5">
         <SectionTitle icon={TicketIcon}>Repair Tickets</SectionTitle>
         <TicketsCard store={store} canEdit={canLogWork} />
-      </Card>
-
-      <Card className="p-5">
-        <SectionTitle icon={Wrench}>Maintenance Timeline ({records.length})</SectionTitle>
-        {records.length === 0 && <p className="text-sm text-ink-faint">No repair records for this store.</p>}
-        <div className="relative pl-4 space-y-4 mt-2">
-          {records.length > 0 && (
-            <div className="absolute left-[3px] top-1.5 bottom-1.5 w-px bg-black/10 dark:bg-white/10" />
-          )}
-          {records.map((r) => (
-            <div key={r.id} className="relative">
-              <span className="absolute -left-4 top-1 w-[7px] h-[7px] rounded-full bg-brand" />
-              <div className="bg-surface-muted dark:bg-white/5 rounded-md p-3 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-brand font-medium">{r.problem}</span>
-                  <span className="font-mono text-xs text-ink-faint">{r.issue_date}</span>
-                </div>
-                <div className="text-xs text-ink-soft dark:text-white/60 mt-1">
-                  {r.resolution} &middot; ฿{r.cost.toLocaleString()}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
       </Card>
     </div>
   );

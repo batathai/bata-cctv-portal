@@ -66,6 +66,36 @@ export const RECOVERY_STAGES: RecoveryStage[] = [
   "Verified",
 ];
 
+/**
+ * Rough playback-retention reference, at ~15 days per TB — the two known
+ * data points the team gave (1TB ≈ 15 days, 2TB ≈ 30 days) extrapolated at
+ * the same ratio for the other capacities on site (250GB included since it's
+ * a real value already in the data, ~15/4 days rounded to 4). This is a
+ * *reference* shown next to the HDD Capacity picker (Edit Asset, Survey) so
+ * whoever's filling it in has a rough expectation to sanity-check the
+ * *actual* observed playback days against — not an exact formula (real
+ * retention also depends on camera count/resolution/bitrate, which aren't
+ * tracked here). Update this table if the team's real-world numbers differ.
+ *
+ * Values use "N TB"/"N GB" (space, uppercase unit) to match the dominant
+ * format already in production `cctv_assets.hdd_capacity` (checked directly
+ * against the live data — "1 TB" outnumbers "1TB" 90:1). A store whose
+ * existing value doesn't match one of these exactly (a handful of legacy
+ * rows use "250GB", "250 gb", etc.) still shows up as its own option
+ * wherever this picker uses `withCurrent()` — nothing is silently lost —
+ * it just won't carry a day estimate until re-picked from this list.
+ */
+export const HDD_CAPACITIES = ["250 GB", "1 TB", "2 TB", "3 TB", "4 TB", "6 TB", "8 TB"];
+export const HDD_RETENTION_DAYS: Record<string, number> = {
+  "250 GB": 4,
+  "1 TB": 15,
+  "2 TB": 30,
+  "3 TB": 45,
+  "4 TB": 60,
+  "6 TB": 90,
+  "8 TB": 120,
+};
+
 /** Most recent quotation for a store (by quotation_date, falling back to created_at), or null if none yet. */
 export function getLatestQuotation(storeId: string, quotations: VendorQuotation[]): VendorQuotation | null {
   const forStore = quotations.filter((q) => q.store_id === storeId);

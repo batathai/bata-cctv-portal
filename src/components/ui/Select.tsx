@@ -8,6 +8,7 @@ export function Select({
   options,
   placeholder,
   variant = "compact",
+  optionLabel,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -19,6 +20,10 @@ export function Select({
    * used in edit forms (e.g. EditAssetModal), so a dropdown sitting next
    * to regular fields in a form doesn't look shrunken. */
   variant?: "compact" | "full";
+  /** Optional per-option display text, separate from the stored `value`
+   * (e.g. show "1TB (≈ 15 days)" while still storing/submitting "1TB") —
+   * defaults to showing the value itself when omitted. */
+  optionLabel?: (value: string) => string;
 }) {
   const isFull = variant === "full";
   return (
@@ -35,7 +40,7 @@ export function Select({
         <option value="">{placeholder}</option>
         {options.map((o) => (
           <option key={o} value={o}>
-            {o}
+            {optionLabel ? optionLabel(o) : o}
           </option>
         ))}
       </select>

@@ -340,6 +340,9 @@ export function generateMockData() {
       overall_status: s.overall_status,
       audit_score: s.healthScore,
       notes: null,
+      partial_reason: null,
+      offline_reason: null,
+      retention_days_seen: null,
     }));
 
   // Sprint 5 - Work Order "Jobs": mock data has always been exactly the 50

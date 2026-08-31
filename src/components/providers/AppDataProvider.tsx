@@ -57,6 +57,7 @@ import { zoneCode, regionFromZone } from "@/lib/recovery";
 import { updateStoreDetailsDb, updateAssetDetailsDb, updateHikconnectDetailsDb, relocateAssetDb, uploadQrCodeDb } from "@/lib/assetWrite";
 import { createIncidentTicketDb, updateIncidentTicketStatusDb, type TicketFormInput } from "@/lib/ticketWrite";
 import { uploadAttachment as uploadAttachmentDb, deleteAttachment as deleteAttachmentDb, getAttachmentUrl } from "@/lib/attachmentWrite";
+import { createAuditRecordDb, type SurveyFormInput } from "@/lib/auditWrite";
 import type { RecoveryStage, TicketStatus } from "@/types/database";
 
 export interface Filters {
@@ -119,6 +120,15 @@ interface AppDataContextValue {
   ) => Promise<void>;
   relocateAsset: (sourceStoreId: string, targetStoreCode: string) => Promise<void>;
   uploadQrCode: (storeCode: string, storeId: string, file: File) => Promise<void>;
+  // Survey: writes the checked device facts (nvr_online, camera counts,
+  // playback/HDD status, HDD capacity) and the surveyor-confirmed
+  // overall_status straight into stores/cctv_assets via editAssetDetails —
+  // same path as a manual Edit Detail — so Asset Register is the one place
+  // that state actually lives (see editAssetDetails's comment on why
+  // overall_status is never silently auto-derived). `survey` is only the
+  // historical audit_history log entry: who checked, when, why (if
+  // Partial/Offline), and how many days of playback were actually seen.
+  submitSurvey: (assetPatch: Record<string, any>, survey: SurveyFormInput) => Promise<void>;
 }
 
 const AppDataContext = createContext<AppDataContextValue | null>(null);
@@ -622,6 +632,38 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  async function submitSurvey(assetPatch: Record<string, any>, survey: SurveyFormInput) {
+    // Write the checked device state + confirmed overall_status the same
+    // way a manual Edit Detail would — no separate/parallel status logic.
+    await editAssetDetails(survey.store_id, { store: { overall_status: survey.overall_status }, asset: assetPatch });
+
+    if (isSupabaseConfigured) {
+      const supabase = createClient();
+      await createAuditRecordDb(supabase, survey);
+      setAudits(await fetchAudits());
+    } else {
+      setAudits((prev) => [
+        {
+          id: `audit_local_${Date.now()}`,
+          store_id: survey.store_id,
+          audit_date: new Date().toISOString().slice(0, 10),
+          auditor: survey.auditor || null,
+          playback_result: survey.playback_result,
+          hdd_result: survey.hdd_result,
+          camera_result: survey.camera_result,
+          hikconnect_result: survey.hikconnect_result,
+          overall_status: survey.overall_status,
+          audit_score: null,
+          notes: survey.notes ?? null,
+          partial_reason: survey.partial_reason,
+          offline_reason: survey.offline_reason,
+          retention_days_seen: survey.retention_days_seen,
+        },
+        ...prev,
+      ]);
+    }
+  }
+
   const value: AppDataContextValue = {
     loading,
     profileLoaded,
@@ -664,6 +706,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     editAssetDetails,
     relocateAsset,
     uploadQrCode,
+    submitSurvey,
   };
 
   return <AppDataContext.Provider value={value}>{children}</AppDataContext.Provider>;

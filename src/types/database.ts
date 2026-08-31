@@ -140,6 +140,26 @@ export interface MaintenanceRecord {
   created_at: string;
 }
 
+// Sprint 5 - Survey: reasons a store came back Partial or Offline during a
+// survey check. "Camera Offline, DVR Online" is listed first as the main
+// case the Retail team called out.
+export const PARTIAL_REASONS = [
+  "Camera Offline, DVR Online",
+  "Playback Not Working",
+  "HDD Near Full / Failing",
+  "Other",
+] as const;
+export type PartialReason = (typeof PARTIAL_REASONS)[number];
+
+export const OFFLINE_REASONS = [
+  "Power Outage",
+  "Network Down",
+  "Device Failure",
+  "Not Yet Registered to Hik-Connect",
+  "Other",
+] as const;
+export type OfflineReason = (typeof OFFLINE_REASONS)[number];
+
 export interface AuditRecord {
   id: string;
   store_id: string;
@@ -152,6 +172,9 @@ export interface AuditRecord {
   overall_status: string | null;
   audit_score: number | null;
   notes: string | null;
+  partial_reason: string | null;
+  offline_reason: string | null;
+  retention_days_seen: number | null;
 }
 
 // Sprint 3 - Repair Ticket (backed by the pre-existing `incident_tickets`

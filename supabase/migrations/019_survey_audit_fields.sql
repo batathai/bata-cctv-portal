@@ -3,9 +3,14 @@
 --
 -- Adds the extra columns the new /survey feature needs that audit_history
 -- didn't already have: why a store came back Partial or Offline during a
--- survey (a fixed reason, not just free-text notes), and how many days of
+-- survey (a fixed reason, not just free-text notes), how many days of
 -- playback the surveyor actually saw (to sanity-check against the HDD
--- Capacity reference table in src/lib/recovery.ts). The survey's *live*
+-- Capacity reference table in src/lib/recovery.ts), and whether the DVR's
+-- own date/time was correct (a dead clock/CMOS battery makes it drift back
+-- to wrong on every reboot — see the new "Clock Battery Failure" ticket
+-- type in types/database.ts: a repair ticket is only opened once TWO
+-- consecutive surveys both find the date wrong, since the first sighting
+-- just gets corrected on the spot and given a chance to hold). The survey's *live*
 -- status (Online/Partial/Offline) and the cctv_assets fields it's based on
 -- (nvr_online, camera_working/failed, playback_status, hdd_status,
 -- hdd_capacity) are NOT duplicated here — the Survey writes those straight
@@ -23,4 +28,5 @@
 alter table public.audit_history
   add column if not exists partial_reason text,
   add column if not exists offline_reason text,
-  add column if not exists retention_days_seen int;
+  add column if not exists retention_days_seen int,
+  add column if not exists date_correct boolean;

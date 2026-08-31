@@ -5,7 +5,7 @@ type SupabaseClient = any;
 
 export interface SurveyFormInput {
   store_id: string;
-  auditor: string;
+  auditor: string | null;
   // The *live* state (nvr_online, camera_working/failed, playback_status,
   // hdd_status, hdd_capacity) is written to stores/cctv_assets separately,
   // via AppDataProvider's editAssetDetails — same path a manual Edit Detail
@@ -21,6 +21,7 @@ export interface SurveyFormInput {
   partial_reason: PartialReason | null;
   offline_reason: OfflineReason | null;
   retention_days_seen: number | null;
+  date_correct: boolean;
   notes?: string | null;
 }
 
@@ -39,6 +40,7 @@ export async function createAuditRecordDb(supabase: SupabaseClient, input: Surve
       partial_reason: input.partial_reason,
       offline_reason: input.offline_reason,
       retention_days_seen: input.retention_days_seen,
+      date_correct: input.date_correct,
       notes: input.notes || null,
     })
     .select()

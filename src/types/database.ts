@@ -175,11 +175,29 @@ export interface AuditRecord {
   partial_reason: string | null;
   offline_reason: string | null;
   retention_days_seen: number | null;
+  // Whether the DVR's own on-screen date/time was correct at this check. A
+  // dead clock/CMOS battery makes it drift back to wrong on every reboot,
+  // so a single wrong reading just gets corrected on the spot (see the
+  // Survey checklist page) — it's only worth a repair ticket once it's
+  // found wrong on two consecutive surveys, meaning the correction didn't
+  // hold. null means this wasn't asked (older records, before this field
+  // existed).
+  date_correct: boolean | null;
 }
 
 // Sprint 3 - Repair Ticket (backed by the pre-existing `incident_tickets`
 // table in schema.sql, which had RLS policies but no application code yet).
-export type TicketIssueType = "Camera Failure" | "Playback Failure" | "HDD Failure" | "NVR Offline" | "Network Failure" | "Hik-Connect Failure";
+// "Clock Battery Failure" (Sprint 5 - Survey) is opened automatically when
+// two consecutive surveys both find the DVR's date/time wrong — see
+// src/app/(portal)/survey/[code]/page.tsx.
+export type TicketIssueType =
+  | "Camera Failure"
+  | "Playback Failure"
+  | "HDD Failure"
+  | "NVR Offline"
+  | "Network Failure"
+  | "Hik-Connect Failure"
+  | "Clock Battery Failure";
 export type TicketStatus = "Open" | "Assigned" | "In Progress" | "Waiting Parts" | "Completed" | "Closed";
 
 export interface IncidentTicket {

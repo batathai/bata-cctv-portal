@@ -176,7 +176,6 @@ function SurveyContent() {
                     </button>
                   </th>
                 ))}
-                <th className="py-2 pr-3">Checked By</th>
                 <th className="py-2 pr-3 text-right">Action</th>
               </tr>
             </thead>
@@ -194,7 +193,6 @@ function SurveyContent() {
                     <td className="py-2 pr-3 text-ink-soft dark:text-white/60">{zoneCode(s.zone)}</td>
                     <td className="py-2 pr-3 text-ink-soft dark:text-white/60">{last ? last.audit_date : "Never"}</td>
                     <td className="py-2 pr-3"><StatusBadge status={s.overall_status} /></td>
-                    <td className="py-2 pr-3 text-ink-soft dark:text-white/60">{last?.auditor ?? "—"}</td>
                     <td className="py-2 pr-3 text-right">
                       <Link
                         href={`/survey/${s.store_code}`}

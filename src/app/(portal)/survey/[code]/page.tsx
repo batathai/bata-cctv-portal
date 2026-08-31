@@ -8,6 +8,7 @@ import { Card, SectionTitle } from "@/components/ui/Card";
 import { StatusBadge } from "@/components/ui/Badge";
 import { Select } from "@/components/ui/Select";
 import { HDD_CAPACITIES, HDD_RETENTION_DAYS, getRecoveryRegion, getAreaLabel } from "@/lib/recovery";
+import { OPEN_TICKET_STATUSES, ticketsForStore } from "@/lib/tickets";
 import { PARTIAL_REASONS, OFFLINE_REASONS, type PartialReason, type OfflineReason } from "@/types/database";
 import type { OverallStatus } from "@/types/database";
 
@@ -39,18 +40,27 @@ export const runtime = "edge";
 export default function SurveyChecklistPage() {
   const { code } = useParams<{ code: string }>();
   const router = useRouter();
-  const { stores, loading, submitSurvey } = useAppData();
+  const { stores, audits, tickets, loading, submitSurvey, createTicket } = useAppData();
 
   const store = stores.find((s) => s.store_code === code);
 
-  const [auditor, setAuditor] = useState("");
   const [nvrOnline, setNvrOnline] = useState<"Yes" | "No">("Yes");
   const [cameraWorking, setCameraWorking] = useState(store?.asset?.camera_working ?? store?.asset?.camera_total ?? 0);
   const [hddCapacity, setHddCapacity] = useState(store?.asset?.hdd_capacity ?? "");
   const [hddStatus, setHddStatus] = useState<"Healthy" | "Warning" | "Failed">("Healthy");
   const [playbackResult, setPlaybackResult] = useState<"Working" | "Not Working">("Working");
-  const [retentionDaysSeen, setRetentionDaysSeen] = useState("");
+  // Simple Yes/No against the HDD reference table, rather than asking the
+  // surveyor to bisect for the exact cutoff day (tedious in the field,
+  // especially early on) — see conversation: jump straight to "N days ago"
+  // (N from HDD_RETENTION_DAYS) and just confirm footage is there or not.
+  const [retentionOk, setRetentionOk] = useState<"Yes" | "No" | "">("");
   const [hikconnectResult, setHikconnectResult] = useState<"Working" | "Not Working">("Working");
+  // A dead clock/CMOS battery makes the DVR's date drift back to wrong on
+  // every reboot — correcting it in software alone won't hold. So a single
+  // "wrong" sighting just gets corrected on the spot (see the ticket-open
+  // logic below); it only opens a repair ticket once it's found wrong on
+  // two consecutive surveys, confirming the correction didn't hold.
+  const [dateCorrect, setDateCorrect] = useState<"Yes" | "No">("Yes");
   const [overallStatus, setOverallStatus] = useState<"Healthy" | "Partial" | "Offline" | "">("");
   const [partialReason, setPartialReason] = useState<PartialReason | "">("");
   const [offlineReason, setOfflineReason] = useState<OfflineReason | "">("");
@@ -58,6 +68,7 @@ export default function SurveyChecklistPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const [ticketOpened, setTicketOpened] = useState(false);
 
   const cameraTotal = store?.asset?.camera_total ?? 0;
   const cameraStatus = cameraWorking <= 0 ? "Not Work" : cameraWorking >= cameraTotal && cameraTotal > 0 ? "OK" : "Partial";
@@ -76,6 +87,23 @@ export default function SurveyChecklistPage() {
 
   const effectiveOverall = overallStatus || suggested;
 
+  // Most recent PRIOR survey for this store (before the one being filled in
+  // now) — whether IT also found the date wrong is what decides whether
+  // this visit is the "first sighting, just correct it" case or the
+  // "already flagged once, correction didn't hold" case.
+  const previousAudit = useMemo(() => {
+    if (!store) return null;
+    const forStore = audits.filter((a) => a.store_id === store.id);
+    if (forStore.length === 0) return null;
+    return [...forStore].sort((a, b) => (a.audit_date < b.audit_date ? 1 : -1))[0];
+  }, [audits, store]);
+  const priorDateWasWrong = previousAudit?.date_correct === false;
+  const hasOpenClockTicket = useMemo(
+    () => (store ? ticketsForStore(store.id, tickets).some((t) => t.issue_type === "Clock Battery Failure" && OPEN_TICKET_STATUSES.includes(t.status)) : false),
+    [store, tickets]
+  );
+  const willOpenClockTicket = dateCorrect === "No" && priorDateWasWrong && !hasOpenClockTicket;
+
   if (loading) return <div className="text-sm text-ink-faint">Loading…</div>;
   if (!store) {
     return (
@@ -88,10 +116,6 @@ export default function SurveyChecklistPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    if (!auditor.trim()) {
-      setError("Enter who's doing this check.");
-      return;
-    }
     if (effectiveOverall === "Partial" && !partialReason) {
       setError("Pick a reason for Partial.");
       return;
@@ -102,6 +126,11 @@ export default function SurveyChecklistPage() {
     }
     setSaving(true);
     try {
+      // Yes = confirms footage reaches the HDD reference days; No = doesn't
+      // (or unanswered) — either way this is just a log entry, not the
+      // exact cutoff day, per the simplified Yes/No check above.
+      const retentionDaysSeen = retentionOk === "Yes" && hddCapacity ? HDD_RETENTION_DAYS[hddCapacity] ?? null : null;
+
       await submitSurvey(
         {
           nvr_online: nvrOnline === "Yes",
@@ -114,7 +143,7 @@ export default function SurveyChecklistPage() {
         },
         {
           store_id: store!.id,
-          auditor,
+          auditor: null,
           overall_status: effectiveOverall,
           playback_result: playbackResult,
           hdd_result: hddStatus,
@@ -122,10 +151,21 @@ export default function SurveyChecklistPage() {
           hikconnect_result: hikconnectResult,
           partial_reason: effectiveOverall === "Partial" ? (partialReason as PartialReason) : null,
           offline_reason: effectiveOverall === "Offline" ? (offlineReason as OfflineReason) : null,
-          retention_days_seen: retentionDaysSeen ? Number(retentionDaysSeen) : null,
+          retention_days_seen: retentionDaysSeen,
+          date_correct: dateCorrect === "Yes",
           notes: notes || null,
         }
       );
+
+      if (willOpenClockTicket) {
+        await createTicket({
+          store_id: store!.id,
+          issue_type: "Clock Battery Failure",
+          description: "DVR date/time found wrong on two consecutive surveys — correcting it in software didn't hold. Likely a dead clock/CMOS battery; needs a technician to replace it.",
+        });
+        setTicketOpened(true);
+      }
+
       setDone(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save survey.");
@@ -143,6 +183,9 @@ export default function SurveyChecklistPage() {
           <p className="text-sm text-ink-faint mt-1">
             {store.store_code} — {store.store_name} is now marked <StatusBadge status={effectiveOverall} /> in Asset Register.
           </p>
+          {ticketOpened && (
+            <p className="text-xs text-brand mt-2">+ Opened a Clock Battery Failure repair ticket (date wrong two visits in a row).</p>
+          )}
           <div className="flex items-center justify-center gap-2 mt-4">
             <button
               onClick={() => router.push("/survey")}
@@ -151,7 +194,10 @@ export default function SurveyChecklistPage() {
               Back to Survey list
             </button>
             <button
-              onClick={() => setDone(false)}
+              onClick={() => {
+                setDone(false);
+                setTicketOpened(false);
+              }}
               className="text-xs font-medium bg-brand text-white rounded-md px-3 py-2 hover:bg-brand-dark"
             >
               Survey another
@@ -184,10 +230,6 @@ export default function SurveyChecklistPage() {
       <Card className="p-5">
         <SectionTitle icon={ClipboardCheck}>Checklist</SectionTitle>
         <form onSubmit={handleSubmit} className="space-y-5 mt-2">
-          <Field label="Checked by">
-            <input value={auditor} onChange={(e) => setAuditor(e.target.value)} placeholder="Your name" className={inputCls} required />
-          </Field>
-
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label="DVR/NVR online?">
               <Select value={nvrOnline} onChange={(v) => setNvrOnline(v as "Yes" | "No")} options={["Yes", "No"]} placeholder="Online?" variant="full" />
@@ -211,12 +253,6 @@ export default function SurveyChecklistPage() {
                 variant="full"
               />
             </Field>
-            <Field
-              label="Days of playback actually seen"
-              hint={hddCapacity && HDD_RETENTION_DAYS[hddCapacity] ? `Reference for ${hddCapacity}: ≈ ${HDD_RETENTION_DAYS[hddCapacity]} days` : undefined}
-            >
-              <input type="number" min={0} value={retentionDaysSeen} onChange={(e) => setRetentionDaysSeen(e.target.value)} className={inputCls} placeholder="e.g. 15" />
-            </Field>
             <Field label="HDD capacity">
               <Select
                 value={hddCapacity}
@@ -226,6 +262,12 @@ export default function SurveyChecklistPage() {
                 placeholder="HDD Capacity"
                 variant="full"
               />
+            </Field>
+            <Field
+              label={hddCapacity && HDD_RETENTION_DAYS[hddCapacity] ? `Footage from ~${HDD_RETENTION_DAYS[hddCapacity]} days ago?` : "Footage from expected days ago?"}
+              hint="Jump playback to that date instead of hunting for the exact cutoff."
+            >
+              <Select value={retentionOk} onChange={(v) => setRetentionOk(v as "Yes" | "No")} options={["Yes", "No"]} placeholder="Seen?" variant="full" />
             </Field>
             <Field label="HDD status">
               <Select value={hddStatus} onChange={(v) => setHddStatus(v as "Healthy" | "Warning" | "Failed")} options={["Healthy", "Warning", "Failed"]} placeholder="HDD status" variant="full" />
@@ -239,7 +281,23 @@ export default function SurveyChecklistPage() {
                 variant="full"
               />
             </Field>
+            <Field
+              label="DVR date/time correct?"
+              hint={
+                priorDateWasWrong
+                  ? "Also wrong last visit — if still wrong, a repair ticket opens automatically for the clock battery."
+                  : "If wrong, just correct it now — it only becomes a ticket if it's wrong again next visit."
+              }
+            >
+              <Select value={dateCorrect} onChange={(v) => setDateCorrect(v as "Yes" | "No")} options={["Yes", "No"]} placeholder="Date correct?" variant="full" />
+            </Field>
           </div>
+
+          {willOpenClockTicket && (
+            <p className="text-xs text-brand bg-brand-50 dark:bg-brand/10 border border-brand/20 rounded-md px-3 py-2">
+              Wrong on two visits in a row — saving this will open a Clock Battery Failure repair ticket.
+            </p>
+          )}
 
           <div className="border-t border-black/5 dark:border-white/10 pt-4">
             <Field label="Result" hint="Suggested from the answers above — confirm or override.">

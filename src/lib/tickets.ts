@@ -7,6 +7,7 @@ export const TICKET_ISSUE_TYPES: TicketIssueType[] = [
   "NVR Offline",
   "Network Failure",
   "Hik-Connect Failure",
+  "Clock Battery Failure",
 ];
 
 export const TICKET_STATUSES: TicketStatus[] = ["Open", "Assigned", "In Progress", "Waiting Parts", "Completed", "Closed"];

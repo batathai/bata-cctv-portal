@@ -658,6 +658,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
           partial_reason: survey.partial_reason,
           offline_reason: survey.offline_reason,
           retention_days_seen: survey.retention_days_seen,
+          date_correct: survey.date_correct,
         },
         ...prev,
       ]);

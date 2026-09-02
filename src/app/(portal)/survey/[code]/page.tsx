@@ -44,17 +44,40 @@ export default function SurveyChecklistPage() {
 
   const store = stores.find((s) => s.store_code === code);
 
-  const [nvrOnline, setNvrOnline] = useState<"Yes" | "No">("Yes");
+  // Most recent PRIOR survey for this store — used both to seed the form
+  // below (so re-opening a store's checklist shows what was last found,
+  // instead of resetting to hardcoded defaults every time — that read as
+  // "my answer didn't save" even though it did) and, further down, to
+  // decide whether a wrong date this visit is the first sighting or a
+  // repeat (see priorDateWasWrong).
+  const previousAudit = useMemo(() => {
+    if (!store) return null;
+    const forStore = audits.filter((a) => a.store_id === store.id);
+    if (forStore.length === 0) return null;
+    return [...forStore].sort((a, b) => (a.audit_date < b.audit_date ? 1 : -1))[0];
+  }, [audits, store]);
+
+  // Fields with a live Asset Register counterpart seed from THAT (the
+  // actual current record, kept up to date by every past survey) rather
+  // than the audit log, so they always reflect the true current state.
+  const [nvrOnline, setNvrOnline] = useState<"Yes" | "No">(() => (store?.asset ? (store.asset.nvr_online ? "Yes" : "No") : "Yes"));
   const [cameraWorking, setCameraWorking] = useState(store?.asset?.camera_working ?? store?.asset?.camera_total ?? 0);
   const [hddCapacity, setHddCapacity] = useState(store?.asset?.hdd_capacity ?? "");
-  const [hddStatus, setHddStatus] = useState<"Healthy" | "Warning" | "Failed">("Healthy");
-  const [playbackResult, setPlaybackResult] = useState<"Working" | "Not Working">("Working");
+  const [hddStatus, setHddStatus] = useState<"Healthy" | "Warning" | "Failed">(() => store?.asset?.hdd_status ?? "Healthy");
+  const [playbackResult, setPlaybackResult] = useState<"Working" | "Not Working">(() => store?.asset?.playback_status ?? "Working");
   // Simple Yes/No against the HDD reference table, rather than asking the
   // surveyor to bisect for the exact cutoff day (tedious in the field,
   // especially early on) — see conversation: jump straight to "N days ago"
   // (N from HDD_RETENTION_DAYS) and just confirm footage is there or not.
-  const [retentionOk, setRetentionOk] = useState<"Yes" | "No" | "">("");
-  const [hikconnectResult, setHikconnectResult] = useState<"Working" | "Not Working">("Working");
+  // No live Asset Register field backs this, so it seeds from the last
+  // survey's answer instead (retention_days_seen is only ever non-null when
+  // that survey answered "Yes" — see the submit handler below).
+  const [retentionOk, setRetentionOk] = useState<"Yes" | "No" | "">(() =>
+    !previousAudit ? "" : previousAudit.retention_days_seen != null ? "Yes" : "No"
+  );
+  const [hikconnectResult, setHikconnectResult] = useState<"Working" | "Not Working">(() =>
+    store?.hikconnect?.hikconnect_status === "Offline" ? "Not Working" : "Working"
+  );
   // A dead clock/CMOS battery makes the DVR's date drift back to wrong on
   // every reboot — correcting it in software alone won't hold. So a single
   // "wrong" sighting just gets corrected on the spot (see the ticket-open
@@ -87,16 +110,9 @@ export default function SurveyChecklistPage() {
 
   const effectiveOverall = overallStatus || suggested;
 
-  // Most recent PRIOR survey for this store (before the one being filled in
-  // now) — whether IT also found the date wrong is what decides whether
-  // this visit is the "first sighting, just correct it" case or the
+  // Whether the most recent PRIOR survey also found the date wrong decides
+  // whether this visit is the "first sighting, just correct it" case or the
   // "already flagged once, correction didn't hold" case.
-  const previousAudit = useMemo(() => {
-    if (!store) return null;
-    const forStore = audits.filter((a) => a.store_id === store.id);
-    if (forStore.length === 0) return null;
-    return [...forStore].sort((a, b) => (a.audit_date < b.audit_date ? 1 : -1))[0];
-  }, [audits, store]);
   const priorDateWasWrong = previousAudit?.date_correct === false;
   const hasOpenClockTicket = useMemo(
     () => (store ? ticketsForStore(store.id, tickets).some((t) => t.issue_type === "Clock Battery Failure" && OPEN_TICKET_STATUSES.includes(t.status)) : false),

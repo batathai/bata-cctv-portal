@@ -2,20 +2,21 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { FileBarChart, FileText, FileSpreadsheet, UploadCloud, WifiOff, ClipboardList, RefreshCw } from "lucide-react";
+import { FileBarChart, FileText, FileSpreadsheet, UploadCloud, WifiOff, ClipboardList, ClipboardCheck, RefreshCw } from "lucide-react";
 import { useAppData } from "@/components/providers/AppDataProvider";
 import { Card, SectionTitle } from "@/components/ui/Card";
 import { Select } from "@/components/ui/Select";
 import { exportExecutivePdf, exportStoreDetailPdf, exportOfflineStoresPdf } from "@/lib/reports/exportPdf";
-import { exportExecutiveSummaryToExcel, exportStoresToExcel, exportWorkOrdersToExcel } from "@/lib/reports/exportExcel";
+import { exportExecutiveSummaryToExcel, exportStoresToExcel, exportWorkOrdersToExcel, exportSurveyToExcel } from "@/lib/reports/exportExcel";
 import { canManageMasterData } from "@/lib/rbac";
 import { zoneCode } from "@/lib/recovery";
 import { ZONES } from "@/lib/mockData";
 
 export default function ReportsPage() {
-  const { stores, tickets, maintenance, workOrderBatches, recoveryStageHistory, role, loading, refreshAllData } = useAppData();
+  const { stores, audits, tickets, maintenance, workOrderBatches, recoveryStageHistory, role, loading, refreshAllData } = useAppData();
   const [selectedCode, setSelectedCode] = useState("");
   const [selectedZone, setSelectedZone] = useState("");
+  const [selectedSurveyZone, setSelectedSurveyZone] = useState("");
   // Defaults to the 50-store pilot job specifically — that's the one with a
   // known reference file to cross-check against; other jobs can still be
   // picked from the dropdown same as before.
@@ -177,6 +178,27 @@ export default function ReportsPage() {
               exportWorkOrdersToExcel(batchStores, tickets, recoveryStageHistory, `${batch.name.replace(/[^\w\- ]+/g, "").trim()}.xlsx`);
             }}
             className="flex items-center justify-center gap-1.5 text-xs font-medium border border-black/10 dark:border-white/10 rounded-md py-2 hover:bg-surface-muted dark:hover:bg-white/5 disabled:opacity-40"
+          >
+            <FileSpreadsheet size={13} className="text-status-healthy" /> Export Excel
+          </button>
+        </Card>
+
+        <Card className="p-5 flex flex-col">
+          <SectionTitle icon={ClipboardCheck}>Survey Report</SectionTitle>
+          <p className="text-xs text-ink-faint mb-3">
+            Every store&apos;s latest Survey checklist — DVR/camera/playback/HDD state, footage retention check,
+            Hik-Connect, DVR date/time, and any Partial/Offline reason. Leave zone blank for all stores.
+          </p>
+          <div className="mb-4">
+            <Select value={selectedSurveyZone} onChange={setSelectedSurveyZone} options={ZONES.map((z) => z.code)} placeholder="All zones" />
+          </div>
+          <button
+            onClick={() => {
+              const surveyStores = selectedSurveyZone ? stores.filter((s) => zoneCode(s.zone) === selectedSurveyZone) : stores;
+              const filename = selectedSurveyZone ? `bata-survey-report-zone-${selectedSurveyZone}.xlsx` : "bata-survey-report.xlsx";
+              exportSurveyToExcel(surveyStores, audits, filename);
+            }}
+            className="flex items-center justify-center gap-1.5 text-xs font-medium border border-black/10 dark:border-white/10 rounded-md py-2 hover:bg-surface-muted dark:hover:bg-white/5"
           >
             <FileSpreadsheet size={13} className="text-status-healthy" /> Export Excel
           </button>

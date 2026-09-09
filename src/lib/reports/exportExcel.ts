@@ -1,5 +1,5 @@
 import * as XLSX from "xlsx";
-import type { StoreWithAssets, MaintenanceRecord, IncidentTicket, RecoveryStatus, RecoveryStageHistoryEntry } from "@/types/database";
+import type { StoreWithAssets, MaintenanceRecord, IncidentTicket, RecoveryStatus, RecoveryStageHistoryEntry, AuditRecord } from "@/types/database";
 import { regionFromZone, zoneCode, deriveRecoveryStatus, getEffectiveRecoveryStage, needsRepair } from "@/lib/recovery";
 import { getStatusLabel } from "@/components/ui/Badge";
 
@@ -203,5 +203,52 @@ export function exportExecutiveSummaryToExcel(
     ),
     "Store Status"
   );
+  download(wb, filename);
+}
+
+/** Most recent survey (audit_history row) for a store, or null if it's never been surveyed. */
+function latestAuditFor(storeId: string, audits: AuditRecord[]): AuditRecord | null {
+  const forStore = audits.filter((a) => a.store_id === storeId);
+  if (forStore.length === 0) return null;
+  return [...forStore].sort((a, b) => (a.audit_date < b.audit_date ? 1 : -1))[0];
+}
+
+/**
+ * One row per store, every Survey checklist field — the device state a
+ * survey checks (NVR online, cameras, playback, HDD) comes from the LIVE
+ * `cctv_assets` record, since every survey writes straight into it via
+ * editAssetDetails (see submitSurvey's comment) — so this is always the
+ * current state, not a stale snapshot from whenever the store was last
+ * surveyed. The fields with no Asset Register home (footage-retention
+ * check, Hik-Connect/live-view check, DVR date/time check, Partial/Offline
+ * reason, notes) come from that store's most recent audit_history row
+ * instead, and are blank for a store that's never been surveyed.
+ */
+export function exportSurveyToExcel(stores: StoreWithAssets[], audits: AuditRecord[], filename = "bata-survey-report.xlsx") {
+  const rows = stores.map((s) => {
+    const latest = latestAuditFor(s.id, audits);
+    return {
+      "Store Code": s.store_code,
+      "Store Name": s.store_name,
+      Region: regionFromZone(s.zone),
+      Zone: zoneCode(s.zone),
+      "Last Checked": latest?.audit_date ?? "Never",
+      Status: getStatusLabel(s.overall_status),
+      "DVR/NVR Online": s.asset ? (s.asset.nvr_online ? "Yes" : "No") : "",
+      "Cameras Working": s.asset ? `${s.asset.camera_working}/${s.asset.camera_total}` : "",
+      "Playback Status": s.asset?.playback_status ?? "",
+      "HDD Capacity": s.asset?.hdd_capacity ?? "",
+      "HDD Status": s.asset?.hdd_status ?? "",
+      "Footage Retention Seen (days)": latest?.retention_days_seen ?? "",
+      "Hik-Connect / Live View": latest?.hikconnect_result ?? "",
+      "DVR Date/Time Correct": latest ? (latest.date_correct == null ? "" : latest.date_correct ? "Yes" : "No") : "",
+      "Partial Reason": latest?.partial_reason ?? "",
+      "Offline Reason": latest?.offline_reason ?? "",
+      Notes: latest?.notes ?? "",
+    };
+  });
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Survey Report");
   download(wb, filename);
 }

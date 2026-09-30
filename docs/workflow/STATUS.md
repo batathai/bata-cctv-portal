@@ -1,8 +1,8 @@
 # Workflow Status
 
 Feature: Installation Project
-Phase: design ready, awaiting approval
-Design approved: no
+Phase: design approved, ready for /implement
+Design approved: yes — 2026-09-30 — DESIGN-installation-project.md (schema `installation_projects`/`installation_stage_history`, 8-stage flow, RLS, screens, exports)
 Updated: 2026-09-30
 
 ## Done
@@ -21,10 +21,11 @@ Updated: 2026-09-30
 ## Open issues
 - Storage quota for ~1,200+ verify photos not yet estimated
 - Push access: this session cannot push to GitHub (org has not installed the Claude GitHub App / GitHub not reconnected). User must push manually until resolved.
-- **Design decisions pending user approval** (see DESIGN doc §7 "สิ่งที่ยังไม่ปิด"):
-  1. Meaning of `d1_date`/`d2_date` (assumed: scheduled vs actual install date)
-  2. Export approach: (ก) client-side `xlsx`, no formulas — matches real app pattern vs (ข) formula-based like the demo — needs a new backend/Edge Function
-  3. Store code corrections (Fashion Island 51401→51404, Central Udon 53031→53012) must land before seeding 194 stores
+- Store code corrections (Fashion Island 51401→51404, Central Udon 53031→53012): confirmed as an ongoing data-cleanup task, not a blocker for `/implement` — data changes constantly, so this is handled separately whenever discovered, not as a one-time fix before seeding
+
+## Design decisions — resolved 2026-09-30
+1. `d1_date`/`d2_date` — confirmed: D1 = วันนัดติดตั้ง (scheduled), D2 = วันติดตั้งจริง (actual)
+2. Export approach — confirmed: **(ก)** client-side `xlsx` (`json_to_sheet`), matching the real app's existing `exportExcel.ts` pattern, no formulas, no new backend
 
 ## Next step
-Awaiting USER APPROVAL of the design. Once approved, record "Design approved: yes — <date> — <what>" here, then proceed to `/implement`.
+`/implement` — build migration 020 + the new pages/lib files listed in DESIGN doc §5, following the approved design above.

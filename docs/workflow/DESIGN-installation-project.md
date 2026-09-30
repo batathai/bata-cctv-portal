@@ -174,17 +174,12 @@ create policy "installation_stage_history: hq_admin insert" on public.installati
 ให้ดูก่อนหน้านี้ด้วย Python/`openpyxl` (สูตร Excel จริง + conditional
 formatting) นั้นเป็นแค่ตัวอย่างภาพให้ดูรูปแบบหน้าตาเท่านั้น
 
-**การตัดสินใจ:** ทำตาม pattern จริงของแอป (`xlsx` client-side) เพื่อความ
-สม่ำเสมอของโค้ดเบส — ไม่มีสูตร Excel/conditional formatting ในไฟล์ที่ export
-จริง (ต่างจาก R7 ที่เขียนไว้ว่า "ใช้สูตรจริง ไม่ hardcode" — **ข้อนี้ปะทะกับ
-โค้ดจริงของระบบ ต้องเลือกอย่างใดอย่างหนึ่ง ก่อนอนุมัติดีไซน์:**
-  - **(ก)** ทำตามแอปจริง (`xlsx` client-side, ไม่มีสูตร) — เร็ว, โค้ดสม่ำเสมอ กับของเดิมทั้งระบบ
-  - **(ข)** ทำแบบ demo (`openpyxl`-style, มีสูตร) — ต้องรันเป็น server-side
-    function (Edge Function หรือ API route ใหม่ เพราะ `openpyxl` เป็น Python)
-    ซึ่งเป็นสถาปัตยกรรมใหม่ที่ระบบยังไม่มี (ทุกอย่างตอนนี้เป็น client-side +
-    Supabase ตรง ไม่มี backend ของตัวเอง)
-
-  ขอเสนอ **(ก)** เป็น default เว้นแต่จะยืนยันว่าต้องการสูตรจริงแบบ (ข)
+**อนุมัติแล้ว (2026-09-30) — เลือก (ก):** ทำตาม pattern จริงของแอป (`xlsx`
+client-side) เพื่อความสม่ำเสมอของโค้ดเบส ไม่มีสูตร Excel/conditional
+formatting ในไฟล์ export จริง — **ปรับ R7 จาก "ใช้สูตรจริง" เป็น "คำนวณค่า
+ที่ต้องใช้ (เช่น days elapsed) ด้วย JS ก่อนใส่ลงชีต ไม่ hardcode ค่าที่ควร
+เป็นสูตร"** เพื่อให้ตรงกับสถาปัตยกรรม client-only ของระบบจริง (ไม่เพิ่ม
+backend ใหม่)
 
 **Sheet 1 — Summary:** 1 แถวต่อสาขา — store_code, store_name, region, zone,
 wave, current_stage, quotation status, d1_date, d2_date, verify_total (x/12),
@@ -208,14 +203,16 @@ sheet, ใช้ `jspdf-autotable` เดิม)
 | R4 | §1 หน้า `/installation` (filter bar ตาม wave/ภาค/เขต) + §3 (สิทธิ์ hq_admin) |
 | R5 | §1 หน้า `/installation/[code]` (checklist, จุดติดตั้ง, attachments, activity log) |
 | R6 | §2.1 (`verify_checked`/`verify_total`) + §3 (auto-complete + flow ย้อนกลับ 72 ชม.) |
-| R7 | §6 — **ยังไม่ปิด, ต้องเลือก (ก)/(ข) ก่อนอนุมัติ** (ดูรายละเอียดในหัวข้อ 6) |
+| R7 | §6 — เลือกแนวทาง (ก) client-side `xlsx` ไม่มีสูตร (อนุมัติแล้ว 2026-09-30) |
 | R8 | §6 PDF exports |
 | R9 | §1 หน้า `/installation/rollout` |
 | R10 | §4 RLS |
 
-**สิ่งที่ยังไม่ปิด ก่อนเข้า `/implement`:**
-1. ยืนยันความหมาย `d1_date`/`d2_date` (§2.1)
-2. เลือกแนวทาง export (ก) หรือ (ข) (§6, R7)
-3. รหัสสาขาที่ต้องเคลียร์ตาม PLAN §Data (Fashion Island 51401→51404,
-   Central Udon 53031→53012) — ต้องแก้ก่อน seed ข้อมูล 194 สาขาเข้า
-   `installation_projects`
+## 8. Design approved — 2026-09-30
+
+ทั้ง 3 ข้อที่เปิดไว้ก่อนหน้านี้ได้รับคำตอบแล้ว:
+1. `d1_date`/`d2_date` — ยืนยัน: D1 = วันนัดติดตั้ง, D2 = วันติดตั้งจริง ตามที่สมมติไว้
+2. Export Excel — เลือก **(ก)** client-side `xlsx` ตาม pattern จริงของแอป (ไม่มีสูตร, ไม่เพิ่ม backend)
+3. รหัสสาขาผิด (Fashion Island, Central Udon) — **ไม่บล็อก implement**: แก้เป็นงาน data-cleanup แยกทีหลัง เพราะข้อมูลสาขาเปลี่ยนแปลงตลอดเวลาอยู่แล้ว ไม่ใช่ one-time fix ก่อน seed
+
+ดีไซน์นี้อนุมัติแล้ว พร้อมเข้า `/implement`

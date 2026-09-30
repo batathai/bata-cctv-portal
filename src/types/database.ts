@@ -223,7 +223,12 @@ export type AttachmentFolder =
   | "Repair Reports"
   | "Invoice"
   | "Warranty"
-  | "Manual";
+  | "Manual"
+  // Installation Project (migration 020)
+  | "Site Survey Photos"
+  | "Permit Documents"
+  | "Camera Install Photos"
+  | "Verify Photos";
 
 export interface Attachment {
   id: string;
@@ -275,6 +280,46 @@ export interface RecoveryStageHistoryEntry {
   changed_at: string;
 }
 
+// Installation Project (migration 020): tracks new-CCTV installation
+// progress per store, separate from the Recovery/repair flow above (see
+// docs/workflow/DESIGN-installation-project.md). D1/D2 = scheduled vs
+// actual install date.
+export type InstallationStage =
+  | "Floor Plan"
+  | "Layout"
+  | "Quotation"
+  | "Permit"
+  | "Scheduled"
+  | "Installing"
+  | "Verify"
+  | "Completed";
+
+export interface InstallationProject {
+  id: string;
+  store_id: string;
+  wave: string;
+  current_stage: InstallationStage;
+  approved_quotation_id: string | null;
+  permit_submitted_at: string | null;
+  d1_date: string | null;
+  d2_date: string | null;
+  verify_checked: string[];
+  verify_total: number;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InstallationStageHistoryEntry {
+  id: string;
+  store_id: string;
+  from_stage: InstallationStage | null;
+  to_stage: InstallationStage;
+  note: string | null;
+  changed_by: string | null;
+  changed_at: string;
+}
+
 export interface Profile {
   id: string;
   full_name: string | null;
@@ -320,6 +365,8 @@ export interface Database {
       incident_tickets: { Row: IncidentTicket; Insert: Partial<IncidentTicket>; Update: Partial<IncidentTicket> };
       recovery_stage_history: { Row: RecoveryStageHistoryEntry; Insert: Partial<RecoveryStageHistoryEntry>; Update: Partial<RecoveryStageHistoryEntry> };
       attachments: { Row: Attachment; Insert: Partial<Attachment>; Update: Partial<Attachment> };
+      installation_projects: { Row: InstallationProject; Insert: Partial<InstallationProject>; Update: Partial<InstallationProject> };
+      installation_stage_history: { Row: InstallationStageHistoryEntry; Insert: Partial<InstallationStageHistoryEntry>; Update: Partial<InstallationStageHistoryEntry> };
     };
   };
 }

@@ -7,6 +7,11 @@ import { useAppData } from "@/components/providers/AppDataProvider";
 import { Card, SectionTitle } from "@/components/ui/Card";
 import { GitBranch } from "lucide-react";
 
+function formatShortDate(iso: string | null): string | null {
+  if (!iso) return null;
+  return new Date(iso + "T00:00:00").toLocaleDateString("th-TH", { day: "2-digit", month: "2-digit" });
+}
+
 /**
  * Gantt-style timeline: one row per store, 3 phase bars (Permit, Install,
  * Verify→Completed) positioned along a shared day axis. Simple CSS-grid
@@ -66,6 +71,24 @@ export default function InstallationTimelinePage() {
       <Card className="p-4 overflow-x-auto">
         <SectionTitle icon={GitBranch}>แถบเวลา — ยื่นขออนุญาต / นัด-ติดตั้ง / Verify→Completed</SectionTitle>
         <div className="min-w-[640px]">
+          {/* Date axis — ticks spread evenly across the min/max day range so the bars below have a date reference. */}
+          <div className="flex items-center gap-3 pb-1.5 mb-1 border-b border-black/10 dark:border-white/10">
+            <div className="w-32 shrink-0" />
+            <div className="relative flex-1 h-4">
+              {Array.from({ length: 6 }, (_, i) => {
+                const t = minDay + (i / 5) * (maxDay - minDay);
+                return (
+                  <span
+                    key={i}
+                    className="absolute text-[10px] text-ink-faint -translate-x-1/2"
+                    style={{ left: `${(i / 5) * 100}%` }}
+                  >
+                    {new Date(t).toLocaleDateString("th-TH", { day: "2-digit", month: "2-digit" })}
+                  </span>
+                );
+              })}
+            </div>
+          </div>
           {projects.map((p) => {
             const store = storeById.get(p.store_id);
             if (!store) return null;
@@ -99,6 +122,15 @@ export default function InstallationTimelinePage() {
                       style={{ left: `${d2Pct}%`, width: `${Math.max(1, (completedPct ?? d2Pct + 5) - d2Pct)}%` }}
                       title="Installing → Verify/Completed"
                     />
+                  )}
+                </div>
+                <div className="w-28 shrink-0 text-[10px] text-ink-faint text-right">
+                  {(p.d1_date || p.d2_date) && (
+                    <>
+                      {p.d1_date && <>นัด {formatShortDate(p.d1_date)}</>}
+                      {p.d1_date && p.d2_date && " · "}
+                      {p.d2_date && <>{formatShortDate(p.d2_date)}</>}
+                    </>
                   )}
                 </div>
               </div>

@@ -4,13 +4,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
 import {
-  LayoutDashboard, Server, FileBarChart, Camera, X, ClipboardList, ClipboardCheck, KanbanSquare,
+  LayoutDashboard, Server, FileBarChart, Camera, X, ClipboardList, ClipboardCheck,
 } from "lucide-react";
 
 const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/work-orders", label: "Work Orders", icon: ClipboardList },
-  { href: "/installation", label: "Installation Project", icon: KanbanSquare },
   { href: "/assets", label: "Asset Register", icon: Server },
   { href: "/survey", label: "Survey", icon: ClipboardCheck },
   { href: "/reports", label: "Reports", icon: FileBarChart },

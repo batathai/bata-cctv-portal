@@ -64,7 +64,7 @@ export default function InstallationRolloutPage() {
 
   return (
     <div className="space-y-4">
-      <Link href="/installation" className="flex items-center gap-1.5 text-sm text-ink-soft dark:text-white/60 hover:text-brand w-fit">
+      <Link href="/work-orders/installation" className="flex items-center gap-1.5 text-sm text-ink-soft dark:text-white/60 hover:text-brand w-fit">
         <ArrowLeft size={15} /> Back to board
       </Link>
 
@@ -124,7 +124,7 @@ export default function InstallationRolloutPage() {
                 title={`${s.store_code} — ${s.store_name}${project ? ` — ${getStageLabel(project.current_stage)}` : " — ยังไม่เปิด"}`}
               >
                 {project ? (
-                  <Link href={`/installation/${s.store_code}`} className="block">
+                  <Link href={`/work-orders/installation/${s.store_code}`} className="block">
                     <span className={`inline-block w-2 h-2 rounded-full ${STAGE_DOT[project.current_stage]} mb-1`} />
                     <div className="text-[10px] font-mono text-ink dark:text-white truncate">{s.store_code}</div>
                   </Link>

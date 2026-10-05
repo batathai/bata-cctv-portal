@@ -46,7 +46,7 @@ export default function InstallationTimelinePage() {
 
   return (
     <div className="space-y-4">
-      <Link href="/installation" className="flex items-center gap-1.5 text-sm text-ink-soft dark:text-white/60 hover:text-brand w-fit">
+      <Link href="/work-orders/installation" className="flex items-center gap-1.5 text-sm text-ink-soft dark:text-white/60 hover:text-brand w-fit">
         <ArrowLeft size={15} /> Back to board
       </Link>
 
@@ -75,7 +75,7 @@ export default function InstallationTimelinePage() {
             const completedPct = pct(p.completed_at);
             return (
               <div key={p.id} className="flex items-center gap-3 py-2 border-b border-black/5 dark:border-white/5 last:border-0">
-                <Link href={`/installation/${store.store_code}`} className="w-32 shrink-0 text-xs font-medium text-ink dark:text-white hover:text-brand truncate">
+                <Link href={`/work-orders/installation/${store.store_code}`} className="w-32 shrink-0 text-xs font-medium text-ink dark:text-white hover:text-brand truncate">
                   {store.store_code}
                 </Link>
                 <div className="relative flex-1 h-5 bg-surface-muted dark:bg-white/5 rounded">

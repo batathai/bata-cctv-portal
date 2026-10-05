@@ -5,6 +5,7 @@ import Link from "next/link";
 import { KanbanSquare, FileDown, FileText, AlertCircle } from "lucide-react";
 import { useAppData } from "@/components/providers/AppDataProvider";
 import { Card, SectionTitle } from "@/components/ui/Card";
+import { WorkOrdersTabs } from "@/components/work-orders/WorkOrdersTabs";
 import { canLogMaintenance } from "@/lib/rbac";
 import { regionFromZone, getAreaLabel } from "@/lib/recovery";
 import { INSTALLATION_STAGES, getStageLabel, canAdvanceStage } from "@/lib/installation";
@@ -81,16 +82,17 @@ export default function InstallationBoardPage() {
 
   return (
     <div className="space-y-5">
+      <WorkOrdersTabs />
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h1 className="font-display text-lg font-bold text-ink dark:text-white">Installation Project</h1>
           <p className="text-sm text-ink-faint mt-0.5">ติดตามความคืบหน้าการติดตั้งกล้อง CCTV ใหม่รายสาขา — {kpi.total} สาขาในตัวกรองนี้</p>
         </div>
         <div className="flex items-center gap-2">
-          <Link href="/installation/timeline" className="text-xs font-medium text-ink-soft dark:text-white/70 border border-black/10 dark:border-white/10 rounded-md px-3 py-2 hover:bg-surface-muted dark:hover:bg-white/5">
+          <Link href="/work-orders/installation/timeline" className="text-xs font-medium text-ink-soft dark:text-white/70 border border-black/10 dark:border-white/10 rounded-md px-3 py-2 hover:bg-surface-muted dark:hover:bg-white/5">
             Timeline
           </Link>
-          <Link href="/installation/rollout" className="text-xs font-medium text-ink-soft dark:text-white/70 border border-black/10 dark:border-white/10 rounded-md px-3 py-2 hover:bg-surface-muted dark:hover:bg-white/5">
+          <Link href="/work-orders/installation/rollout" className="text-xs font-medium text-ink-soft dark:text-white/70 border border-black/10 dark:border-white/10 rounded-md px-3 py-2 hover:bg-surface-muted dark:hover:bg-white/5">
             Rollout 194
           </Link>
           <button
@@ -169,7 +171,7 @@ export default function InstallationBoardPage() {
                     return (
                       <Link
                         key={p.id}
-                        href={`/installation/${store.store_code}`}
+                        href={`/work-orders/installation/${store.store_code}`}
                         draggable={canManage}
                         onDragStart={() => setDragProjectId(p.id)}
                         className="block bg-white dark:bg-surface-dark border border-black/10 dark:border-white/10 rounded-md p-3 hover:border-brand hover:shadow-sm transition cursor-grab"

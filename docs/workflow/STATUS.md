@@ -1,9 +1,9 @@
 # Workflow Status
 
 Feature: Installation Project
-Phase: implemented — ready for /test
+Phase: implemented — restructured under Work Orders, ready for /test
 Design approved: yes — 2026-09-30 — DESIGN-installation-project.md (schema `installation_projects`/`installation_stage_history`, 8-stage flow, RLS, screens, exports)
-Updated: 2026-09-30
+Updated: 2026-10-05
 
 ## Done
 - Plan written: docs/workflow/PLAN-installation-project.md
@@ -52,10 +52,33 @@ Verification: `npx tsc --noEmit` — 0 errors. `npm run lint` — 0 warnings/err
 
 Refinement beyond the design doc: R3's "any Approved quotation exists for this store" was ambiguous, since the same `vendor_quotations` table is also used by the unrelated Recovery/repair flow — a store could have an Approved *repair* quote that has nothing to do with installation budget. Implemented as `approved_quotation_id` on `installation_projects`, explicitly picked by hq_admin from that store's Approved quotations (see the Quotation-stage card on the detail page), so the two flows can never be confused.
 
+## Resolved — 2026-10-05
+- Migration 020 **has been run** against the real Supabase project by the user — confirmed ("รันเรียบร้อยแล้วครับ"). The "not yet run" note above is stale/historical.
+- This feature's branch (`docs/installation-project-plan`, commits `a6d10b6..e702db5`) is **not on `origin/main`**, and `git branch -r` shows only `origin/main` — the branch the user previously pushed to is not currently on the `batathai/bata-cctv-portal` remote this session sees (deleted, or pushed elsewhere). This session's container had reset to a fresh clone of `main`; the commits were recovered from leftover loose git objects still on disk and re-pointed to a local branch of the same name. **User should confirm where `docs/installation-project-plan` actually lives** (check `git branch -r` / GitHub) before assuming it's safe to delete locally again.
+
+## UI restructure — 2026-10-05 (per user request)
+Installation Project moved from its own top-level Sidebar entry into a sub-tab of the existing **Work Orders** menu item, so Sidebar has one "Work Orders" entry again (no "Installation Project" row):
+- Routes moved: `/installation*` → `/work-orders/installation*` (board, `[code]` detail, `timeline`, `rollout`). All internal links within those pages updated to match.
+- `src/components/layout/Sidebar.tsx` — reverted to its pre-Installation-Project NAV (no `KanbanSquare` import, no separate nav row).
+- New `src/components/work-orders/WorkOrdersTabs.tsx` — a 2-tab switcher ("งานซ่อม (Repair Jobs)" ↔ "ติดตั้งกล้องใหม่ (Installation Project)") rendered at the top of `/work-orders` and `/work-orders/installation`. The drill-down pages (`[batchId]`, `installation/[code]`, `installation/timeline`, `installation/rollout`) keep their existing back-arrow instead of the tab bar, to avoid duplicate nav chrome.
+- Verified after the move: `npx tsc --noEmit` 0 errors, `npm run lint` 0 errors, `npm run build` succeeds (using the `NEXT_FONT_GOOGLE_MOCKED_RESPONSES` workaround for this sandbox's blocked Google Fonts egress) — route table confirms `/work-orders`, `/work-orders/[batchId]`, `/work-orders/installation`, `/work-orders/installation/[code]`, `/work-orders/installation/rollout`, `/work-orders/installation/timeline` all generated, and no `/installation*` route remains.
+
+## Pending — old repair/Work-Order data deletion (per user request)
+User asked to delete all old 50-store repair-pilot production data (maintenance_history, incident_tickets, recovery_stage_history, work_order_batches, related vendor_quotations, and reset the relevant `stores` columns) **after taking a backup first**, to make room for Installation Project. Wrote `scripts/delete-recovery-work-order-data.mjs`:
+- Dry-run by default (no flags) — writes a full JSON backup to `backups/` and prints counts, deletes nothing.
+- `--confirm` — applies the deletion after the dry-run backup exists.
+- Explicitly protects any `vendor_quotations` row still referenced by `installation_projects.approved_quotation_id`, since that table is shared between the old Recovery flow and Installation Project.
+- Requires `SUPABASE_SERVICE_ROLE_KEY` in the user's own `.env.local` — must be run by the user, not from this session (no DB credentials here).
+- **Not yet run.** Not yet explained/delivered to the user in chat either — next step below.
+
+Note: the old Work Orders list/detail pages (`/work-orders`, `/work-orders/[batchId]`) and their `createWorkOrderBatch`/`closeWorkOrderBatch`/`reopenWorkOrderBatch`/`assignStoreToBatch` code in `AppDataProvider.tsx` were **not removed** — only the data they display will be emptied by the script. After the script runs, "Active Jobs (0)" will show correctly (the page already handles the empty state); the repair-ticket code path itself is left in place so a *new* repair job can still be opened later if needed. If the user wants that code removed entirely (not just emptied of data), that is a separate, larger change (also touches `src/components/work-orders/NewTicketModal.tsx`, `src/app/(portal)/reports/page.tsx`'s batch picker, and `src/lib/mockData.ts`'s batch generation) — flag before doing it.
+
 ## Not yet done (next steps)
-- Migration 020 has not been run against the real Supabase project — user must run it in the SQL Editor before this feature works against real data
-- `/test` — no automated tests exist in this repo (matches its existing no-test-suite state); manual test pass needed
-- Storage quota for verify photos still not estimated (carried over from planning)
+- Give the user `scripts/delete-recovery-work-order-data.mjs` and the exact run commands (dry-run first, review backup + counts, then `--confirm`).
+- Once they confirm the deletion ran, re-check the live Work Orders / Installation tabs together.
+- `/test` — no automated tests exist in this repo (matches its existing no-test-suite state); manual test pass needed, including the still-open jsPDF Thai-glyph issue in `exportInstallationPdf.ts` (default fonts have no Thai glyph support — needs a Thai-capable embedded font; not yet fixed).
+- Storage quota for verify photos still not estimated (carried over from planning).
+- Deliver a fresh patch (or push, if GitHub access is available) for all of today's changes once the user confirms where this branch should land.
 
 ## Next step
-`/test` — manually verify the flow end-to-end once migration 020 is run, per the `bata-dev-flow:test` skill.
+Send the user the deletion script + run instructions, then resume `/test` on the combined Work Orders + Installation Project UI.

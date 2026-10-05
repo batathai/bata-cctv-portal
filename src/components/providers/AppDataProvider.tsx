@@ -63,6 +63,7 @@ import {
   toggleVerifyChecklistItemDb,
   resetPostCompletionChecklistDb,
   createInstallationProjectDb,
+  updateInstallationDatesDb,
 } from "@/lib/installationWrite";
 import { zoneCode, regionFromZone } from "@/lib/recovery";
 import { updateStoreDetailsDb, updateAssetDetailsDb, updateHikconnectDetailsDb, relocateAssetDb, uploadQrCodeDb } from "@/lib/assetWrite";
@@ -128,6 +129,7 @@ interface AppDataContextValue {
     note?: string
   ) => Promise<void>;
   updateVerifyChecklistItem: (project: InstallationProject, itemKey: string, checked: boolean) => Promise<void>;
+  updateInstallationDates: (project: InstallationProject, dates: { d1_date?: string | null; d2_date?: string | null }) => Promise<void>;
   resetPostCompletionChecklist: (project: InstallationProject, reason: string) => Promise<void>;
   assignStoreToBatch: (storeId: string, batchId: string) => Promise<void>;
   refreshAllData: () => Promise<void>;
@@ -549,6 +551,20 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     ]);
   }
 
+  async function updateInstallationDates(
+    project: InstallationProject,
+    dates: { d1_date?: string | null; d2_date?: string | null }
+  ) {
+    if (isSupabaseConfigured) {
+      const supabase = createClient();
+      await updateInstallationDatesDb(supabase, project.id, dates);
+      setInstallationProjects(await fetchInstallationProjects());
+      return;
+    }
+    const now = new Date().toISOString();
+    setInstallationProjects((prev) => prev.map((p) => (p.id === project.id ? { ...p, ...dates, updated_at: now } : p)));
+  }
+
   async function updateVerifyChecklistItem(project: InstallationProject, itemKey: string, checked: boolean) {
     if (isSupabaseConfigured) {
       const supabase = createClient();
@@ -852,6 +868,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     createInstallationProject,
     advanceInstallationStage,
     updateVerifyChecklistItem,
+    updateInstallationDates,
     resetPostCompletionChecklist,
     assignStoreToBatch,
     refreshAllData,

@@ -38,6 +38,21 @@ export async function updateInstallationStageDb(
 }
 
 /**
+ * Updates only d1_date/d2_date on an installation project — used by the
+ * Timeline page's inline date editor, which is a plain correction (no
+ * stage change, so it does not write installation_stage_history unlike
+ * updateInstallationStageDb above).
+ */
+export async function updateInstallationDatesDb(
+  supabase: SupabaseClient,
+  projectId: string,
+  dates: { d1_date?: string | null; d2_date?: string | null }
+) {
+  const { error } = await supabase.from("installation_projects").update(dates).eq("id", projectId);
+  if (error) throw new Error(`Failed to update installation dates: ${error.message}`);
+}
+
+/**
  * Toggles one Verify Checklist item on/off, keeps verify_total in sync, and
  * auto-completes the project (stage -> "Completed", completed_at = today)
  * once all 12 items are checked — R6's auto-complete rule. Returns whether

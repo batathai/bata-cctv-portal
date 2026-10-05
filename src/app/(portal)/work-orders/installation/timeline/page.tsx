@@ -2,10 +2,11 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, GitBranch, Pencil, Check, X } from "lucide-react";
 import { useAppData } from "@/components/providers/AppDataProvider";
 import { Card, SectionTitle } from "@/components/ui/Card";
-import { GitBranch } from "lucide-react";
+import { canLogMaintenance } from "@/lib/rbac";
+import type { InstallationProject } from "@/types/database";
 
 function formatShortDate(iso: string | null): string | null {
   if (!iso) return null;
@@ -18,36 +19,52 @@ function formatShortDate(iso: string | null): string | null {
  * bars — no charting library needed for this scale (Wave 1 = 20 rows).
  */
 export default function InstallationTimelinePage() {
-  const { stores, installationProjects, loading } = useAppData();
+  const { stores, installationProjects, loading, role, updateInstallationDates } = useAppData();
+  const canManage = canLogMaintenance(role);
   const storeById = useMemo(() => new Map(stores.map((s) => [s.id, s])), [stores]);
 
   const [wave, setWave] = useState("");
   const waves = useMemo(() => Array.from(new Set(installationProjects.map((p) => p.wave))).sort(), [installationProjects]);
   const unsortedProjects = installationProjects.filter((p) => !wave || p.wave === wave);
 
-  // Soonest-upcoming date first — the row the team needs to look at today
-  // should be at the top instead of buried in whatever order the DB returns.
+  // Earliest date first, full stop — whichever of D1/D2/permit/completed is
+  // chronologically soonest puts that row at the top, including dates
+  // already in the past (so an overdue/forgotten row surfaces immediately
+  // instead of hiding at the bottom). Undated rows sort last.
   const projects = useMemo(() => {
-    const todayT = Date.now();
-    function soonestRef(p: (typeof unsortedProjects)[number]): number {
-      // Prefer whichever of D1/D2 is still upcoming (closest to today), then
-      // fall back to the other scheduling dates, then push undated rows last.
+    function earliestRef(p: (typeof unsortedProjects)[number]): number {
       const candidates = [p.d1_date, p.d2_date, p.permit_submitted_at, p.completed_at]
         .filter((d): d is string => !!d)
         .map((d) => new Date(d + "T00:00:00").getTime());
-      if (candidates.length === 0) return Number.POSITIVE_INFINITY;
-      const upcoming = candidates.filter((t) => t >= todayT);
-      if (upcoming.length > 0) return Math.min(...upcoming);
-      // All dates are in the past — sort those by most-recent-past first, still
-      // after every upcoming row. PAST_SORT_BASE is far larger than any real
-      // timestamp (~1.7e12 ms today) so "base - timestamp" never collides with
-      // an upcoming row's raw timestamp, unlike POSITIVE_INFINITY - x (which is
-      // always Infinity regardless of x, so every past row used to tie).
-      const PAST_SORT_BASE = 1e15;
-      return PAST_SORT_BASE - Math.max(...candidates);
+      return candidates.length === 0 ? Number.POSITIVE_INFINITY : Math.min(...candidates);
     }
-    return [...unsortedProjects].sort((a, b) => soonestRef(a) - soonestRef(b));
+    return [...unsortedProjects].sort((a, b) => earliestRef(a) - earliestRef(b));
   }, [unsortedProjects]);
+
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draftD1, setDraftD1] = useState("");
+  const [draftD2, setDraftD2] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  function startEdit(p: InstallationProject) {
+    setEditingId(p.id);
+    setDraftD1(p.d1_date ?? "");
+    setDraftD2(p.d2_date ?? "");
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+  }
+
+  async function saveEdit(p: InstallationProject) {
+    setSaving(true);
+    try {
+      await updateInstallationDates(p, { d1_date: draftD1 || null, d2_date: draftD2 || null });
+      setEditingId(null);
+    } finally {
+      setSaving(false);
+    }
+  }
 
   const { minDay, maxDay } = useMemo(() => {
     const dates: number[] = [];
@@ -169,15 +186,56 @@ export default function InstallationTimelinePage() {
                     />
                   )}
                 </div>
-                <div className="w-28 shrink-0 text-[10px] text-ink-faint text-right">
-                  {(p.d1_date || p.d2_date) && (
-                    <>
-                      {p.d1_date && <>นัด {formatShortDate(p.d1_date)}</>}
-                      {p.d1_date && p.d2_date && " · "}
-                      {p.d2_date && <>{formatShortDate(p.d2_date)}</>}
-                    </>
-                  )}
-                </div>
+                {editingId === p.id ? (
+                  <div className="w-44 shrink-0 flex items-center gap-1">
+                    <input
+                      type="date"
+                      value={draftD1}
+                      onChange={(e) => setDraftD1(e.target.value)}
+                      className="w-[88px] text-[10px] border border-black/10 dark:border-white/10 rounded px-1 py-0.5 bg-white dark:bg-white/5"
+                      aria-label="วันนัดติดตั้ง (D1)"
+                    />
+                    <input
+                      type="date"
+                      value={draftD2}
+                      onChange={(e) => setDraftD2(e.target.value)}
+                      className="w-[88px] text-[10px] border border-black/10 dark:border-white/10 rounded px-1 py-0.5 bg-white dark:bg-white/5"
+                      aria-label="วันติดตั้งจริง (D2)"
+                    />
+                    <button
+                      onClick={() => saveEdit(p)}
+                      disabled={saving}
+                      className="text-status-healthy hover:opacity-70 disabled:opacity-40 shrink-0"
+                      title="บันทึก"
+                    >
+                      <Check size={14} />
+                    </button>
+                    <button onClick={cancelEdit} disabled={saving} className="text-ink-faint hover:opacity-70 disabled:opacity-40 shrink-0" title="ยกเลิก">
+                      <X size={14} />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="w-28 shrink-0 flex items-center justify-end gap-1 text-[10px] text-ink-faint group">
+                    <span className="text-right">
+                      {(p.d1_date || p.d2_date) && (
+                        <>
+                          {p.d1_date && <>นัด {formatShortDate(p.d1_date)}</>}
+                          {p.d1_date && p.d2_date && " · "}
+                          {p.d2_date && <>{formatShortDate(p.d2_date)}</>}
+                        </>
+                      )}
+                    </span>
+                    {canManage && (
+                      <button
+                        onClick={() => startEdit(p)}
+                        className="text-ink-faint hover:text-brand opacity-0 group-hover:opacity-100 transition shrink-0"
+                        title="แก้ไขวันที่"
+                      >
+                        <Pencil size={11} />
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })}

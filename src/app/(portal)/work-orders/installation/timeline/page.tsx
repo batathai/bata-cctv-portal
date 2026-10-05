@@ -38,8 +38,13 @@ export default function InstallationTimelinePage() {
       if (candidates.length === 0) return Number.POSITIVE_INFINITY;
       const upcoming = candidates.filter((t) => t >= todayT);
       if (upcoming.length > 0) return Math.min(...upcoming);
-      // All dates are in the past — sort those by most-recent-past, after upcoming ones.
-      return Number.POSITIVE_INFINITY - Math.max(...candidates);
+      // All dates are in the past — sort those by most-recent-past first, still
+      // after every upcoming row. PAST_SORT_BASE is far larger than any real
+      // timestamp (~1.7e12 ms today) so "base - timestamp" never collides with
+      // an upcoming row's raw timestamp, unlike POSITIVE_INFINITY - x (which is
+      // always Infinity regardless of x, so every past row used to tie).
+      const PAST_SORT_BASE = 1e15;
+      return PAST_SORT_BASE - Math.max(...candidates);
     }
     return [...unsortedProjects].sort((a, b) => soonestRef(a) - soonestRef(b));
   }, [unsortedProjects]);

@@ -362,20 +362,20 @@ export function generateMockData() {
   });
 
   // --- Installation Project: Wave 1 "Top 20" — first 20 mock stores, spread
-  // across the 8-stage pipeline so /installation isn't empty or all-one-
-  // stage in demo mode. Separate from the recovery/repair mock data above
-  // (own vendor_quotations rows, own stage history) even though it shares
-  // the same underlying tables, per the design's "same table, different
-  // rows, explicit approved_quotation_id link" approach. ---
+  // across the 6-stage pipeline so /installation isn't empty or all-one-
+  // stage in demo mode. "Floor Plan"/"Layout" were dropped (migration 021)
+  // — that work happens before a store enters this tracker. Separate from
+  // the recovery/repair mock data above (own vendor_quotations rows, own
+  // stage history) even though it shares the same underlying tables, per
+  // the design's "same table, different rows, explicit
+  // approved_quotation_id link" approach. ---
   const WAVE_1 = "Wave 1: Top 20";
   // Skewed toward the earlier stages, since this wave "just started":
-  // Floor Plan 4, Layout 3, Quotation 3, Permit 2, Scheduled 2, Installing 3, Verify 2, Completed 1
+  // Quotation 6, Permit 4, Scheduled 4, Installing 3, Verify 2, Completed 1
   const INSTALL_DISTRIBUTION: InstallationStage[] = [
-    ...Array(4).fill("Floor Plan"),
-    ...Array(3).fill("Layout"),
-    ...Array(3).fill("Quotation"),
-    ...Array(2).fill("Permit"),
-    ...Array(2).fill("Scheduled"),
+    ...Array(6).fill("Quotation"),
+    ...Array(4).fill("Permit"),
+    ...Array(4).fill("Scheduled"),
     ...Array(3).fill("Installing"),
     ...Array(2).fill("Verify"),
     ...Array(1).fill("Completed"),
@@ -392,7 +392,7 @@ export function generateMockData() {
   const installVendorQuotations: VendorQuotation[] = [];
 
   stores.slice(0, 20).forEach((s, idx) => {
-    const targetStage = INSTALL_DISTRIBUTION[idx] ?? "Floor Plan";
+    const targetStage = INSTALL_DISTRIBUTION[idx] ?? "Quotation";
     const targetIdx = INSTALLATION_STAGES.indexOf(targetStage);
     let cursor = new Date(2026, 6, 1 + Math.floor(rnd() * 10)); // start early July 2026
 

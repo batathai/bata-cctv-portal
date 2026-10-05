@@ -285,8 +285,6 @@ export interface RecoveryStageHistoryEntry {
 // docs/workflow/DESIGN-installation-project.md). D1/D2 = scheduled vs
 // actual install date.
 export type InstallationStage =
-  | "Floor Plan"
-  | "Layout"
   | "Quotation"
   | "Permit"
   | "Scheduled"

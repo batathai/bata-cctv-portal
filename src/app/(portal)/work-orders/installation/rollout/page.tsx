@@ -13,8 +13,6 @@ import type { InstallationStage } from "@/types/database";
 const ROLLOUT_TARGET = 194;
 
 const STAGE_DOT: Record<InstallationStage, string> = {
-  "Floor Plan": "bg-ink-faint/40",
-  Layout: "bg-ink-faint/60",
   Quotation: "bg-status-partial/60",
   Permit: "bg-status-partial",
   Scheduled: "bg-brand/50",

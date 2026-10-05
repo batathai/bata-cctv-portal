@@ -216,3 +216,18 @@ sheet, ใช้ `jspdf-autotable` เดิม)
 3. รหัสสาขาผิด (Fashion Island, Central Udon) — **ไม่บล็อก implement**: แก้เป็นงาน data-cleanup แยกทีหลัง เพราะข้อมูลสาขาเปลี่ยนแปลงตลอดเวลาอยู่แล้ว ไม่ใช่ one-time fix ก่อน seed
 
 ดีไซน์นี้อนุมัติแล้ว พร้อมเข้า `/implement`
+
+## 9. Amendment — 2026-10-05: ตัดขั้น "Floor Plan" และ "Layout" ออกถาวร
+
+หลังจาก import ตาราง Wave 1 จริง (20 สาขา) เข้าระบบแล้วพบว่าทุกสาขาเริ่มที่ขั้น Scheduled/Installing/Verify เป็นต้นไปเสมอ — งาน Floor Plan และ Layout ทำเสร็จก่อนสาขาจะเข้าสู่การติดตามในระบบนี้แล้ว เจ้าของโปรเจกต์ยืนยันให้ตัดทั้ง 2 ขั้นออกจาก flow ถาวร (ไม่ใช่แค่ซ่อนในหน้าจอ):
+
+**flow ใหม่ (6 ขั้น, เดิม 8 ขั้น):** Quotation → Permit → Scheduled → Installing → Verify → Completed
+
+การเปลี่ยนแปลง:
+- `supabase/migrations/021_installation_remove_floorplan_layout.sql` — ย้ายแถวที่ยังเป็น Floor Plan/Layout (ถ้ามี) ไป Quotation ก่อน แล้วแก้ check constraint + default ของ `current_stage`
+- `src/lib/installation.ts` — `INSTALLATION_STAGES`/`INSTALLATION_STAGE_LABELS` เหลือ 6 ขั้น
+- `src/types/database.ts` — `InstallationStage` union เหลือ 6 ค่า
+- โปรเจกต์ใหม่ (`createInstallationProject`/`createInstallationProjectDb`) เริ่มที่ **Quotation** แทน Floor Plan
+- `src/lib/mockData.ts`, หน้า Rollout (`STAGE_DOT`) ปรับให้ตรงกับ 6 ขั้น
+
+ตารางในหัวข้อ 3 (Flow) และ SQL ในหัวข้อ 2.1/2.4 ด้านบนเป็น**บันทึกของดีไซน์ ณ วันที่อนุมัติ (2026-09-30)** — ไม่แก้ย้อนหลัง เพื่อรักษาประวัติไว้ว่าดีไซน์เดิมอนุมัติอะไร การเปลี่ยนแปลงจริงให้ยึดหัวข้อนี้แทน

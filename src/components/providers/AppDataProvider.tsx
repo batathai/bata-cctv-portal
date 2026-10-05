@@ -506,7 +506,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       id: `ip_local_${Date.now()}`,
       store_id: storeId,
       wave,
-      current_stage: "Floor Plan",
+      current_stage: "Quotation",
       approved_quotation_id: null,
       permit_submitted_at: null,
       d1_date: null,
@@ -519,7 +519,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     };
     setInstallationProjects((prev) => [project, ...prev]);
     setInstallationStageHistory((prev) => [
-      { id: `ish_local_${Date.now()}`, store_id: storeId, from_stage: null, to_stage: "Floor Plan", note: null, changed_by: null, changed_at: now },
+      { id: `ish_local_${Date.now()}`, store_id: storeId, from_stage: null, to_stage: "Quotation", note: null, changed_by: null, changed_at: now },
       ...prev,
     ]);
     return project;

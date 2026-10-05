@@ -105,7 +105,7 @@ export async function resetPostCompletionChecklistDb(
 export async function createInstallationProjectDb(supabase: SupabaseClient, storeId: string, wave: string) {
   const { data, error } = await supabase
     .from("installation_projects")
-    .insert({ store_id: storeId, wave, current_stage: "Floor Plan" })
+    .insert({ store_id: storeId, wave, current_stage: "Quotation" })
     .select()
     .single();
   if (error) throw new Error(`Failed to open installation project: ${error.message}`);
@@ -113,7 +113,7 @@ export async function createInstallationProjectDb(supabase: SupabaseClient, stor
   const { error: historyError } = await supabase.from("installation_stage_history").insert({
     store_id: storeId,
     from_stage: null,
-    to_stage: "Floor Plan",
+    to_stage: "Quotation",
     note: null,
   });
   if (historyError) console.error("Failed to log installation stage history:", historyError.message);

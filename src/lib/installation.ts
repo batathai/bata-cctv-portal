@@ -1,12 +1,12 @@
 import type { InstallationProject, InstallationStage, VendorQuotation } from "@/types/database";
 
 /**
- * Installation Project: helpers for the 8-stage install pipeline.
+ * Installation Project: helpers for the 6-stage install pipeline.
+ * "Floor Plan" and "Layout" were dropped (migration 021) — that work
+ * happens before a store enters this tracker, so it was never used here.
  * See docs/workflow/DESIGN-installation-project.md for the full design.
  */
 export const INSTALLATION_STAGES: InstallationStage[] = [
-  "Floor Plan",
-  "Layout",
   "Quotation",
   "Permit",
   "Scheduled",
@@ -16,8 +16,6 @@ export const INSTALLATION_STAGES: InstallationStage[] = [
 ];
 
 export const INSTALLATION_STAGE_LABELS: Record<InstallationStage, string> = {
-  "Floor Plan": "Floor Plan",
-  Layout: "Layout & จุดติดตั้ง",
   Quotation: "ขอใบเสนอราคา/อนุมัติงบ",
   Permit: "ขออนุญาตห้าง",
   Scheduled: "นัดติดตั้ง",

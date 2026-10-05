@@ -120,5 +120,30 @@ Per the test skill's rule — a requirement without direct evidence is "Not test
 8. เปิด `/work-orders/installation/timeline` และ `/work-orders/installation/rollout` → เช็คว่าตารางเวลา/กริด 194 ช่อง แสดงถูกต้องไม่ error (R9)
 9. ยืนยันอีกครั้งว่า `/work-orders` เดิม (Repair Jobs) ยัง "Active Jobs (0)" เหมือนก่อนหน้า
 
+## Preview deploy found & used — 2026-10-05
+`main` is Cloudflare Pages' only configured trigger (push) + `pull_request` targeting `main`. Opened PR #1 (`docs/installation-project-plan` → `main`), which triggered a real preview deployment at `https://48435500.bata-cctv-portal.pages.dev` without touching production. Confirmed live via screenshot:
+- `/work-orders` shows the 2-tab switcher ("งานซ่อม (Repair Jobs)" / "ติดตั้งกล้องใหม่ (Installation Project)") — Sidebar correctly shows one "Work Orders" entry.
+- "Active Jobs (0)" confirms the data-deletion script's effect is visible live.
+
+## Real Wave 1 data imported — 2026-10-05
+User provided the real 20-store schedule (name, store_code, D1 scheduled date, D2 actual install date — no stage column). Wrote `scripts/import-installation-wave1.mjs` (same dry-run/--confirm/backup convention): infers starting stage from today vs D1/D2 (before D1 → Scheduled, between D1–D2 → Installing, after D2 → Verify; never auto-Completed). Dry-run: 20/20 matched `stores.store_code`, 0 unmatched, 0 name mismatches (Fashion Island 51404 / Central Udon 53012 — the previously-known bad codes — are correct in this data). `--confirm` run: **20 `installation_projects` rows inserted successfully**, matching dry-run exactly. Backup/report kept on the user's machine (`backups/import-installation-wave1-backup-...json`).
+
+## Stage flow changed — 2026-10-05: "Floor Plan" and "Layout" removed permanently
+After seeing the real Wave 1 board, user asked to delete the empty "Floor Plan" and "Layout" columns — confirmed via AskUserQuestion this means removing them from the flow **permanently**, not just hiding empty columns, since that work happens before a store enters this tracker and was never going to be used.
+
+**New pipeline (6 stages, was 8):** Quotation → Permit → Scheduled → Installing → Verify → Completed
+
+- `supabase/migrations/021_installation_remove_floorplan_layout.sql` — bumps any stray Floor Plan/Layout row to Quotation first (none existed), then updates the `current_stage` check constraint + default
+- `src/lib/installation.ts`, `src/types/database.ts` — `INSTALLATION_STAGES`/`InstallationStage` now 6 values
+- New projects (`AppDataProvider.createInstallationProject`, `installationWrite.createInstallationProjectDb`) now start at **Quotation**, not Floor Plan
+- `src/lib/mockData.ts`, Rollout page's `STAGE_DOT` updated to match
+- DESIGN doc §9 records this as an amendment (original §2–§8 left as the historical record of what was approved 2026-09-30)
+- Verified: `tsc` 0 errors, `lint` 0 errors, `build` succeeds, route table unchanged
+
+**Migration 021 not yet run against Supabase** — user must run it in the SQL Editor (after 020) before this matters for real data; no existing row needs it (Wave 1 import never used Floor Plan/Layout).
+
 ## Next step
-รอผลทดสอบคลิกจริงจากคุณ (อาจต้องเปิด preview URL ของ branch `docs/installation-project-plan` ก่อน — Cloudflare Pages ปกติสร้าง preview ให้ทุก branch ที่ push) ถ้าผ่านหมด (ยกเว้น R8 ที่รู้อยู่แล้ว) ไปต่อ `/review`
+1. User runs migration 021 in Supabase SQL Editor.
+2. Re-check the live preview (`/work-orders/installation`): 6 columns instead of 8, 20 real Wave 1 cards distributed as computed by the import script.
+3. Continue the manual test checklist (drag-blocking on Quotation, detail page, Verify Checklist, Excel/PDF export, Timeline/Rollout pages).
+4. Once manual testing clears (R8/PDF-Thai known exception), move to `/review`.

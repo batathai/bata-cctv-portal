@@ -23,7 +23,26 @@ export default function InstallationTimelinePage() {
 
   const [wave, setWave] = useState("");
   const waves = useMemo(() => Array.from(new Set(installationProjects.map((p) => p.wave))).sort(), [installationProjects]);
-  const projects = installationProjects.filter((p) => !wave || p.wave === wave);
+  const unsortedProjects = installationProjects.filter((p) => !wave || p.wave === wave);
+
+  // Soonest-upcoming date first — the row the team needs to look at today
+  // should be at the top instead of buried in whatever order the DB returns.
+  const projects = useMemo(() => {
+    const todayT = Date.now();
+    function soonestRef(p: (typeof unsortedProjects)[number]): number {
+      // Prefer whichever of D1/D2 is still upcoming (closest to today), then
+      // fall back to the other scheduling dates, then push undated rows last.
+      const candidates = [p.d1_date, p.d2_date, p.permit_submitted_at, p.completed_at]
+        .filter((d): d is string => !!d)
+        .map((d) => new Date(d + "T00:00:00").getTime());
+      if (candidates.length === 0) return Number.POSITIVE_INFINITY;
+      const upcoming = candidates.filter((t) => t >= todayT);
+      if (upcoming.length > 0) return Math.min(...upcoming);
+      // All dates are in the past — sort those by most-recent-past, after upcoming ones.
+      return Number.POSITIVE_INFINITY - Math.max(...candidates);
+    }
+    return [...unsortedProjects].sort((a, b) => soonestRef(a) - soonestRef(b));
+  }, [unsortedProjects]);
 
   const { minDay, maxDay } = useMemo(() => {
     const dates: number[] = [];
@@ -46,6 +65,11 @@ export default function InstallationTimelinePage() {
     const t = new Date(dateStr).getTime();
     return Math.min(100, Math.max(0, ((t - minDay) / (maxDay - minDay)) * 100));
   }
+
+  // Axis ticks roughly every 2 days (e.g. 1-3-5-7-9-11…) instead of a fixed
+  // 6-tick spread, so the date reference is granular across the whole range.
+  const tickCount = Math.max(2, Math.min(30, Math.round(totalDays / 2) + 1));
+  const todayPct = pct(new Date().toISOString().slice(0, 10));
 
   if (loading) return <div className="text-sm text-ink-faint">Loading…</div>;
 
@@ -70,24 +94,40 @@ export default function InstallationTimelinePage() {
 
       <Card className="p-4 overflow-x-auto">
         <SectionTitle icon={GitBranch}>แถบเวลา — ยื่นขออนุญาต / นัด-ติดตั้ง / Verify→Completed</SectionTitle>
-        <div className="min-w-[640px]">
-          {/* Date axis — ticks spread evenly across the min/max day range so the bars below have a date reference. */}
+        <div className="min-w-[640px] relative">
+          {/* Vertical "today" marker — spans the axis + every row so opening the
+              page shows at a glance what's happening right now. Positioned with
+              calc() against the same w-32/gap-3/w-28 column widths used below,
+              so it lines up with the bars even though the axis row has no
+              trailing date column of its own (a matching spacer is added there). */}
+          {todayPct != null && (
+            <div
+              className="absolute top-0 bottom-0 w-0 border-l-2 border-dashed border-brand/70 z-10 pointer-events-none"
+              style={{ left: `calc(8.75rem + (100% - 16.5rem) * ${todayPct / 100})` }}
+            >
+              <span className="absolute -top-0.5 left-1 -translate-y-full text-[10px] font-medium text-brand whitespace-nowrap">
+                วันนี้
+              </span>
+            </div>
+          )}
+          {/* Date axis — ticks roughly every 2 days across the min/max day range so the bars below have a date reference. */}
           <div className="flex items-center gap-3 pb-1.5 mb-1 border-b border-black/10 dark:border-white/10">
             <div className="w-32 shrink-0" />
             <div className="relative flex-1 h-4">
-              {Array.from({ length: 6 }, (_, i) => {
-                const t = minDay + (i / 5) * (maxDay - minDay);
+              {Array.from({ length: tickCount }, (_, i) => {
+                const t = minDay + (i / (tickCount - 1)) * (maxDay - minDay);
                 return (
                   <span
                     key={i}
                     className="absolute text-[10px] text-ink-faint -translate-x-1/2"
-                    style={{ left: `${(i / 5) * 100}%` }}
+                    style={{ left: `${(i / (tickCount - 1)) * 100}%` }}
                   >
                     {new Date(t).toLocaleDateString("th-TH", { day: "2-digit", month: "2-digit" })}
                   </span>
                 );
               })}
             </div>
+            <div className="w-28 shrink-0" />
           </div>
           {projects.map((p) => {
             const store = storeById.get(p.store_id);

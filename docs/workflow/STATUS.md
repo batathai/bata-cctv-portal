@@ -79,5 +79,46 @@ Note: the old Work Orders list/detail pages (`/work-orders`, `/work-orders/[batc
 - Storage quota for verify photos still not estimated (carried over from planning).
 - Decide whether/when to merge `docs/installation-project-plan` into `main`.
 
+## /test — 2026-10-05
+
+**Automatic checks** (on `docs/installation-project-plan`, commit `dd2ff5c` + this update): `npx tsc --noEmit` 0 errors · `npm run lint` 0 errors/warnings · `npm run build` succeeds (`NEXT_FONT_GOOGLE_MOCKED_RESPONSES` workaround for this sandbox's blocked Google Fonts egress) — route table shows `/work-orders`, `/work-orders/[batchId]`, `/work-orders/installation`, `/work-orders/installation/[code]`, `/work-orders/installation/rollout`, `/work-orders/installation/timeline`, no top-level `/installation*` left.
+
+Per the test skill's rule — a requirement without direct evidence is "Not tested", never "Pass" — most items below are Not tested because the live site the user screenshotted (`bata-cctv-portal.pages.dev`) deploys from `main`, which does not have this feature yet; only the DB layer (shared across branches) could be checked so far.
+
+| # | Requirement | How tested | Result |
+|---|---|---|---|
+| R1 | `installation_projects` table | Migration 020 run by user (confirmed); `delete-recovery-work-order-data.mjs` successfully queried `installation_projects(id, store_id, approved_quotation_id)` with no error in both dry-run and `--confirm` | **Pass** (schema-level only; full CRUD not exercised live) |
+| R2 | `installation_stage_history` table | Same migration, not independently queried | Not tested |
+| R3 | Quotation→Permit gate (`approved_quotation_id`, explicit link) | Code reviewed only; 0 `vendor_quotations` rows currently exist for any store (table is empty post-deletion) so nothing to click through yet | Not tested |
+| R4 | Kanban board, drag & drop, Wave/region/zone filters | Not opened on a live deploy of this branch yet | Not tested |
+| R5 | Store detail page (checklist, 3 install points, attachments, activity log) | Not opened live yet | Not tested |
+| R6 | 12-item Verify Checklist, auto-complete at 12/12, 72h rollback | Not opened live yet | Not tested |
+| R7 | Excel export (Summary + Timeline, client-side `xlsx`) | Not run live yet | Not tested |
+| R8 | PDF export (exec summary + handover) with Thai text | Code inspection: `exportInstallationPdf.ts` uses jsPDF's default fonts (Helvetica/WinAnsi) with no `addFont`/Thai-capable font embedded, same pattern as the pre-existing `exportPdf.ts`. Confirmed earlier via a Node script showing jsPDF's default `getFont()` → `{fontName: 'helvetica', encoding: 'WinAnsiEncoding'}`, which has no Thai glyphs | **Fail** — pre-existing systemic issue (not a regression from this feature; `exportPdf.ts` has the same gap) — needs `/debug` to embed a Thai TTF via `addFileToVFS`/`addFont` |
+| R9 | Rollout page — 194-target grid + per-stage/per-zone summary | Not opened live yet | Not tested |
+| R10 | RLS — `installation_projects`/`installation_stage_history` read/write = `hq_admin` only | Migration file reviewed (policies present using `current_profile()` pattern from `vendor_quotations`); cannot exercise with a second role since the whole app is currently single-role (`hq_admin` only per `src/lib/rbac.ts`) — so the restriction has no live user to test it against | Not tested (low risk given current single-role state) |
+
+**Edge cases checked**
+- Store codes as numbers/spaces — not specific to this feature (reuses existing `stores` data loaded the same way as Recovery/Work Orders); not separately re-tested.
+- Region/zone mapping (BKK 511/512/513/550, UPC 520/530/540/560) — `regionFromZone()`/`getAreaLabel()` reused as-is from `src/lib/recovery.ts`, unchanged by this feature.
+- Counts adding up — deletion script's dry-run and `--confirm` counts matched exactly (61 stores both times) — **Pass** for that specific flow.
+- Soft-deleted rows — not applicable; `installation_projects` has no soft-delete column, and the deletion script operates on real store rows regardless of `is_active`.
+- Each role sees only what it should — single-role app, not testable yet (see R10).
+- Empty states / 194+ stores — `/work-orders` empty state confirmed working live ("No active jobs. Create one to start tracking work orders.") after deletion. Installation Rollout's 194-grid not yet opened live.
+- Thai text in exports — **Fail**, see R8.
+
+**Pass/Fail/Not-tested count**: 2 Pass (R1, counts-adding-up edge case) · 1 Fail (R8) · 8 Not tested.
+
+## Manual test checklist for the user (ทำบน preview ของ branch นี้ หรือหลัง merge main)
+1. เปิด `/work-orders` → เห็นแท็บ "งานซ่อม (Repair Jobs)" / "ติดตั้งกล้องใหม่ (Installation Project)" ที่ด้านบนไหม
+2. กดแท็บ Installation Project → เห็นบอร์ด Kanban 8 คอลัมน์, การ์ด Wave 1 (20 สาขา) ไหม
+3. ลองลากการ์ดจากขั้น "Quotation" ไปขั้นถัดไป (ไม่มีใบเสนอราคา Approved ผูกไว้) → ควรถูกบล็อกพร้อมข้อความเตือน (R3)
+4. เปิดการ์ด 1 ใบ → เช็คว่าเห็น stepper, การ์ดผูกใบเสนอราคา, Verify Checklist 12 ข้อ, แนบไฟล์ได้ (R5/R6)
+5. ติ๊ก Verify Checklist ครบ 12/12 → การ์ดควรย้ายไป "Completed" อัตโนมัติ (R6)
+6. กด Export Excel ที่หน้าบอร์ด → เปิดไฟล์ดูว่ามี 2 ชีต (Summary, Timeline) ตัวเลขถูกไหม (R7)
+7. กด Export PDF → **คาดว่าจะเห็นปัญหา**: ข้อความภาษาไทยในไฟล์ PDF จะเพี้ยน/ไม่ขึ้น (ตัว font ไม่รองรับไทย) — ยืนยันตามที่พบไหม แล้วแจ้งกลับมา จะส่งต่อให้ `/debug`
+8. เปิด `/work-orders/installation/timeline` และ `/work-orders/installation/rollout` → เช็คว่าตารางเวลา/กริด 194 ช่อง แสดงถูกต้องไม่ error (R9)
+9. ยืนยันอีกครั้งว่า `/work-orders` เดิม (Repair Jobs) ยัง "Active Jobs (0)" เหมือนก่อนหน้า
+
 ## Next step
-Get the user's live-site confirmation, then resume `/test` on the combined Work Orders + Installation Project UI.
+รอผลทดสอบคลิกจริงจากคุณ (อาจต้องเปิด preview URL ของ branch `docs/installation-project-plan` ก่อน — Cloudflare Pages ปกติสร้าง preview ให้ทุก branch ที่ push) ถ้าผ่านหมด (ยกเว้น R8 ที่รู้อยู่แล้ว) ไปต่อ `/review`

@@ -1,7 +1,7 @@
 # Workflow Status
 
 Feature: Installation Project
-Phase: implemented — restructured under Work Orders, ready for /test
+Phase: /test in progress — automated checks pass, core R1–R10 manual checklist still pending, 2 Timeline patches awaiting user apply+push
 Design approved: yes — 2026-09-30 — DESIGN-installation-project.md (schema `installation_projects`/`installation_stage_history`, 8-stage flow, RLS, screens, exports)
 Updated: 2026-10-05
 
@@ -142,8 +142,62 @@ After seeing the real Wave 1 board, user asked to delete the empty "Floor Plan" 
 
 **Migration 021 not yet run against Supabase** — user must run it in the SQL Editor (after 020) before this matters for real data; no existing row needs it (Wave 1 import never used Floor Plan/Layout).
 
+## Timeline date-display + sort + inline-edit — 2026-10-05
+Owner reported, screenshot-confirmed on the live PR preview, three rounds of follow-up fixes to `/work-orders/installation/timeline`:
+1. Kanban cards (`installation/page.tsx`) and the store detail page (`installation/[code]/page.tsx`) were missing D1/D2 dates entirely — added `formatShortDate`/`formatThaiDate` helpers and rendered them. **Confirmed live via screenshot** (cards show "นัด DD/MM · ติดตั้ง DD/MM").
+2. Timeline page had bars but no visible dates — added a date axis + per-row date label. **Confirmed live via screenshot.**
+3. Three Timeline refinements requested: sort soonest-date-to-top, a vertical "today" marker line, finer (~2-day) axis ticks. First implementation had a sort bug — `POSITIVE_INFINITY - x` is always `Infinity` regardless of `x`, so every row whose dates were all in the past tied at the same key and fell back to array order (visible as 51428, dated 01/10, sitting at the very bottom instead of the top). **Confirmed live via screenshot that this bug existed**, then fixed (commit `fb09942`), then simplified further per explicit feedback — the real intent was pure chronological-earliest-first including past dates, not "soonest-upcoming" (commit `004f169`).
+4. New: inline D1/D2 date editing on the Timeline page — pencil icon per row (role-gated via `canLogMaintenance`) opens two native date inputs, Save writes via new `updateInstallationDatesDb()` → `AppDataProvider.updateInstallationDates()` (updates only `d1_date`/`d2_date`, no stage change, no history row), Cancel discards.
+
+**⚠ Commits `fb09942` and `004f169` are only pushed to this session's local clone, NOT yet applied by the user** — `origin/docs/installation-project-plan` is still at `64f96a3`. The user must `git am` + `git push` both patches before the sort-fix and inline-edit feature are live to test.
+
+## Wave 1 data reconciled against authoritative source — 2026-10-05
+User initially reported 4 stores (51428, 53031, 54023, "51499"→51944) as wrong and asked for corrections; wrote `scripts/fix-installation-wave1-dates.mjs` (dry-run/--confirm/backup pattern) per clarified values. User then pasted the authoritative 20-store source table, which revealed:
+- 17/20 stores already matched the original Wave 1 import exactly — no fix needed.
+- The earlier "correction" requested for 53031 and 54023 actually contradicted this authoritative table (original import values were correct).
+- 53022 has a genuine unexplained mismatch (shows 12/10-13/10 live, should be 06/10-07/10) — predates this session's changes, cause unknown.
+- **User's decision: leave all 3 discrepancies (53031, 54023, 53022) as-is** — "สามสาขานี้ไม่เป็นไร ครับ เอาสาขาอื่น ตรงก้อพอ". `fix-installation-wave1-dates.mjs` was never run with `--confirm`; no DB write happened from it. 51428/51944 were never wrong and need no action.
+
 ## Next step
-1. User runs migration 021 in Supabase SQL Editor.
-2. Re-check the live preview (`/work-orders/installation`): 6 columns instead of 8, 20 real Wave 1 cards distributed as computed by the import script.
-3. Continue the manual test checklist (drag-blocking on Quotation, detail page, Verify Checklist, Excel/PDF export, Timeline/Rollout pages).
-4. Once manual testing clears (R8/PDF-Thai known exception), move to `/review`.
+1. User applies the 2 outstanding patches (`fb09942`, `004f169`) via `git am` + `git push`, then re-checks the Timeline preview: sort order (earliest/overdue at top), today-marker line, pencil-icon date editing.
+2. Continue the manual test checklist below (drag-blocking on Quotation, detail page, Verify Checklist, Excel/PDF export, Rollout page).
+3. Once manual testing clears (R8/PDF-Thai known exception), move to `/review`.
+
+## /test — 2026-10-05 (second pass)
+
+**Automatic checks** (local HEAD `004f169`, 2 commits ahead of `origin/docs/installation-project-plan`@`64f96a3`): `npx tsc --noEmit` 0 errors · `npm run lint` 0 errors/warnings · `npm run build` succeeds (`NEXT_FONT_GOOGLE_MOCKED_RESPONSES` workaround) — route table unchanged, no test script exists in `package.json` (confirmed again — matches the repo's existing no-test-suite state).
+
+Core R1–R10 statuses are **unchanged from the first `/test` pass** (no code touched this session affects R1–R10's underlying logic — only Timeline/card/detail date *display*, Timeline *sort*, and a new, additive *date-edit* capability were added). Restating for traceability:
+
+| # | Requirement | Result | Note |
+|---|---|---|---|
+| R1 | `installation_projects` table | **Pass** (schema-level) | unchanged |
+| R2 | `installation_stage_history` table | Not tested | unchanged |
+| R3 | Quotation→Permit gate | Not tested | unchanged |
+| R4 | Kanban drag & drop + filters | Not tested | unchanged |
+| R5 | Store detail page | Not tested | unchanged — but D1/D2 date display on this page is now **Pass**, confirmed live via screenshot |
+| R6 | Verify Checklist 12/12 auto-complete, 72h rollback | Not tested | unchanged |
+| R7 | Excel export | Not tested | unchanged |
+| R8 | PDF export, Thai text | **Fail** (pre-existing, same as before) | unchanged — needs `/debug` |
+| R9 | Rollout page | Not tested | unchanged |
+| R10 | RLS hq_admin-only | Not tested (low risk, single-role app) | unchanged |
+
+**This session's additive items** (not numbered requirements in the original plan, but delivered and need their own sign-off):
+
+| Item | Result | Evidence |
+|---|---|---|
+| D1/D2 dates visible on Kanban cards | **Pass** | Live screenshot |
+| D1/D2 dates visible on store detail page | **Pass** | Live screenshot |
+| Timeline date axis + per-row date labels | **Pass** | Live screenshot |
+| Timeline sort (chronological-earliest-first, incl. past dates) | Not tested live | Code fixed + built clean (commit `004f169`); not yet applied/pushed by user |
+| Timeline "today" vertical marker line | **Pass** | Live screenshot |
+| Timeline axis ticks ~every 2 days | **Pass** | Live screenshot |
+| Timeline inline D1/D2 date editing (pencil icon) | Not tested live | New in commit `004f169`; not yet applied/pushed by user, never clicked on a live deploy |
+| Wave 1 data vs. authoritative source table | **Pass** | User reconciled directly — 17/20 match exactly; user explicitly accepted the 3 remaining mismatches (53031, 54023, 53022) as-is, no further action needed |
+
+**Pass/Fail/Not-tested count (cumulative)**: 7 Pass · 1 Fail (R8, known/pre-existing) · 10 Not tested.
+
+## Manual test checklist — updated, still open
+Same 9-item checklist from the first `/test` pass (drag-block R3, detail page R5, Verify Checklist R6, Excel R7, PDF R8 — expected Thai-glyph failure, Timeline/Rollout R9, Work Orders empty-state) — **none of these 9 have been clicked through live yet**; today's session only closed out the Timeline date-display/sort/edit items and the Wave 1 data reconciliation. Plus 2 new items:
+10. หลัง apply patch `fb09942`+`004f169`: เปิด Timeline → เช็คว่า 51428 (01/10, วันที่ผ่านมาแล้ว) ขึ้นบนสุด ไม่ใช่ล่างสุด
+11. ลองกดไอคอนดินสอข้างวันที่แถวไหนก็ได้ → แก้วันที่ → กด ✓ → เช็คว่าแถบสีขยับตามวันที่ใหม่ทันที ไม่ต้องรีเฟรชหน้า

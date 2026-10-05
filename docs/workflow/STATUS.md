@@ -63,22 +63,21 @@ Installation Project moved from its own top-level Sidebar entry into a sub-tab o
 - New `src/components/work-orders/WorkOrdersTabs.tsx` — a 2-tab switcher ("งานซ่อม (Repair Jobs)" ↔ "ติดตั้งกล้องใหม่ (Installation Project)") rendered at the top of `/work-orders` and `/work-orders/installation`. The drill-down pages (`[batchId]`, `installation/[code]`, `installation/timeline`, `installation/rollout`) keep their existing back-arrow instead of the tab bar, to avoid duplicate nav chrome.
 - Verified after the move: `npx tsc --noEmit` 0 errors, `npm run lint` 0 errors, `npm run build` succeeds (using the `NEXT_FONT_GOOGLE_MOCKED_RESPONSES` workaround for this sandbox's blocked Google Fonts egress) — route table confirms `/work-orders`, `/work-orders/[batchId]`, `/work-orders/installation`, `/work-orders/installation/[code]`, `/work-orders/installation/rollout`, `/work-orders/installation/timeline` all generated, and no `/installation*` route remains.
 
-## Pending — old repair/Work-Order data deletion (per user request)
-User asked to delete all old 50-store repair-pilot production data (maintenance_history, incident_tickets, recovery_stage_history, work_order_batches, related vendor_quotations, and reset the relevant `stores` columns) **after taking a backup first**, to make room for Installation Project. Wrote `scripts/delete-recovery-work-order-data.mjs`:
-- Dry-run by default (no flags) — writes a full JSON backup to `backups/` and prints counts, deletes nothing.
-- `--confirm` — applies the deletion after the dry-run backup exists.
-- Explicitly protects any `vendor_quotations` row still referenced by `installation_projects.approved_quotation_id`, since that table is shared between the old Recovery flow and Installation Project.
-- Requires `SUPABASE_SERVICE_ROLE_KEY` in the user's own `.env.local` — must be run by the user, not from this session (no DB credentials here).
-- **Not yet run.** Not yet explained/delivered to the user in chat either — next step below.
+## Done — old repair/Work-Order data deletion — 2026-10-05
+User asked to delete all old repair-pilot production data (maintenance_history, incident_tickets, recovery_stage_history, work_order_batches, related vendor_quotations, and reset the relevant `stores` columns) **after taking a backup first**, to make room for Installation Project. `scripts/delete-recovery-work-order-data.mjs` was run by the user against the real Supabase project:
+- Dry-run first: 61 of 194 stores affected (2 `work_order_batches` — more than the original 50-store pilot, grown by a second Job over time), maintenance_history 50, incident_tickets 80, recovery_stage_history 303, vendor_quotations 0 (nothing to protect/delete there).
+- `--confirm` run: matched dry-run exactly — **61 stores reset**. Backup saved to `backups/delete-recovery-work-order-data-backup-2026-10-05T08-32-02-357Z.json` on the user's machine (not committed to git — keep it safe for reference/rollback).
+- `vendor_quotations` protection logic (exclude rows referenced by `installation_projects.approved_quotation_id`) had nothing to protect this time since the count was 0, but the code path is in place for next time.
+- Pushed to `origin/docs/installation-project-plan` as of commit `ba1bb80` (includes both the Work Orders/Installation Project restructure and this script).
+- **Awaiting user's live-site check**: `/work-orders` should show "Active Jobs (0)", and the "ติดตั้งกล้องใหม่ (Installation Project)" tab should still work normally.
 
 Note: the old Work Orders list/detail pages (`/work-orders`, `/work-orders/[batchId]`) and their `createWorkOrderBatch`/`closeWorkOrderBatch`/`reopenWorkOrderBatch`/`assignStoreToBatch` code in `AppDataProvider.tsx` were **not removed** — only the data they display will be emptied by the script. After the script runs, "Active Jobs (0)" will show correctly (the page already handles the empty state); the repair-ticket code path itself is left in place so a *new* repair job can still be opened later if needed. If the user wants that code removed entirely (not just emptied of data), that is a separate, larger change (also touches `src/components/work-orders/NewTicketModal.tsx`, `src/app/(portal)/reports/page.tsx`'s batch picker, and `src/lib/mockData.ts`'s batch generation) — flag before doing it.
 
 ## Not yet done (next steps)
-- Give the user `scripts/delete-recovery-work-order-data.mjs` and the exact run commands (dry-run first, review backup + counts, then `--confirm`).
-- Once they confirm the deletion ran, re-check the live Work Orders / Installation tabs together.
+- Confirm live-site check: `/work-orders` shows 0 Active Jobs, Installation Project tab still works.
 - `/test` — no automated tests exist in this repo (matches its existing no-test-suite state); manual test pass needed, including the still-open jsPDF Thai-glyph issue in `exportInstallationPdf.ts` (default fonts have no Thai glyph support — needs a Thai-capable embedded font; not yet fixed).
 - Storage quota for verify photos still not estimated (carried over from planning).
-- Deliver a fresh patch (or push, if GitHub access is available) for all of today's changes once the user confirms where this branch should land.
+- Decide whether/when to merge `docs/installation-project-plan` into `main`.
 
 ## Next step
-Send the user the deletion script + run instructions, then resume `/test` on the combined Work Orders + Installation Project UI.
+Get the user's live-site confirmation, then resume `/test` on the combined Work Orders + Installation Project UI.

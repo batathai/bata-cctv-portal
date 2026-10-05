@@ -13,6 +13,11 @@ import type { InstallationProject, InstallationStage } from "@/types/database";
 import { exportInstallationExcel } from "@/lib/reports/exportInstallationExcel";
 import { exportInstallationExecSummaryPdf } from "@/lib/reports/exportInstallationPdf";
 
+function formatShortDate(iso: string | null): string | null {
+  if (!iso) return null;
+  return new Date(iso + "T00:00:00").toLocaleDateString("th-TH", { day: "2-digit", month: "2-digit" });
+}
+
 /**
  * Installation Project — Kanban board. 8 stages, one column each, cards
  * move between columns via native HTML5 drag & drop (mirrors the approved
@@ -178,6 +183,13 @@ export default function InstallationBoardPage() {
                       >
                         <div className="text-xs font-semibold text-ink dark:text-white">{store.store_code}</div>
                         <div className="text-[11px] text-ink-faint truncate">{store.store_name}</div>
+                        {(p.d1_date || p.d2_date) && (
+                          <div className="text-[10px] text-ink-faint mt-1">
+                            {p.d1_date && <>นัด {formatShortDate(p.d1_date)}</>}
+                            {p.d1_date && p.d2_date && " · "}
+                            {p.d2_date && <>ติดตั้ง {formatShortDate(p.d2_date)}</>}
+                          </div>
+                        )}
                         <div className="flex items-center justify-between mt-2">
                           <span className="text-[10px] text-ink-faint">{getAreaLabel(store.zone)}</span>
                           {stage === "Verify" && <span className="text-[10px] font-medium text-brand">{p.verify_total}/12</span>}

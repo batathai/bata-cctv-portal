@@ -20,6 +20,11 @@ import {
 import { exportInstallationHandoverPdf } from "@/lib/reports/exportInstallationPdf";
 import type { InstallationStage } from "@/types/database";
 
+function formatThaiDate(iso: string | null): string {
+  if (!iso) return "-";
+  return new Date(iso + "T00:00:00").toLocaleDateString("th-TH", { day: "2-digit", month: "2-digit", year: "numeric" });
+}
+
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex justify-between py-1.5 border-b border-black/5 dark:border-white/5 text-sm">
@@ -89,8 +94,8 @@ export default function InstallationDetailPage() {
         <Card className="p-5">
           <SectionTitle icon={GitBranch}>วันสำคัญ</SectionTitle>
           <Row label="ยื่นขออนุญาต" value={project.permit_submitted_at ?? "-"} />
-          <Row label="D1 — นัดติดตั้ง" value={project.d1_date ?? "-"} />
-          <Row label="D2 — ติดตั้งจริง" value={project.d2_date ?? "-"} />
+          <Row label="D1 — นัดติดตั้ง" value={formatThaiDate(project.d1_date)} />
+          <Row label="D2 — ติดตั้งจริง" value={formatThaiDate(project.d2_date)} />
           <Row label="Completed" value={project.completed_at ?? "-"} />
         </Card>
       </div>

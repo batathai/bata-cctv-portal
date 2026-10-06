@@ -240,3 +240,18 @@ Recorded 2026-10-06 from discussion with the owner.
 - Implies tracking each removed device (by serial) through: removed at store X (linked to that installation project) → in repair → in stock → installed at store Y. Today `cctv_assets` is one row per store, with no stock/in-transit state and no movement history.
 - Open questions for `/planning`: which device types are reused (DVR, cameras, HDD?); is there a physical stock location; who repairs (vendor vs in-house); does a redeployment count as a repair job, an installation job, or its own type.
 - Likely touches the repair flow too (repair of stock devices that belong to no store) — plan A and B together or in that order.
+
+## Backlog — next feature after Installation Project is merged (agreed 2026-10-06)
+Start with `/planning` on a **new branch** once this branch is merged to `main`. Do not mix into this branch.
+
+**1. Combined follow-up Timeline (repair + installation)**
+- Keep the two Kanban boards separate (different stage flows: 6 installation stages vs 7 repair stages).
+- Add one combined "Timeline รวม" under Work Orders: one row per job, type badge (ซ่อม / ติดตั้ง), filters by type / region / zone, same "today" marker.
+- Repair tickets with no appointment yet grouped at the top as "ยังไม่ได้นัด (N)" with days waiting.
+- Flag when the same store has both a repair and an installation visit close together, so one vendor visit can cover both.
+- **Prerequisite:** `incident_tickets` only has `opened_at`/`closed_at` — needs new columns for scheduled visit date and actual repair date (new migration).
+
+**2. Reuse of old equipment removed during installation (new requirement from owner)**
+- Owner expects many repair jobs soon: old DVR/cameras taken out during new installations will be repaired and redeployed to other stores.
+- Needs a way to track a removed device: which store it came out of → repair job → which store it goes to next.
+- Likely touches `cctv_assets` / device identity (migration 010) and links Installation Project ↔ repair jobs. Scope to be settled in `/planning`.

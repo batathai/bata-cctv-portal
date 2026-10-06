@@ -226,3 +226,17 @@ Same 9-item checklist from the first `/test` pass (drag-block R3, detail page R5
 - **Cause:** `NewTicketModal` searched with `(store_name + store_code).includes(query)` — the glued string `Robinson Chachoengsao54044` never contains the `code - name` text a person naturally types (and the list itself displays). The Issue Type `Select` let the empty placeholder option be chosen, and nothing blocked submitting with no issue type.
 - **Fix:** search splits the query into words (ignoring `-`, `·`, etc.) and requires every word to appear in `"code name"` — any order works. Results list now shows code first, with a hint to click one; no-match hint suggests typing just the code. Issue Type uses the full-width select, an explicit "— Pick an issue type —" placeholder, and submit is blocked until one is picked. Tested the matcher against 7 inputs; `tsc` 0, `lint` 0.
 - **Not tested live yet.** Return to: `/test`.
+
+## Next features (backlog — start each with `/planning` on a new branch AFTER Installation Project merges)
+Recorded 2026-10-06 from discussion with the owner.
+
+### A. Combined follow-up Timeline (repair + installation)
+- Owner expects a large volume of repair work soon. Wants one place to follow up both job types.
+- Agreed direction: keep the two Kanban boards separate (different stage flows: installation 6 stages, repair 7), but add one **combined Timeline** under Work Orders — one row per job, type badge (ซ่อม / ติดตั้ง), filters (type, region, zone), "today" marker; repair jobs with no appointment grouped on top as "ยังไม่ได้นัด (N)" with days waiting; flag when one store has both job types close together so the vendor can do both in one visit.
+- **Prerequisite (schema):** `incident_tickets` only has `opened_at`/`closed_at` — needs an appointment date (วันนัดช่าง) and actual repair date before repair jobs can be drawn as bars.
+
+### B. Reuse of old equipment removed during installation
+- Owner: old devices taken out at installation stores will be **repaired and redeployed to other stores**.
+- Implies tracking each removed device (by serial) through: removed at store X (linked to that installation project) → in repair → in stock → installed at store Y. Today `cctv_assets` is one row per store, with no stock/in-transit state and no movement history.
+- Open questions for `/planning`: which device types are reused (DVR, cameras, HDD?); is there a physical stock location; who repairs (vendor vs in-house); does a redeployment count as a repair job, an installation job, or its own type.
+- Likely touches the repair flow too (repair of stock devices that belong to no store) — plan A and B together or in that order.

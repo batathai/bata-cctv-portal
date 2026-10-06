@@ -220,3 +220,9 @@ Same 9-item checklist from the first `/test` pass (drag-block R3, detail page R5
 - **Existing row:** user to fix the one live row with a one-off SQL `update` in the SQL Editor (preview `select` first) — not scripted, single row, no other data touched.
 - **Not tested live yet** — add to manual checklist: rename a job, try a name starting with a symbol, try an empty name.
 - **Return to:** `/test` (continue manual checklist).
+
+### 2026-10-06 — "Open Work Order" could not find store 54044
+- **Seen:** on the PR preview, typing `54044 - Robinson Chachoengsao` in the Store box showed "No store matches…", so the Open Work Order button stayed disabled. Issue Type also showed its placeholder ("Issue Type") instead of a real value.
+- **Cause:** `NewTicketModal` searched with `(store_name + store_code).includes(query)` — the glued string `Robinson Chachoengsao54044` never contains the `code - name` text a person naturally types (and the list itself displays). The Issue Type `Select` let the empty placeholder option be chosen, and nothing blocked submitting with no issue type.
+- **Fix:** search splits the query into words (ignoring `-`, `·`, etc.) and requires every word to appear in `"code name"` — any order works. Results list now shows code first, with a hint to click one; no-match hint suggests typing just the code. Issue Type uses the full-width select, an explicit "— Pick an issue type —" placeholder, and submit is blocked until one is picked. Tested the matcher against 7 inputs; `tsc` 0, `lint` 0.
+- **Not tested live yet.** Return to: `/test`.

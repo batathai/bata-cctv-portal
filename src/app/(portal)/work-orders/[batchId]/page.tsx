@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, ClipboardList, Search, FileText, Plus, Archive, RotateCcw } from "lucide-react";
+import { ArrowLeft, ClipboardList, Search, FileText, Plus, Archive, RotateCcw, Pencil, Check, X } from "lucide-react";
 import Link from "next/link";
 import { useAppData } from "@/components/providers/AppDataProvider";
 import { Card, SectionTitle } from "@/components/ui/Card";
@@ -23,12 +23,15 @@ export const runtime = 'edge';
 export default function WorkOrderBatchDetailPage() {
   const { batchId } = useParams<{ batchId: string }>();
   const router = useRouter();
-  const { stores, tickets, recoveryStageHistory, workOrderBatches, loading, role, closeWorkOrderBatch, reopenWorkOrderBatch } = useAppData();
+  const { stores, tickets, recoveryStageHistory, workOrderBatches, loading, role, closeWorkOrderBatch, reopenWorkOrderBatch, renameWorkOrderBatch } = useAppData();
   const [stageFilter, setStageFilter] = useState<RecoveryStage | "">("");
   const [showDone, setShowDone] = useState(false);
   const [q, setQ] = useState("");
   const [showNewTicket, setShowNewTicket] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [editingName, setEditingName] = useState(false);
+  const [draftName, setDraftName] = useState("");
+  const [nameError, setNameError] = useState<string | null>(null);
   const canOpenTicket = canLogMaintenance(role);
   const canManage = canLogMaintenance(role);
 
@@ -125,19 +128,76 @@ export default function WorkOrderBatchDetailPage() {
     }
   }
 
+  function startEditName() {
+    setDraftName(batch!.name);
+    setNameError(null);
+    setEditingName(true);
+  }
+
+  function cancelEditName() {
+    setEditingName(false);
+    setNameError(null);
+  }
+
+  async function saveName() {
+    setBusy(true);
+    setNameError(null);
+    try {
+      await renameWorkOrderBatch(batch!.id, draftName);
+      setEditingName(false);
+    } catch (err) {
+      setNameError(err instanceof Error ? err.message : "Could not rename job.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div className="space-y-5">
       <BackLink />
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="font-display text-lg font-bold text-ink dark:text-white">{batch.name}</h1>
+            {editingName ? (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  saveName();
+                }}
+                className="flex items-center gap-1.5"
+              >
+                <input
+                  autoFocus
+                  value={draftName}
+                  onChange={(e) => setDraftName(e.target.value)}
+                  onKeyDown={(e) => e.key === "Escape" && cancelEditName()}
+                  disabled={busy}
+                  className="font-display text-lg font-bold text-ink dark:text-white border border-black/15 dark:border-white/15 rounded-md px-2 py-0.5 bg-white dark:bg-white/5 outline-none focus:border-brand w-[min(28rem,70vw)]"
+                />
+                <button type="submit" disabled={busy || !draftName.trim()} className="text-status-healthy hover:opacity-70 disabled:opacity-40" title="บันทึก">
+                  <Check size={16} />
+                </button>
+                <button type="button" onClick={cancelEditName} disabled={busy} className="text-ink-faint hover:opacity-70 disabled:opacity-40" title="ยกเลิก">
+                  <X size={16} />
+                </button>
+              </form>
+            ) : (
+              <>
+                <h1 className="font-display text-lg font-bold text-ink dark:text-white">{batch.name}</h1>
+                {canManage && (
+                  <button onClick={startEditName} className="text-ink-faint/70 hover:text-brand transition" title="แก้ชื่องาน">
+                    <Pencil size={13} />
+                  </button>
+                )}
+              </>
+            )}
             {isClosed && (
               <span className="flex items-center gap-1 text-[11px] font-medium text-ink-faint border border-black/10 dark:border-white/10 rounded-full px-2 py-0.5">
                 <Archive size={11} /> Closed
               </span>
             )}
           </div>
+          {nameError && <p className="text-xs text-brand mt-1">{nameError}</p>}
           <p className="text-sm text-ink-faint mt-0.5">
             {totalCount} store(s) tracked in this job &middot; click a row to view details and update its status step by step
           </p>

@@ -57,7 +57,7 @@ import {
   type MaintenanceFormInput,
 } from "@/lib/maintenanceWrite";
 import { updateRecoveryStageDb, addRecoveryRemarkDb, deleteRecoveryRemarkDb } from "@/lib/recoveryWrite";
-import { createWorkOrderBatchDb, setWorkOrderBatchStatusDb } from "@/lib/workOrderBatchWrite";
+import { createWorkOrderBatchDb, setWorkOrderBatchStatusDb, renameWorkOrderBatchDb, cleanJobName } from "@/lib/workOrderBatchWrite";
 import {
   updateInstallationStageDb,
   toggleVerifyChecklistItemDb,
@@ -121,6 +121,7 @@ interface AppDataContextValue {
   createWorkOrderBatch: (name: string) => Promise<WorkOrderBatch>;
   closeWorkOrderBatch: (batchId: string) => Promise<void>;
   reopenWorkOrderBatch: (batchId: string) => Promise<void>;
+  renameWorkOrderBatch: (batchId: string, name: string) => Promise<void>;
   createInstallationProject: (storeId: string, wave: string) => Promise<InstallationProject>;
   advanceInstallationStage: (
     project: InstallationProject,
@@ -469,7 +470,9 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  async function createWorkOrderBatch(name: string): Promise<WorkOrderBatch> {
+  async function createWorkOrderBatch(rawName: string): Promise<WorkOrderBatch> {
+    const name = cleanJobName(rawName);
+    if (!name) throw new Error("Job name cannot be empty.");
     if (isSupabaseConfigured) {
       const supabase = createClient();
       const created = await createWorkOrderBatchDb(supabase, name);
@@ -494,6 +497,18 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   }
   const closeWorkOrderBatch = (batchId: string) => setBatchStatus(batchId, "Closed");
   const reopenWorkOrderBatch = (batchId: string) => setBatchStatus(batchId, "Active");
+
+  async function renameWorkOrderBatch(batchId: string, rawName: string) {
+    const name = cleanJobName(rawName);
+    if (!name) throw new Error("Job name cannot be empty.");
+    if (isSupabaseConfigured) {
+      const supabase = createClient();
+      await renameWorkOrderBatchDb(supabase, batchId, name);
+      setWorkOrderBatches(await fetchWorkOrderBatches());
+    } else {
+      setWorkOrderBatches((prev) => prev.map((b) => (b.id === batchId ? { ...b, name } : b)));
+    }
+  }
 
   async function createInstallationProject(storeId: string, wave: string): Promise<InstallationProject> {
     if (isSupabaseConfigured) {
@@ -865,6 +880,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     createWorkOrderBatch,
     closeWorkOrderBatch,
     reopenWorkOrderBatch,
+    renameWorkOrderBatch,
     createInstallationProject,
     advanceInstallationStage,
     updateVerifyChecklistItem,

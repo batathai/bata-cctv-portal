@@ -211,3 +211,12 @@ Same 9-item checklist from the first `/test` pass (drag-block R3, detail page R5
 - Fixed: `CLAUDE.md` contained another project's docs (Store_payslip) copied in by mistake — rewritten for this repo. Also present on `main`, so the fix reaches `main` on merge.
 - Noticed, not changed: `backups/` holds 2026-08-05 real-data backups committed to git; `README.md` partly stale (Next.js 14, multi-role).
 - Migration 021 — still not confirmed as run on Supabase.
+
+## Issues
+### 2026-10-06 — Job name had a stray symbol in front and could not be edited
+- **Seen:** user created repair job "Job 1 : 54044 - Robinson Chachoengsao" on the live site; the title showed a small mark before "Job" and there was no way to rename a job.
+- **Cause:** a stray character (likely a Thai tone mark or `'` typed while switching keyboard layout) was saved as part of the name — `NewBatchModal` only trimmed spaces. `work_order_batches` had no rename path at all (no write helper, no UI).
+- **Fix (this branch):** `cleanJobName()` in `workOrderBatchWrite.ts` strips leading non-letter/non-digit characters (keeps leading Thai consonants/leading vowels, drops tone marks) on both create and rename; new `renameWorkOrderBatchDb()` + `AppDataProvider.renameWorkOrderBatch()`; job page (`/work-orders/[batchId]`) shows a pencil next to the title (always visible, not hover-only) → inline input, Enter/✓ saves, Esc/✕ cancels, empty name rejected with a message. `tsc` 0 errors, `lint` 0.
+- **Existing row:** user to fix the one live row with a one-off SQL `update` in the SQL Editor (preview `select` first) — not scripted, single row, no other data touched.
+- **Not tested live yet** — add to manual checklist: rename a job, try a name starting with a symbol, try an empty name.
+- **Return to:** `/test` (continue manual checklist).

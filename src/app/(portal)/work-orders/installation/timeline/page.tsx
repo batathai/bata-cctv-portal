@@ -116,18 +116,20 @@ export default function InstallationTimelinePage() {
 
       <Card className="p-4 overflow-x-auto">
         <SectionTitle icon={GitBranch}>แถบเวลา — ยื่นขออนุญาต / นัด-ติดตั้ง / Verify→Completed</SectionTitle>
-        <div className="min-w-[640px] relative">
+        <div className="min-w-[640px] relative pt-4">
           {/* Vertical "today" marker — spans the axis + every row so opening the
               page shows at a glance what's happening right now. Positioned with
               calc() against the same w-32/gap-3/w-28 column widths used below,
               so it lines up with the bars even though the axis row has no
-              trailing date column of its own (a matching spacer is added there). */}
+              trailing date column of its own (a matching spacer is added there).
+              The container's pt-4 reserves a band above the axis for the "วันนี้"
+              label, so it no longer overlaps the section title above. */}
           {todayPct != null && (
             <div
               className="absolute top-0 bottom-0 w-0 border-l-2 border-dashed border-brand/70 z-10 pointer-events-none"
               style={{ left: `calc(8.75rem + (100% - 16.5rem) * ${todayPct / 100})` }}
             >
-              <span className="absolute -top-0.5 left-1 -translate-y-full text-[10px] font-medium text-brand whitespace-nowrap">
+              <span className="absolute top-0 left-1 leading-none text-[10px] font-medium text-brand whitespace-nowrap">
                 วันนี้
               </span>
             </div>

@@ -1,9 +1,9 @@
 # Workflow Status
 
 Feature: Installation Project
-Phase: /test in progress — automated checks pass, core R1–R10 manual checklist still pending, 2 Timeline patches awaiting user apply+push
+Phase: /test in progress — automated checks pass, Timeline sort + today marker confirmed live, pencil date-edit and core R1–R10 manual checklist still pending
 Design approved: yes — 2026-09-30 — DESIGN-installation-project.md (schema `installation_projects`/`installation_stage_history`, 8-stage flow, RLS, screens, exports)
-Updated: 2026-10-05
+Updated: 2026-10-06
 
 ## Done
 - Plan written: docs/workflow/PLAN-installation-project.md
@@ -201,3 +201,13 @@ Core R1–R10 statuses are **unchanged from the first `/test` pass** (no code to
 Same 9-item checklist from the first `/test` pass (drag-block R3, detail page R5, Verify Checklist R6, Excel R7, PDF R8 — expected Thai-glyph failure, Timeline/Rollout R9, Work Orders empty-state) — **none of these 9 have been clicked through live yet**; today's session only closed out the Timeline date-display/sort/edit items and the Wave 1 data reconciliation. Plus 2 new items:
 10. หลัง apply patch `fb09942`+`004f169`: เปิด Timeline → เช็คว่า 51428 (01/10, วันที่ผ่านมาแล้ว) ขึ้นบนสุด ไม่ใช่ล่างสุด
 11. ลองกดไอคอนดินสอข้างวันที่แถวไหนก็ได้ → แก้วันที่ → กด ✓ → เช็คว่าแถบสีขยับตามวันที่ใหม่ทันที ไม่ต้องรีเฟรชหน้า
+
+## Update — 2026-10-06
+- The 2 Timeline patches are **applied and pushed** (landed as `05b3373`/`c207ac5` on `origin/docs/installation-project-plan`, then `0d02b3d`). The "awaiting user apply" notes above are now historical.
+- Checklist #10 **Pass** — live screenshot shows strict earliest-first order (51944 @01/10 on top, then 51428 @05/10, …). The checklist's original wording ("51428 dated 01/10") was wrong; per the user-confirmed source data 51944 is the 01/10 store.
+- "Today" marker **Pass** — dashed line at 06/10 confirmed live.
+- Checklist #11 (pencil date-edit) — still Not tested. The pencil is hover-only (`opacity-0 group-hover:opacity-100`), so it was not visible in the screenshot. Noted for `/review`: hover-only controls are invisible on touch devices.
+- Fixed: "วันนี้" label overlapped the section title — container now reserves a `pt-4` band for it (timeline/page.tsx).
+- Fixed: `CLAUDE.md` contained another project's docs (Store_payslip) copied in by mistake — rewritten for this repo. Also present on `main`, so the fix reaches `main` on merge.
+- Noticed, not changed: `backups/` holds 2026-08-05 real-data backups committed to git; `README.md` partly stale (Next.js 14, multi-role).
+- Migration 021 — still not confirmed as run on Supabase.

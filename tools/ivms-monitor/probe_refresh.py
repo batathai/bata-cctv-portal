@@ -23,12 +23,19 @@ OUT = "ivms_refresh_probe.txt"
 
 
 def load_probe():
-    for name in ("probe_ocr.py", "probe_ocr_v6.py", "probe_ocr (1).py"):
+    # เลือกตัวใหม่ก่อน และต้องมี read_page (ไฟล์ probe_ocr รุ่นแรกๆ ยังไม่มี)
+    names = ["probe_ocr_v6.py"] + sorted(
+        (n for n in os.listdir(HERE) if n.startswith("probe_ocr") and n.endswith(".py")
+         and n != "probe_ocr_v6.py"),
+        key=lambda n: os.path.getmtime(os.path.join(HERE, n)), reverse=True)
+    for name in names:
         path = os.path.join(HERE, name)
-        if os.path.exists(path):
-            spec = importlib.util.spec_from_file_location("probe_ocr", path)
-            mod = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(mod)     # ตั้ง DPI awareness + import ไลบรารีให้ด้วย
+        if not os.path.exists(path):
+            continue
+        spec = importlib.util.spec_from_file_location("probe_ocr", path)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)         # ตั้ง DPI awareness + import ไลบรารีให้ด้วย
+        if hasattr(mod, "read_page") and hasattr(mod, "find_ivms_window"):
             return mod, name
     sys.exit("ไม่เจอ probe_ocr_v6.py ในโฟลเดอร์เดียวกัน")
 

@@ -29,7 +29,7 @@ except Exception:
         pass
 
 try:
-    from pywinauto import Desktop, mouse
+    from pywinauto import Desktop, mouse, keyboard
     from PIL import ImageGrab, ImageOps
     from winsdk.windows.media.ocr import OcrEngine
     from winsdk.windows.globalization import Language
@@ -184,8 +184,9 @@ def main():
     wheel_at = (rect.left + int(rect.width() * 0.55), rect.top + int(rect.height() * 0.6))
 
     # เลื่อนกลับขึ้นบนสุดก่อน แล้วอ่านทีละหน้าจนไม่เจอแถวใหม่
-    mouse.scroll(coords=wheel_at, wheel_dist=40)
-    time.sleep(1.0)
+    scroll_method = "wheel"
+    scroll_table(wheel_at, +40)
+    time.sleep(2.0)                 # รอให้ iVMS วาดหน้าจอเสร็จก่อนถ่ายภาพแรก
 
     found = {}          # code -> (name, status, text_status, agree)
     col_x = None
@@ -207,10 +208,19 @@ def main():
             if code not in found:
                 found[code] = rest
                 new += 1
-        lines.append(f"page {pages}: rows={len(page_rows)} new={new}")
-        no_new = no_new + 1 if new == 0 else 0
-        mouse.scroll(coords=wheel_at, wheel_dist=-WHEEL_STEP)
-        time.sleep(1.0)
+        lines.append(f"page {pages}: rows={len(page_rows)} new={new} (scroll={scroll_method})")
+        if new == 0 and pages > 1 and scroll_method == "wheel":
+            # ล้อเมาส์ไม่ได้ผล -> คลิกช่อง Device Type ของแถวบนสุด (ไม่ใช่ปุ่ม/ไอคอน) แล้วกด Page Down
+            scroll_method = "pagedown"
+            focus_table(rect, col_x)
+            no_new = 0
+        else:
+            no_new = no_new + 1 if new == 0 else 0
+        if scroll_method == "wheel":
+            scroll_table(wheel_at, -WHEEL_STEP)
+        else:
+            keyboard.send_keys("{PGDN}")
+        time.sleep(1.5)
 
     stores = sorted(found.items())
     on = sum(r[1] == "Online" for _, r in stores)
@@ -234,6 +244,26 @@ def main():
     for code, (name, status, text_status, agree) in stores:
         lines.append(f"{code} | {name} | {status} | {text_status} | {'ok' if agree else 'CHECK'}")
     write(lines, preview=4 + pages + 2)
+
+
+def scroll_table(at, notches):
+    """เลื่อนตารางด้วยล้อเมาส์: ย้ายเมาส์ไปวางบนตารางก่อน แล้วหมุนทีละขีด
+    (Qt บางรุ่นไม่รับ wheel ที่ส่งมาก้อนเดียวโดยเมาส์ไม่ได้อยู่บนตาราง)"""
+    mouse.move(coords=at)
+    time.sleep(0.3)
+    step = 1 if notches > 0 else -1
+    for _ in range(abs(notches)):
+        ctypes.windll.user32.mouse_event(0x0800, 0, 0, 120 * step, 0)   # MOUSEEVENTF_WHEEL
+        time.sleep(0.05)
+
+
+def focus_table(rect, col_x):
+    """คลิกครั้งเดียวที่ช่อง Device Type ของแถวแรก (ซ้ายของคอลัมน์ Serial/สถานะ) ให้ตารางรับคีย์บอร์ด
+    เลี่ยง checkbox (ซ้ายสุด) และไอคอน Operation (ขวาสุด) จึงไม่เปลี่ยนค่าอะไร"""
+    x = rect.left + int(col_x * 0.70)
+    y = rect.top + int(rect.height() * 0.22)
+    mouse.click(coords=(x, y))
+    time.sleep(0.5)
 
 
 _TOTAL = {"value": None}

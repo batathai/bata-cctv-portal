@@ -10,6 +10,8 @@ import {
   fetchAttachments,
   fetchRecoveryStageHistory,
   fetchWorkOrderBatches,
+  fetchInstallationProjects,
+  fetchInstallationStageHistory,
 } from "@/lib/data";
 import { fetchCurrentProfile } from "@/lib/profile";
 import { type UserRole, ROLE_LABELS } from "@/lib/rbac";
@@ -24,6 +26,9 @@ import type {
   AttachmentFolder,
   RecoveryStageHistoryEntry,
   WorkOrderBatch,
+  InstallationProject,
+  InstallationStageHistoryEntry,
+  InstallationStage,
 } from "@/types/database";
 import { SUPPLIERS } from "@/lib/mockData";
 import {
@@ -52,7 +57,14 @@ import {
   type MaintenanceFormInput,
 } from "@/lib/maintenanceWrite";
 import { updateRecoveryStageDb, addRecoveryRemarkDb, deleteRecoveryRemarkDb } from "@/lib/recoveryWrite";
-import { createWorkOrderBatchDb, setWorkOrderBatchStatusDb } from "@/lib/workOrderBatchWrite";
+import { createWorkOrderBatchDb, setWorkOrderBatchStatusDb, renameWorkOrderBatchDb, cleanJobName } from "@/lib/workOrderBatchWrite";
+import {
+  updateInstallationStageDb,
+  toggleVerifyChecklistItemDb,
+  resetPostCompletionChecklistDb,
+  createInstallationProjectDb,
+  updateInstallationDatesDb,
+} from "@/lib/installationWrite";
 import { zoneCode, regionFromZone } from "@/lib/recovery";
 import { updateStoreDetailsDb, updateAssetDetailsDb, updateHikconnectDetailsDb, relocateAssetDb, uploadQrCodeDb } from "@/lib/assetWrite";
 import { createIncidentTicketDb, updateIncidentTicketStatusDb, type TicketFormInput } from "@/lib/ticketWrite";
@@ -88,6 +100,8 @@ interface AppDataContextValue {
   tickets: IncidentTicket[];
   recoveryStageHistory: RecoveryStageHistoryEntry[];
   workOrderBatches: WorkOrderBatch[];
+  installationProjects: InstallationProject[];
+  installationStageHistory: InstallationStageHistoryEntry[];
   attachments: Attachment[];
   suppliers: string[];
   importBatches: ImportBatch[];
@@ -107,6 +121,17 @@ interface AppDataContextValue {
   createWorkOrderBatch: (name: string) => Promise<WorkOrderBatch>;
   closeWorkOrderBatch: (batchId: string) => Promise<void>;
   reopenWorkOrderBatch: (batchId: string) => Promise<void>;
+  renameWorkOrderBatch: (batchId: string, name: string) => Promise<void>;
+  createInstallationProject: (storeId: string, wave: string) => Promise<InstallationProject>;
+  advanceInstallationStage: (
+    project: InstallationProject,
+    toStage: InstallationStage,
+    extra?: Record<string, unknown>,
+    note?: string
+  ) => Promise<void>;
+  updateVerifyChecklistItem: (project: InstallationProject, itemKey: string, checked: boolean) => Promise<void>;
+  updateInstallationDates: (project: InstallationProject, dates: { d1_date?: string | null; d2_date?: string | null }) => Promise<void>;
+  resetPostCompletionChecklist: (project: InstallationProject, reason: string) => Promise<void>;
   assignStoreToBatch: (storeId: string, batchId: string) => Promise<void>;
   refreshAllData: () => Promise<void>;
   createTicket: (input: TicketFormInput) => Promise<void>;
@@ -147,11 +172,13 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   const [tickets, setTickets] = useState<IncidentTicket[]>([]);
   const [recoveryStageHistory, setRecoveryStageHistory] = useState<RecoveryStageHistoryEntry[]>([]);
   const [workOrderBatches, setWorkOrderBatches] = useState<WorkOrderBatch[]>([]);
+  const [installationProjects, setInstallationProjects] = useState<InstallationProject[]>([]);
+  const [installationStageHistory, setInstallationStageHistory] = useState<InstallationStageHistoryEntry[]>([]);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [importBatches, setImportBatches] = useState<ImportBatch[]>([]);
 
   async function refreshAllData() {
-    const [s, m, a, profileResult, vq, tk, att, rsh, wob] = await Promise.all([
+    const [s, m, a, profileResult, vq, tk, att, rsh, wob, ip, ish] = await Promise.all([
       fetchStores(),
       fetchMaintenance(),
       fetchAudits(),
@@ -161,6 +188,8 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       fetchAttachments(),
       fetchRecoveryStageHistory(),
       fetchWorkOrderBatches(),
+      fetchInstallationProjects(),
+      fetchInstallationStageHistory(),
     ]);
     setAllStores(s);
     setMaintenance(m);
@@ -170,6 +199,8 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     setAttachments(att);
     setRecoveryStageHistory(rsh);
     setWorkOrderBatches(wob);
+    setInstallationProjects(ip);
+    setInstallationStageHistory(ish);
     if (profileResult.status === "ok") {
       setRole(profileResult.profile.role);
     } else if (profileResult.status === "not_provisioned") {
@@ -439,7 +470,9 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  async function createWorkOrderBatch(name: string): Promise<WorkOrderBatch> {
+  async function createWorkOrderBatch(rawName: string): Promise<WorkOrderBatch> {
+    const name = cleanJobName(rawName);
+    if (!name) throw new Error("Job name cannot be empty.");
     if (isSupabaseConfigured) {
       const supabase = createClient();
       const created = await createWorkOrderBatchDb(supabase, name);
@@ -464,6 +497,154 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   }
   const closeWorkOrderBatch = (batchId: string) => setBatchStatus(batchId, "Closed");
   const reopenWorkOrderBatch = (batchId: string) => setBatchStatus(batchId, "Active");
+
+  async function renameWorkOrderBatch(batchId: string, rawName: string) {
+    const name = cleanJobName(rawName);
+    if (!name) throw new Error("Job name cannot be empty.");
+    if (isSupabaseConfigured) {
+      const supabase = createClient();
+      await renameWorkOrderBatchDb(supabase, batchId, name);
+      setWorkOrderBatches(await fetchWorkOrderBatches());
+    } else {
+      setWorkOrderBatches((prev) => prev.map((b) => (b.id === batchId ? { ...b, name } : b)));
+    }
+  }
+
+  async function createInstallationProject(storeId: string, wave: string): Promise<InstallationProject> {
+    if (isSupabaseConfigured) {
+      const supabase = createClient();
+      const created = await createInstallationProjectDb(supabase, storeId, wave);
+      setInstallationProjects(await fetchInstallationProjects());
+      setInstallationStageHistory(await fetchInstallationStageHistory());
+      return created as InstallationProject;
+    }
+    const now = new Date().toISOString();
+    const project: InstallationProject = {
+      id: `ip_local_${Date.now()}`,
+      store_id: storeId,
+      wave,
+      current_stage: "Quotation",
+      approved_quotation_id: null,
+      permit_submitted_at: null,
+      d1_date: null,
+      d2_date: null,
+      verify_checked: [],
+      verify_total: 0,
+      completed_at: null,
+      created_at: now,
+      updated_at: now,
+    };
+    setInstallationProjects((prev) => [project, ...prev]);
+    setInstallationStageHistory((prev) => [
+      { id: `ish_local_${Date.now()}`, store_id: storeId, from_stage: null, to_stage: "Quotation", note: null, changed_by: null, changed_at: now },
+      ...prev,
+    ]);
+    return project;
+  }
+
+  async function advanceInstallationStage(
+    project: InstallationProject,
+    toStage: InstallationStage,
+    extra: Record<string, unknown> = {},
+    note?: string
+  ) {
+    const fromStage = project.current_stage;
+    if (isSupabaseConfigured) {
+      const supabase = createClient();
+      await updateInstallationStageDb(supabase, project.id, project.store_id, toStage, fromStage, extra, note);
+      setInstallationProjects(await fetchInstallationProjects());
+      setInstallationStageHistory(await fetchInstallationStageHistory());
+      return;
+    }
+    const now = new Date().toISOString();
+    setInstallationProjects((prev) =>
+      prev.map((p) => (p.id === project.id ? { ...p, current_stage: toStage, updated_at: now, ...extra } : p))
+    );
+    setInstallationStageHistory((prev) => [
+      { id: `ish_local_${Date.now()}`, store_id: project.store_id, from_stage: fromStage, to_stage: toStage, note: note ?? null, changed_by: null, changed_at: now },
+      ...prev,
+    ]);
+  }
+
+  async function updateInstallationDates(
+    project: InstallationProject,
+    dates: { d1_date?: string | null; d2_date?: string | null }
+  ) {
+    if (isSupabaseConfigured) {
+      const supabase = createClient();
+      await updateInstallationDatesDb(supabase, project.id, dates);
+      setInstallationProjects(await fetchInstallationProjects());
+      return;
+    }
+    const now = new Date().toISOString();
+    setInstallationProjects((prev) => prev.map((p) => (p.id === project.id ? { ...p, ...dates, updated_at: now } : p)));
+  }
+
+  async function updateVerifyChecklistItem(project: InstallationProject, itemKey: string, checked: boolean) {
+    if (isSupabaseConfigured) {
+      const supabase = createClient();
+      const { nowComplete, checked: nextChecked } = await toggleVerifyChecklistItemDb(
+        supabase,
+        project.id,
+        project.verify_checked,
+        itemKey,
+        checked
+      );
+      if (nowComplete) {
+        // Auto-complete (R6): log the transition separately from the checklist write above.
+        await updateInstallationStageDb(supabase, project.id, project.store_id, "Completed", project.current_stage, {}, "Verify Checklist ครบ 12/12 (อัตโนมัติ)");
+      }
+      setInstallationProjects(await fetchInstallationProjects());
+      setInstallationStageHistory(await fetchInstallationStageHistory());
+      return;
+    }
+    const nextChecked = checked ? Array.from(new Set([...project.verify_checked, itemKey])) : project.verify_checked.filter((k) => k !== itemKey);
+    const nowComplete = nextChecked.length >= 12;
+    const now = new Date().toISOString();
+    setInstallationProjects((prev) =>
+      prev.map((p) =>
+        p.id === project.id
+          ? {
+              ...p,
+              verify_checked: nextChecked,
+              verify_total: nextChecked.length,
+              current_stage: nowComplete ? "Completed" : p.current_stage,
+              completed_at: nowComplete ? now.slice(0, 10) : p.completed_at,
+              updated_at: now,
+            }
+          : p
+      )
+    );
+    if (nowComplete) {
+      setInstallationStageHistory((prev) => [
+        { id: `ish_local_${Date.now()}`, store_id: project.store_id, from_stage: project.current_stage, to_stage: "Completed", note: "Verify Checklist ครบ 12/12 (อัตโนมัติ)", changed_by: null, changed_at: now },
+        ...prev,
+      ]);
+    }
+  }
+
+  async function resetPostCompletionChecklist(project: InstallationProject, reason: string) {
+    if (isSupabaseConfigured) {
+      const supabase = createClient();
+      await resetPostCompletionChecklistDb(supabase, project.id, project.store_id, project.verify_checked, reason);
+      setInstallationProjects(await fetchInstallationProjects());
+      setInstallationStageHistory(await fetchInstallationStageHistory());
+      return;
+    }
+    const nextChecked = project.verify_checked.filter((k) => k !== "C1" && k !== "C2");
+    const now = new Date().toISOString();
+    setInstallationProjects((prev) =>
+      prev.map((p) =>
+        p.id === project.id
+          ? { ...p, verify_checked: nextChecked, verify_total: nextChecked.length, current_stage: "Installing", completed_at: null, updated_at: now }
+          : p
+      )
+    );
+    setInstallationStageHistory((prev) => [
+      { id: `ish_local_${Date.now()}`, store_id: project.store_id, from_stage: "Completed", to_stage: "Installing", note: `ย้อนกลับ (สาขา Offline ใน 72 ชม.): ${reason}`, changed_by: null, changed_at: now },
+      ...prev,
+    ]);
+  }
 
   // Assigning a store to a batch is just a normal store field patch — reuses
   // the same write path as everything else in editAssetDetails, no new DB
@@ -683,6 +864,8 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     tickets,
     recoveryStageHistory,
     workOrderBatches,
+    installationProjects,
+    installationStageHistory,
     attachments,
     suppliers: SUPPLIERS,
     importBatches,
@@ -697,6 +880,12 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     createWorkOrderBatch,
     closeWorkOrderBatch,
     reopenWorkOrderBatch,
+    renameWorkOrderBatch,
+    createInstallationProject,
+    advanceInstallationStage,
+    updateVerifyChecklistItem,
+    updateInstallationDates,
+    resetPostCompletionChecklist,
     assignStoreToBatch,
     refreshAllData,
     createTicket,

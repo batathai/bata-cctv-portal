@@ -12,7 +12,11 @@ import type {
   Attachment,
   RecoveryStageHistoryEntry,
   WorkOrderBatch,
+  InstallationProject,
+  InstallationStage,
+  InstallationStageHistoryEntry,
 } from "@/types/database";
+import { INSTALLATION_STAGES, VERIFY_CHECKLIST } from "@/lib/installation";
 
 // Deterministic PRNG so demo data is stable across reloads.
 function mulberry32(seed: number) {
@@ -357,5 +361,115 @@ export function generateMockData() {
     s.batch_id = WORK_ORDER_BATCH_ID;
   });
 
-  return { stores, records, audits, vendorQuotations, tickets, attachments, recoveryStageHistory: stageHistory, workOrderBatches };
+  // --- Installation Project: Wave 1 "Top 20" — first 20 mock stores, spread
+  // across the 6-stage pipeline so /installation isn't empty or all-one-
+  // stage in demo mode. "Floor Plan"/"Layout" were dropped (migration 021)
+  // — that work happens before a store enters this tracker. Separate from
+  // the recovery/repair mock data above (own vendor_quotations rows, own
+  // stage history) even though it shares the same underlying tables, per
+  // the design's "same table, different rows, explicit
+  // approved_quotation_id link" approach. ---
+  const WAVE_1 = "Wave 1: Top 20";
+  // Skewed toward the earlier stages, since this wave "just started":
+  // Quotation 6, Permit 4, Scheduled 4, Installing 3, Verify 2, Completed 1
+  const INSTALL_DISTRIBUTION: InstallationStage[] = [
+    ...Array(6).fill("Quotation"),
+    ...Array(4).fill("Permit"),
+    ...Array(4).fill("Scheduled"),
+    ...Array(3).fill("Installing"),
+    ...Array(2).fill("Verify"),
+    ...Array(1).fill("Completed"),
+  ] as InstallationStage[];
+  for (let i = INSTALL_DISTRIBUTION.length - 1; i > 0; i--) {
+    const j = Math.floor(rnd() * (i + 1));
+    [INSTALL_DISTRIBUTION[i], INSTALL_DISTRIBUTION[j]] = [INSTALL_DISTRIBUTION[j], INSTALL_DISTRIBUTION[i]];
+  }
+
+  const installationProjects: InstallationProject[] = [];
+  const installationStageHistory: InstallationStageHistoryEntry[] = [];
+  let ipHid = 1;
+  let ipQid = 1;
+  const installVendorQuotations: VendorQuotation[] = [];
+
+  stores.slice(0, 20).forEach((s, idx) => {
+    const targetStage = INSTALL_DISTRIBUTION[idx] ?? "Quotation";
+    const targetIdx = INSTALLATION_STAGES.indexOf(targetStage);
+    let cursor = new Date(2026, 6, 1 + Math.floor(rnd() * 10)); // start early July 2026
+
+    let approvedQuotationId: string | null = null;
+    for (let i = 0; i <= targetIdx; i++) {
+      cursor = new Date(cursor.getTime() + (2 + Math.floor(rnd() * 5)) * 86400000);
+      installationStageHistory.push({
+        id: `ish_${pad(ipHid++, 4)}`,
+        store_id: s.id,
+        from_stage: i === 0 ? null : INSTALLATION_STAGES[i - 1],
+        to_stage: INSTALLATION_STAGES[i],
+        note: null,
+        changed_by: null,
+        changed_at: cursor.toISOString(),
+      });
+      // Approve a quotation right as the project leaves "Quotation" (own
+      // row, separate from any recovery-flow quotation for the same store).
+      if (INSTALLATION_STAGES[i] === "Quotation" && targetIdx > i) {
+        const qid = `vq_install_${pad(ipQid++, 4)}`;
+        installVendorQuotations.push({
+          id: qid,
+          store_id: s.id,
+          vendor_name: s.supplierName,
+          quotation_number: `QT-INST-${s.store_code}`,
+          estimated_cost: 45000 + Math.floor(rnd() * 15000),
+          quotation_date: cursor.toISOString().slice(0, 10),
+          approval_status: "Approved",
+          created_at: cursor.toISOString(),
+          updated_at: cursor.toISOString(),
+        });
+        approvedQuotationId = qid;
+      }
+    }
+
+    const permitSubmittedAt = targetIdx >= INSTALLATION_STAGES.indexOf("Permit") ? cursor.toISOString().slice(0, 10) : null;
+    const d1Date = targetIdx >= INSTALLATION_STAGES.indexOf("Scheduled") ? cursor.toISOString().slice(0, 10) : null;
+    const d2Date = targetIdx >= INSTALLATION_STAGES.indexOf("Installing") ? cursor.toISOString().slice(0, 10) : null;
+
+    let verifyChecked: string[] = [];
+    let completedAt: string | null = null;
+    if (targetStage === "Verify") {
+      // Partially through the checklist — group A mostly done, B/C not yet.
+      verifyChecked = VERIFY_CHECKLIST.filter((item) => item.group === "A" || rnd() < 0.3).map((item) => item.key);
+    } else if (targetStage === "Completed") {
+      verifyChecked = VERIFY_CHECKLIST.map((item) => item.key);
+      completedAt = cursor.toISOString().slice(0, 10);
+    }
+
+    installationProjects.push({
+      id: `ip_${pad(idx + 1, 4)}`,
+      store_id: s.id,
+      wave: WAVE_1,
+      current_stage: targetStage,
+      approved_quotation_id: approvedQuotationId,
+      permit_submitted_at: permitSubmittedAt,
+      d1_date: d1Date,
+      d2_date: d2Date,
+      verify_checked: verifyChecked,
+      verify_total: verifyChecked.length,
+      completed_at: completedAt,
+      created_at: "2026-07-01T00:00:00.000Z",
+      updated_at: cursor.toISOString(),
+    });
+  });
+
+  vendorQuotations.push(...installVendorQuotations);
+
+  return {
+    stores,
+    records,
+    audits,
+    vendorQuotations,
+    tickets,
+    attachments,
+    recoveryStageHistory: stageHistory,
+    workOrderBatches,
+    installationProjects,
+    installationStageHistory,
+  };
 }

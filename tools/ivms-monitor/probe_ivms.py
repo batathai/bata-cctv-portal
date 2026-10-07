@@ -22,25 +22,57 @@ STATUS_WORDS = ("online", "offline")
 OUT = "ivms_probe.txt"
 
 
-def find_ivms_window():
+def process_name(pid):
+    """ชื่อไฟล์ .exe ของ process (ใช้ pywin32 ที่ติดมากับ pywinauto)"""
+    try:
+        import win32api, win32con, win32process
+        h = win32api.OpenProcess(
+            win32con.PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
+        try:
+            return win32process.GetModuleFileNameEx(h, 0).split("\\")[-1]
+        finally:
+            win32api.CloseHandle(h)
+    except Exception:
+        return "?"
+
+
+def list_windows():
+    """ทุกหน้าต่างบนจอ: (window, title, exe)"""
+    out = []
     for w in Desktop(backend="uia").windows():
         try:
-            if "iVMS-4200" in w.window_text():
-                return w
+            title = w.window_text() or ""
+            exe = process_name(w.element_info.process_id)
         except Exception:
             continue
+        out.append((w, title, exe))
+    return out
+
+
+def find_ivms_window(windows):
+    # หาจากชื่อ .exe ก่อน (ชื่อหน้าต่างของ iVMS อาจว่างหรือไม่ตรงกับที่เห็น)
+    for w, title, exe in windows:
+        if "ivms" in exe.lower() or "ivms" in title.lower():
+            return w
     return None
 
 
 def main():
     lines = [f"probe time: {datetime.now():%Y-%m-%d %H:%M:%S}"]
-    win = find_ivms_window()
+    windows = list_windows()
+    win = find_ivms_window(windows)
     if win is None:
-        lines.append("RESULT: ไม่เจอหน้าต่าง iVMS-4200 (เปิดโปรแกรมไว้หรือยัง?)")
-        write(lines)
+        lines.append("RESULT: ไม่เจอหน้าต่าง iVMS-4200")
+        lines.append("ลองปิด Command Prompt แล้วเปิดใหม่แบบ Run as administrator แล้วรันอีกครั้ง")
+        lines.append("")
+        lines.append("---- หน้าต่างทั้งหมดที่สคริปต์มองเห็น (exe | title) ----")
+        for _, title, exe in windows:
+            lines.append(f"{exe} | {title!r}")
+        write(lines, preview=len(lines))
         return
 
-    lines.append(f"window: {win.window_text()!r}")
+    lines.append(f"window: {win.window_text()!r} "
+                 f"exe={process_name(win.element_info.process_id)}")
     texts = []
     try:
         for el in win.descendants():
@@ -75,10 +107,10 @@ def main():
     write(lines)
 
 
-def write(lines):
+def write(lines, preview=8):
     with open(OUT, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
-    print("\n".join(lines[:8]))
+    print("\n".join(lines[:preview]))
     print(f"\nบันทึกผลไว้ที่ {OUT}")
 
 

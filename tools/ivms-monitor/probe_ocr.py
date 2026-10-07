@@ -11,10 +11,21 @@ probe_ocr.py — ทดสอบอ่านตาราง Cloud P2P Device ข
   4. ส่งไฟล์ ivms_ocr_probe.txt กลับมา (ไฟล์ ivms_capture.png คือภาพที่สคริปต์เห็น ใช้เช็คได้)
 """
 import asyncio
+import ctypes
 import re
 import sys
 import time
 from datetime import datetime
+
+# ต้องตั้งก่อน import pywinauto: ให้พิกัดหน้าต่างกับภาพหน้าจอเป็นพิกเซลจริงชุดเดียวกัน
+# (ถ้า Windows ตั้ง Display Scale 125%/150% แล้วไม่ตั้งค่านี้ ภาพจะถูกตัดขาด)
+try:
+    ctypes.windll.shcore.SetProcessDpiAwareness(2)   # per-monitor DPI aware
+except Exception:
+    try:
+        ctypes.windll.user32.SetProcessDPIAware()
+    except Exception:
+        pass
 
 try:
     from pywinauto import Desktop
@@ -159,7 +170,11 @@ def main():
     shot = ImageGrab.grab(bbox=(rect.left, rect.top, rect.right, rect.bottom),
                           all_screens=True).convert("RGB")
     shot.save(CAPTURE)
-    lines.append(f"captured {shot.width}x{shot.height} -> {CAPTURE}")
+    try:
+        scale = ctypes.windll.shcore.GetScaleFactorForDevice(0)
+    except Exception:
+        scale = "?"
+    lines.append(f"captured {shot.width}x{shot.height} -> {CAPTURE} (display scale {scale}%)")
 
     # ธีมมืด: กลับสีเป็นตัวดำพื้นขาว + ขยาย ก่อน OCR
     prep = ImageOps.invert(ImageOps.grayscale(shot)).resize(
@@ -168,12 +183,22 @@ def main():
     lines.append(f"OCR words: {len(words)}")
 
     # หาตำแหน่งคอลัมน์สถานะจากหัวตาราง "Resource Usage Status"
-    header = next((w for w in words if w["text"].lower().startswith("resource")), None)
-    if header is None:
-        lines.append("RESULT: ไม่เจอหัวคอลัมน์ 'Resource Usage Status' ❌ "
-                     "(เปิดหน้า Cloud P2P Device ไว้หรือยัง?)")
+    header = next((w for w in words if w["text"].lower().startswith(("resource", "usage"))), None)
+    status_words = [w for w in words if STATUS_RE.fullmatch(w["text"])]
+    if header is not None:
+        col_x = header["x"]
+    elif status_words:
+        # สำรอง: ใช้ตำแหน่งคำ Online/Offline ที่ OCR อ่านได้ (ไอคอนอยู่ซ้ายของคำ)
+        xs = sorted(w["x"] for w in status_words)
+        col_x = xs[len(xs) // 2] - 20
+        lines.append("note: ไม่เจอหัวคอลัมน์ ใช้ตำแหน่งคำ Online/Offline แทน")
+    else:
+        lines.append("RESULT: ไม่เจอคอลัมน์สถานะ ❌ — ส่งไฟล์ ivms_capture.png มาให้ดู")
+        lines.append("")
+        lines.append("---- raw OCR rows (first 80) ----")
+        for row in group_rows(words)[:80]:
+            lines.append(row["text"])
         return write(lines)
-    col_x = header["x"]
 
     stores = []
     for row in group_rows(words):

@@ -9,7 +9,8 @@ Updated: 2026-10-07
 - Field test 2026-10-07 at test branch DVR DS-7204HGHI-K1 (FW V4.30.204, analog): DVR email via Gmail works (Motion email received). Confirmed DVR cannot email on Network Disconnected → offline detection must run from the portal side.
 
 ## Open issues
-- Decide FTP host for heartbeat (Supabase / Cloudflare cannot receive FTP) — blocks /design
+- DECIDED 2026-10-07: no budget → FTP on an HQ PC (FileZilla Server) + IT opens a port; HQ script updates Supabase + sends Gmail alerts
+- Waiting on IT: HQ public IP (static?), port forward, 24/7 PC with fixed LAN IP
 - Verify DVR models support FTP + Scheduled Capture (start with DS-7204HGHI-K1)
 - Measure snapshot size / SIM data usage in M0 pilot
 - Confirm interval / threshold and alert email recipients

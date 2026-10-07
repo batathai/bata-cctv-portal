@@ -1,7 +1,8 @@
 """
 probe_ocr.py — ทดสอบอ่านตาราง Cloud P2P Device ของ iVMS-4200 จากภาพหน้าจอ
-ไม่แก้ค่าใดๆ ใน iVMS: แค่ดึงหน้าต่างขึ้นหน้า และหมุนล้อเมาส์เลื่อนตารางเพื่ออ่านให้ครบทุกแถว
-(ระหว่างรันอย่าขยับเมาส์ ประมาณ 15-30 วินาที)
+อ่านอย่างเดียว: ไม่กดปุ่ม ไม่ขยับเมาส์ แค่ดึงหน้าต่าง iVMS ขึ้นหน้าแล้วถ่ายภาพ
+ตารางต้องเรียงให้สาขา Offline อยู่บนสุด (คลิกหัวคอลัมน์ Resource Usage Status เอง 1 ครั้ง)
+— iVMS ไม่รับการเลื่อนตารางจากโปรแกรมอื่น (ทดสอบแล้วทั้งล้อเมาส์และ Page Down)
 
 ใช้ OCR ที่มากับ Windows 10/11 (Windows.Media.Ocr) + เช็คสีไอคอนสถานะ
 
@@ -29,7 +30,7 @@ except Exception:
         pass
 
 try:
-    from pywinauto import Desktop, mouse, keyboard
+    from pywinauto import Desktop
     from PIL import ImageGrab, ImageOps
     from winsdk.windows.media.ocr import OcrEngine
     from winsdk.windows.globalization import Language
@@ -44,8 +45,6 @@ CAPTURE = "ivms_capture.png"
 SCALE = 2                       # ขยายภาพก่อน OCR ให้อ่านตัวเล็กได้แม่นขึ้น
 CODE_RE = re.compile(r"\b(\d{5})\s*[-–]\s*(.+)")
 STATUS_RE = re.compile(r"\b(Online|Offline)\b", re.I)
-MAX_PAGES = 15                  # กันวนไม่จบ
-WHEEL_STEP = 10                 # หมุนล้อเมาส์ลงทีละกี่ขีดต่อหน้า
 
 
 # ---------- หาหน้าต่าง iVMS ----------
@@ -180,90 +179,48 @@ def main():
     except Exception:
         scale = "?"
     rect = win.rectangle()
-    # จุดสำหรับหมุนล้อเมาส์: กลางตาราง (ค่อนไปทางขวาของเมนูซ้าย)
-    wheel_at = (rect.left + int(rect.width() * 0.55), rect.top + int(rect.height() * 0.6))
+    time.sleep(1.0)
+    shot = ImageGrab.grab(bbox=(rect.left, rect.top, rect.right, rect.bottom),
+                          all_screens=True).convert("RGB")
+    shot.save(CAPTURE)
+    lines.append(f"captured {shot.width}x{shot.height} -> {CAPTURE} (display scale {scale}%)")
+    page_rows, col_x = read_page(shot, None)
+    if col_x is None:
+        lines.append("RESULT: ไม่เจอคอลัมน์สถานะ ❌ — รันอีกครั้ง หรือส่งไฟล์ ivms_capture.png มาให้ดู")
+        return write(lines)
 
-    # เลื่อนกลับขึ้นบนสุดก่อน แล้วอ่านทีละหน้าจนไม่เจอแถวใหม่
-    scroll_method = "wheel"
-    scroll_table(wheel_at, +40)
-    time.sleep(2.0)                 # รอให้ iVMS วาดหน้าจอเสร็จก่อนถ่ายภาพแรก
+    # ตารางต้องเรียงให้ Offline อยู่บนสุด: ลำดับสถานะต้องเป็น Offline... แล้วค่อย Online...
+    statuses = [r[1] for _, r in page_rows]
+    first_online = statuses.index("Online") if "Online" in statuses else len(statuses)
+    sorted_ok = all(s == "Online" for s in statuses[first_online:])
+    offline = [(c, r[0]) for c, r in page_rows if r[1] == "Offline"]
+    unread = [c for c, r in page_rows if r[1] == "?"]
+    total = _TOTAL["value"]
+    page_full_of_offline = statuses and all(s == "Offline" for s in statuses)
 
-    found = {}          # code -> (name, status, text_status, agree)
-    col_x = None
-    pages = 0
-    no_new = 0
-    while pages < MAX_PAGES and no_new < 2:
-        pages += 1
-        shot = ImageGrab.grab(bbox=(rect.left, rect.top, rect.right, rect.bottom),
-                              all_screens=True).convert("RGB")
-        if pages == 1:
-            shot.save(CAPTURE)
-            lines.append(f"captured {shot.width}x{shot.height} -> {CAPTURE} (display scale {scale}%)")
-        page_rows, col_x = read_page(shot, col_x)
-        if col_x is None:
-            lines.append("RESULT: ไม่เจอคอลัมน์สถานะ ❌ — ส่งไฟล์ ivms_capture.png มาให้ดู")
-            return write(lines)
-        new = 0
-        for code, rest in page_rows:
-            if code not in found:
-                found[code] = rest
-                new += 1
-        lines.append(f"page {pages}: rows={len(page_rows)} new={new} (scroll={scroll_method})")
-        if new == 0 and pages > 1 and scroll_method == "wheel":
-            # ล้อเมาส์ไม่ได้ผล -> คลิกช่อง Device Type ของแถวบนสุด (ไม่ใช่ปุ่ม/ไอคอน) แล้วกด Page Down
-            scroll_method = "pagedown"
-            focus_table(rect, col_x)
-            no_new = 0
-        else:
-            no_new = no_new + 1 if new == 0 else 0
-        if scroll_method == "wheel":
-            scroll_table(wheel_at, -WHEEL_STEP)
-        else:
-            keyboard.send_keys("{PGDN}")
-        time.sleep(1.5)
-
-    stores = sorted(found.items())
-    on = sum(r[1] == "Online" for _, r in stores)
-    off = sum(r[1] == "Offline" for _, r in stores)
-    unk = sum(r[1] == "?" for _, r in stores)
-    mismatch = sum(not r[3] for _, r in stores)
-    total = read_total(lines)
-    lines.insert(2, f"TOTAL read: {len(stores)} (iVMS Total={total})  "
-                    f"Online={on}  Offline={off}  unread={unk}  disagree={mismatch}")
-    ok = stores and unk == 0 and mismatch == 0 and (total in (None, len(stores)))
-    lines.insert(3, "RESULT: อ่านครบทั้งตาราง ✅" if ok else
-                    "RESULT: ยังไม่ครบหรือมีแถวที่ต้องเช็ค ⚠️ — ดูรายการด้านล่าง")
+    lines.append(f"rows on screen: {len(page_rows)}  iVMS Total={total}")
+    if total is not None:
+        lines.append(f"SUMMARY: Offline={len(offline)}  Online={total - len(offline)} (= Total - Offline)")
+    if not sorted_ok:
+        lines.append("RESULT: ตารางไม่ได้เรียง Offline ไว้บนสุด ⚠️ — คลิกหัวคอลัมน์ 'Resource Usage Status' แล้วรันใหม่")
+    elif page_full_of_offline:
+        lines.append("RESULT: Offline เต็มทั้งหน้าจอ ⚠️ — อาจมีมากกว่าที่เห็น (สงสัยปัญหาฝั่งกลาง)")
+    elif unread:
+        lines.append(f"RESULT: อ่านสถานะไม่ได้ {len(unread)} แถว ⚠️")
+    elif statuses and statuses[0] == "Online":
+        lines.append("RESULT: ไม่มีสาขา Offline (แถวบนสุดเป็น Online) — ถ้าไม่จริง ให้คลิกหัวคอลัมน์สถานะให้ Offline ขึ้นบน ✅/⚠️")
+    else:
+        lines.append("RESULT: อ่านรายชื่อ Offline ครบ ✅")
 
     lines.append("")
     lines.append("---- OFFLINE ----")
-    for code, (name, status, _, _) in stores:
-        if status == "Offline":
-            lines.append(f"{code} | {name}")
+    for code, name in offline:
+        lines.append(f"{code} | {name}")
     lines.append("")
-    lines.append("---- code | name | status (icon) | OCR text | agree ----")
-    for code, (name, status, text_status, agree) in stores:
-        lines.append(f"{code} | {name} | {status} | {text_status} | {'ok' if agree else 'CHECK'}")
-    write(lines, preview=4 + pages + 2)
-
-
-def scroll_table(at, notches):
-    """เลื่อนตารางด้วยล้อเมาส์: ย้ายเมาส์ไปวางบนตารางก่อน แล้วหมุนทีละขีด
-    (Qt บางรุ่นไม่รับ wheel ที่ส่งมาก้อนเดียวโดยเมาส์ไม่ได้อยู่บนตาราง)"""
-    mouse.move(coords=at)
-    time.sleep(0.3)
-    step = 1 if notches > 0 else -1
-    for _ in range(abs(notches)):
-        ctypes.windll.user32.mouse_event(0x0800, 0, 0, 120 * step, 0)   # MOUSEEVENTF_WHEEL
-        time.sleep(0.05)
-
-
-def focus_table(rect, col_x):
-    """คลิกครั้งเดียวที่ช่อง Device Type ของแถวแรก (ซ้ายของคอลัมน์ Serial/สถานะ) ให้ตารางรับคีย์บอร์ด
-    เลี่ยง checkbox (ซ้ายสุด) และไอคอน Operation (ขวาสุด) จึงไม่เปลี่ยนค่าอะไร"""
-    x = rect.left + int(col_x * 0.70)
-    y = rect.top + int(rect.height() * 0.22)
-    mouse.click(coords=(x, y))
-    time.sleep(0.5)
+    lines.append("---- rows on screen: code | name | status ----")
+    for code, (name, status, _, _) in page_rows:
+        lines.append(f"{code} | {name} | {status}")
+    write(lines, preview=9 + len(offline) + 2)
 
 
 _TOTAL = {"value": None}

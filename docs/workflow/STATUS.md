@@ -11,6 +11,10 @@ Updated: 2026-10-07
 ## Open issues
 - DECIDED 2026-10-07 20:37: read Online/Offline from iVMS-4200 (Cloud P2P Device page) on the 24/7 HQ PC by screenshot + Windows OCR + icon colour — probe passed 27/27 rows. FTP-on-HQ-PC kept only as fallback (IT email not needed)
 - Only devices added to iVMS are monitored (57 of 194 now)
+- 20:53 probe v6 passed: Offline-first sort + one page → 19/19 Offline read, Total 57. iVMS ignores synthetic scrolling.
+- DECIDED: DVR must run 24h; no per-store hours → one standard mall-hours setting (editable per store). Business-hours outage = instant email; after-hours = morning summary; not back 30 min after opening = email (R12)
+- Still to verify: does Offline-first sort survive Refresh? Standard opening hours value (proposal 10:00–22:00)
+- Flag to management: some stores switch DVRs off at closing (8 → 19 offline between 20:40 and 20:53) — no night recording
 - Verify DVR models support FTP + Scheduled Capture (start with DS-7204HGHI-K1)
 - Measure snapshot size / SIM data usage in M0 pilot
 - Confirm interval / threshold and alert email recipients

@@ -60,15 +60,20 @@ def process_name(pid):
 
 
 def find_ivms_window():
+    """หาหน้าต่างหลักของ iVMS-4200
+    ห้ามจับจากคำว่า 'ivms' ในชื่อหน้าต่างเฉยๆ — เคยจับผิดไปเป็น Notepad ที่เปิด ivms_probe.txt"""
+    by_title = None
     for w in Desktop(backend="uia").windows():
         try:
-            title = w.window_text() or ""
-            exe = process_name(w.element_info.process_id)
+            title = (w.window_text() or "").strip()
+            exe = process_name(w.element_info.process_id).lower()
         except Exception:
             continue
-        if "ivms" in exe.lower() or "ivms" in title.lower():
-            return w
-    return None
+        if exe.startswith("ivms") and title == "iVMS-4200":
+            return w                      # ตรงทั้งโปรแกรมและชื่อหน้าต่าง
+        if title == "iVMS-4200" and exe not in ("notepad.exe", "python.exe", "cmd.exe"):
+            by_title = by_title or w
+    return by_title
 
 
 # ---------- OCR ----------
@@ -166,6 +171,7 @@ def main():
         lines.append(f"warn: ดึงหน้าต่างขึ้นหน้าไม่ได้ ({e!r}) — ภาพอาจโดนหน้าต่างอื่นบัง")
     time.sleep(1.5)
 
+    lines.append(f"window: {win.window_text()!r} exe={process_name(win.element_info.process_id)}")
     rect = win.rectangle()
     shot = ImageGrab.grab(bbox=(rect.left, rect.top, rect.right, rect.bottom),
                           all_screens=True).convert("RGB")

@@ -61,7 +61,14 @@ Status: planning done → next `/design`
 ## Decisions — 2026-10-07
 - **ไม่มีงบ** → ห้ามใช้บริการที่มีค่าใช้จ่าย
 - เน็ตสาขาและ HQ คนละวง → ping จาก HQ ใช้ไม่ได้
-- **เลือก: FTP บนคอมที่ HQ** (FileZilla Server ฟรี) + IT เปิดพอร์ตที่ router HQ
+- **เลือก (อัปเดต 20:37): อ่านสถานะจาก iVMS-4200 ด้วยภาพหน้าจอ** — แทนทาง FTP ด้านล่าง
+  - HQ มีเครื่องเปิด iVMS-4200 ออนไลน์ 24 ชม. อยู่แล้ว; หน้า Cloud P2P Device แสดง Online/Offline ของทุกเครื่องผ่าน Hik-Connect (ฟรี, ไม่ต้องตั้งอะไรที่สาขา, ไม่ต้องเปิดพอร์ต)
+  - ทางที่ทดสอบแล้วใช้ไม่ได้: System/Alarm log ของ iVMS ไม่บันทึก Online/Offline; ตารางไม่เปิดให้อ่านผ่าน UI Automation (เห็นแค่เมนู 16 จุด)
+  - **ทดสอบผ่าน 2026-10-07 20:37** (`tools/ivms-monitor/probe_ocr.py`): ถ่ายภาพหน้าต่าง → Windows OCR อ่านรหัสสาขา 5 หลัก + ดูสีไอคอนในคอลัมน์ Resource Usage Status (เขียว = Online, เทา = Offline) → 27/27 แถวบนจอ อ่านได้, ไอคอนกับตัวหนังสือตรงกันทุกแถว (จอ 1920×1140, scale 125%)
+  - งานที่ต้องทำในตัวจริง: กด Refresh ก่อนอ่าน, เลื่อนตารางให้ครบทุกแถว (57 เครื่องตอนนี้), จับคู่รหัสสาขากับ `stores`, ส่งขึ้น Supabase + เมล Gmail 587
+  - เงื่อนไขเครื่อง: iVMS เปิดค้างหน้า Cloud P2P Device, ไม่ย่อหน้าต่าง, ไม่ล็อกจอ/ไม่ sleep, Python รันแบบ administrator
+  - จำกัด: เฝ้าได้เฉพาะเครื่องที่อยู่ใน iVMS (57 จาก 194 ตอนนี้); สถานะขึ้นกับ Hik-Connect cloud
+- ~~ทางเดิม: FTP บนคอมที่ HQ~~ (FileZilla Server ฟรี) + IT เปิดพอร์ตที่ router HQ — เก็บไว้เป็นทางสำรอง
   - DVR ส่งรูปออกไปหา IP สาธารณะของ HQ (ขาออก ใช้ได้แม้วงแยก)
   - โฟลเดอร์ต่อสาขาใช้ตัวเลือก FTP ของ DVR "Use Device Name" → ต้องตั้ง Device Name = `<รหัสสาขา> <ชื่อ>` ทุกเครื่อง
   - สคริปต์บนคอมเครื่องเดียวกัน (รูปแบบเดียวกับ Xstore sync ที่ใช้อยู่) อ่านเวลาไฟล์ล่าสุด → เขียน `last_seen_at` ขึ้น Supabase ด้วย service_role key (เก็บในเครื่อง ห้ามอยู่ใน client) และส่งเมลผ่าน Gmail 587/STARTTLS ที่ทดสอบผ่านแล้วที่ HQ
@@ -83,7 +90,7 @@ Status: planning done → next `/design`
 11. **งานค้าง** — Installation Project ยังอยู่ที่ `/test` บน branch `docs/installation-project-plan`; session นี้ push GitHub ไม่ได้ (ต้อง push เองจนกว่าจะติดตั้ง Claude GitHub App)
 
 ## Milestones
-- **M0 Pilot (ไม่มีโค้ด portal)** — IT เปิดพอร์ต + ติดตั้ง FileZilla Server บนคอม HQ, ตั้ง DVR สาขาทดสอบ (DS-7204HGHI-K1) ส่งรูปทุก 10–15 นาที, วัดว่าไฟล์มาสม่ำเสมอไหมและขนาดเท่าไร → ปิด open question 1–4
+- **M0 Pilot ✅ (2026-10-07)** — probe อ่านตาราง iVMS จากภาพหน้าจอได้ 27/27 แถว (`tools/ivms-monitor/probe_ocr.py`)
 - **M1 รับ heartbeat** — schema + ตัวรับไฟล์ที่อัปเดต `last_seen_at` (R1, R2)
 - **M2 ตรวจจับ + แจ้งเตือน** — ตัวตรวจเป็นรอบ, ประวัติการหลุด, เมลแจ้ง/สรุป, mute (R3–R6, R8)
 - **M3 หน้าจอ** — `/status` + Store Detail แสดงสถานะสด, rollout tracker (R7, R9)

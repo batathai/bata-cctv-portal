@@ -9,8 +9,8 @@ Updated: 2026-10-07
 - Field test 2026-10-07 at test branch DVR DS-7204HGHI-K1 (FW V4.30.204, analog): DVR email via Gmail works (Motion email received). Confirmed DVR cannot email on Network Disconnected → offline detection must run from the portal side.
 
 ## Open issues
-- DECIDED 2026-10-07: no budget → FTP on an HQ PC (FileZilla Server) + IT opens a port; HQ script updates Supabase + sends Gmail alerts
-- Waiting on IT: HQ public IP (static?), port forward, 24/7 PC with fixed LAN IP
+- DECIDED 2026-10-07 20:37: read Online/Offline from iVMS-4200 (Cloud P2P Device page) on the 24/7 HQ PC by screenshot + Windows OCR + icon colour — probe passed 27/27 rows. FTP-on-HQ-PC kept only as fallback (IT email not needed)
+- Only devices added to iVMS are monitored (57 of 194 now)
 - Verify DVR models support FTP + Scheduled Capture (start with DS-7204HGHI-K1)
 - Measure snapshot size / SIM data usage in M0 pilot
 - Confirm interval / threshold and alert email recipients

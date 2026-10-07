@@ -1,6 +1,7 @@
 """
 probe_ocr.py — ทดสอบอ่านตาราง Cloud P2P Device ของ iVMS-4200 จากภาพหน้าจอ
-อ่านอย่างเดียว: ไม่กดปุ่ม ไม่แก้ค่าใดๆ ใน iVMS (แค่ดึงหน้าต่าง iVMS ขึ้นมาด้านหน้าเพื่อถ่ายภาพ)
+ไม่แก้ค่าใดๆ ใน iVMS: แค่ดึงหน้าต่างขึ้นหน้า และหมุนล้อเมาส์เลื่อนตารางเพื่ออ่านให้ครบทุกแถว
+(ระหว่างรันอย่าขยับเมาส์ ประมาณ 15-30 วินาที)
 
 ใช้ OCR ที่มากับ Windows 10/11 (Windows.Media.Ocr) + เช็คสีไอคอนสถานะ
 
@@ -28,7 +29,7 @@ except Exception:
         pass
 
 try:
-    from pywinauto import Desktop
+    from pywinauto import Desktop, mouse
     from PIL import ImageGrab, ImageOps
     from winsdk.windows.media.ocr import OcrEngine
     from winsdk.windows.globalization import Language
@@ -43,6 +44,8 @@ CAPTURE = "ivms_capture.png"
 SCALE = 2                       # ขยายภาพก่อน OCR ให้อ่านตัวเล็กได้แม่นขึ้น
 CODE_RE = re.compile(r"\b(\d{5})\s*[-–]\s*(.+)")
 STATUS_RE = re.compile(r"\b(Online|Offline)\b", re.I)
+MAX_PAGES = 15                  # กันวนไม่จบ
+WHEEL_STEP = 10                 # หมุนล้อเมาส์ลงทีละกี่ขีดต่อหน้า
 
 
 # ---------- หาหน้าต่าง iVMS ----------
@@ -172,81 +175,116 @@ def main():
     time.sleep(1.5)
 
     lines.append(f"window: {win.window_text()!r} exe={process_name(win.element_info.process_id)}")
-    rect = win.rectangle()
-    shot = ImageGrab.grab(bbox=(rect.left, rect.top, rect.right, rect.bottom),
-                          all_screens=True).convert("RGB")
-    shot.save(CAPTURE)
     try:
         scale = ctypes.windll.shcore.GetScaleFactorForDevice(0)
     except Exception:
         scale = "?"
-    lines.append(f"captured {shot.width}x{shot.height} -> {CAPTURE} (display scale {scale}%)")
+    rect = win.rectangle()
+    # จุดสำหรับหมุนล้อเมาส์: กลางตาราง (ค่อนไปทางขวาของเมนูซ้าย)
+    wheel_at = (rect.left + int(rect.width() * 0.55), rect.top + int(rect.height() * 0.6))
 
-    # ธีมมืด: กลับสีเป็นตัวดำพื้นขาว + ขยาย ก่อน OCR
+    # เลื่อนกลับขึ้นบนสุดก่อน แล้วอ่านทีละหน้าจนไม่เจอแถวใหม่
+    mouse.scroll(coords=wheel_at, wheel_dist=40)
+    time.sleep(1.0)
+
+    found = {}          # code -> (name, status, text_status, agree)
+    col_x = None
+    pages = 0
+    no_new = 0
+    while pages < MAX_PAGES and no_new < 2:
+        pages += 1
+        shot = ImageGrab.grab(bbox=(rect.left, rect.top, rect.right, rect.bottom),
+                              all_screens=True).convert("RGB")
+        if pages == 1:
+            shot.save(CAPTURE)
+            lines.append(f"captured {shot.width}x{shot.height} -> {CAPTURE} (display scale {scale}%)")
+        page_rows, col_x = read_page(shot, col_x)
+        if col_x is None:
+            lines.append("RESULT: ไม่เจอคอลัมน์สถานะ ❌ — ส่งไฟล์ ivms_capture.png มาให้ดู")
+            return write(lines)
+        new = 0
+        for code, rest in page_rows:
+            if code not in found:
+                found[code] = rest
+                new += 1
+        lines.append(f"page {pages}: rows={len(page_rows)} new={new}")
+        no_new = no_new + 1 if new == 0 else 0
+        mouse.scroll(coords=wheel_at, wheel_dist=-WHEEL_STEP)
+        time.sleep(1.0)
+
+    stores = sorted(found.items())
+    on = sum(r[1] == "Online" for _, r in stores)
+    off = sum(r[1] == "Offline" for _, r in stores)
+    unk = sum(r[1] == "?" for _, r in stores)
+    mismatch = sum(not r[3] for _, r in stores)
+    total = read_total(lines)
+    lines.insert(2, f"TOTAL read: {len(stores)} (iVMS Total={total})  "
+                    f"Online={on}  Offline={off}  unread={unk}  disagree={mismatch}")
+    ok = stores and unk == 0 and mismatch == 0 and (total in (None, len(stores)))
+    lines.insert(3, "RESULT: อ่านครบทั้งตาราง ✅" if ok else
+                    "RESULT: ยังไม่ครบหรือมีแถวที่ต้องเช็ค ⚠️ — ดูรายการด้านล่าง")
+
+    lines.append("")
+    lines.append("---- OFFLINE ----")
+    for code, (name, status, _, _) in stores:
+        if status == "Offline":
+            lines.append(f"{code} | {name}")
+    lines.append("")
+    lines.append("---- code | name | status (icon) | OCR text | agree ----")
+    for code, (name, status, text_status, agree) in stores:
+        lines.append(f"{code} | {name} | {status} | {text_status} | {'ok' if agree else 'CHECK'}")
+    write(lines, preview=4 + pages + 2)
+
+
+_TOTAL = {"value": None}
+
+
+def read_total(_lines):
+    return _TOTAL["value"]
+
+
+def read_page(shot, col_x):
+    """OCR หนึ่งหน้าจอ -> [(code, (name, status, text_status, agree))], col_x"""
     prep = ImageOps.invert(ImageOps.grayscale(shot)).resize(
         (shot.width * SCALE, shot.height * SCALE))
     words = asyncio.run(ocr_words(prep))
-    lines.append(f"OCR words: {len(words)}")
 
-    # หาตำแหน่งคอลัมน์สถานะจากหัวตาราง "Resource Usage Status"
-    header = next((w for w in words if w["text"].lower().startswith(("resource", "usage"))), None)
-    status_words = [w for w in words if STATUS_RE.fullmatch(w["text"])]
-    if header is not None:
-        col_x = header["x"]
-    elif status_words:
-        # สำรอง: ใช้ตำแหน่งคำ Online/Offline ที่ OCR อ่านได้ (ไอคอนอยู่ซ้ายของคำ)
-        xs = sorted(w["x"] for w in status_words)
-        col_x = xs[len(xs) // 2] - 20
-        lines.append("note: ไม่เจอหัวคอลัมน์ ใช้ตำแหน่งคำ Online/Offline แทน")
-    else:
-        lines.append("RESULT: ไม่เจอคอลัมน์สถานะ ❌ — ส่งไฟล์ ivms_capture.png มาให้ดู")
-        lines.append("")
-        lines.append("---- raw OCR rows (first 80) ----")
-        for row in group_rows(words)[:80]:
-            lines.append(row["text"])
-        return write(lines)
+    m_total = re.search(r"Total\s*\((\d+)\)", " ".join(w["text"] for w in words))
+    if m_total and _TOTAL["value"] is None:
+        _TOTAL["value"] = int(m_total.group(1))
 
-    stores = []
+    if col_x is None:
+        header = next((w for w in words
+                       if w["text"].lower().startswith(("resource", "usage"))), None)
+        status_words = [w for w in words if STATUS_RE.fullmatch(w["text"])]
+        if header is not None:
+            col_x = header["x"]
+        elif status_words:
+            xs = sorted(w["x"] for w in status_words)
+            col_x = xs[len(xs) // 2] - 20
+        else:
+            return [], None
+
+    rows = []
     for row in group_rows(words):
         m = CODE_RE.search(row["text"])
         if not m:
             continue
         color = icon_color(shot, col_x, row["cy"])
         status = {"green": "Online", "grey": "Offline"}.get(color, "?")
-        s = STATUS_RE.search(row["text"])          # ตัวหนังสือ ใช้เป็นตัวเช็คเสริม
+        s = STATUS_RE.search(row["text"])
         text_status = s.group(1).capitalize() if s else "-"
         agree = text_status in ("-", status)
-        stores.append((m.group(1), m.group(2)[:30], status, text_status, agree))
-
-    on = sum(s[2] == "Online" for s in stores)
-    off = sum(s[2] == "Offline" for s in stores)
-    unk = sum(s[2] == "?" for s in stores)
-    mismatch = sum(not s[4] for s in stores)
-    lines.append(f"rows with store code: {len(stores)}  "
-                 f"(Online={on}, Offline={off}, unread={unk})")
-    lines.append(f"icon vs OCR text disagree: {mismatch}")
-    if stores and unk == 0 and mismatch == 0:
-        lines.append("RESULT: อ่านจากภาพได้ ✅")
-    elif stores:
-        lines.append("RESULT: อ่านได้บางส่วน ⚠️ — ดูรายการด้านล่าง")
-    else:
-        lines.append("RESULT: อ่านจากภาพไม่ได้ ❌")
-
-    lines.append("")
-    lines.append("---- code | name | status (icon) | OCR text | agree ----")
-    for code, name, status, text_status, agree in stores:
-        lines.append(f"{code} | {name} | {status} | {text_status} | {'ok' if agree else 'CHECK'}")
-    lines.append("")
-    lines.append("---- raw OCR rows (first 80) ----")
-    for row in group_rows(words)[:80]:
-        lines.append(row["text"])
-    write(lines)
+        # ตัดคอลัมน์ Connection Type ที่ติดมา (OCR อาจอ่าน "Hik-Connect" เพี้ยนเป็น "H ik-Connect")
+        name = re.split(r"\s+(?:\S{1,2}\s+)?H?\s?ik-?Connect", m.group(2))[0].strip()[:40]
+        rows.append((m.group(1), (name, status, text_status, agree)))
+    return rows, col_x
 
 
-def write(lines):
+def write(lines, preview=8):
     with open(OUT, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
-    print("\n".join(lines[:8]))
+    print("\n".join(lines[:preview]))
     print(f"\nบันทึกผลไว้ที่ {OUT}")
 
 

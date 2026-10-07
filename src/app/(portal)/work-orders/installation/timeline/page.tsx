@@ -162,8 +162,16 @@ export default function InstallationTimelinePage() {
             const completedPct = pct(p.completed_at);
             return (
               <div key={p.id} className="flex items-center gap-3 py-2 border-b border-black/5 dark:border-white/5 last:border-0">
-                <Link href={`/work-orders/installation/${store.store_code}`} className="w-32 shrink-0 text-xs font-medium text-ink dark:text-white hover:text-brand truncate">
-                  {store.store_code}
+                {/* Code on top, store name small underneath — the label column
+                    keeps its w-32 width so the "today" marker's calc() offset
+                    stays aligned; long names truncate, full name on hover. */}
+                <Link
+                  href={`/work-orders/installation/${store.store_code}`}
+                  title={`${store.store_code} ${store.store_name}`}
+                  className="group w-32 shrink-0 min-w-0 leading-tight"
+                >
+                  <span className="block text-xs font-medium text-ink dark:text-white group-hover:text-brand">{store.store_code}</span>
+                  <span className="block text-[10px] text-ink-faint truncate">{store.store_name}</span>
                 </Link>
                 <div className="relative flex-1 h-5 bg-surface-muted dark:bg-white/5 rounded">
                   {permitPct != null && d1Pct != null && (

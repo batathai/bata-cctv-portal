@@ -13,7 +13,9 @@ Updated: 2026-10-07
 - Only devices added to iVMS are monitored (57 of 194 now)
 - 20:53 probe v6 passed: Offline-first sort + one page → 19/19 Offline read, Total 57. iVMS ignores synthetic scrolling.
 - DECIDED: DVR must run 24h; no per-store hours → one standard mall-hours setting (editable per store). Business-hours outage = instant email; after-hours = morning summary; not back 30 min after opening = email (R12)
-- Still to verify: does Offline-first sort survive Refresh? Standard opening hours value (proposal 10:00–22:00)
+- 21:01 probe_refresh passed: scripted click on Refresh works, Offline-first sort survives Refresh. Screen is unstable ~5 s after Refresh → wait ~20 s, double-read, 2 consecutive cycles before alert
+- Still to confirm: standard opening hours value (proposal 10:00–22:00)
+- All feasibility checks done → next /design
 - Flag to management: some stores switch DVRs off at closing (8 → 19 offline between 20:40 and 20:53) — no night recording
 - Verify DVR models support FTP + Scheduled Capture (start with DS-7204HGHI-K1)
 - Measure snapshot size / SIM data usage in M0 pilot

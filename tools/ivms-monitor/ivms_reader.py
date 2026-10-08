@@ -74,6 +74,34 @@ def find_ivms_window():
     return by_title
 
 
+def _bring_to_front(win, log=print):
+    """ดึง iVMS ขึ้นบนสุดก่อนจับภาพ (ภาพจับตามพื้นที่หน้าต่าง ถ้ามีหน้าต่างอื่นบังจะอ่านผิด)
+    pywinauto set_focus() ใช้ไม่ได้กับ iVMS บางเครื่อง (NoPatternInterfaceError) -> ใช้ Win32 API แทน"""
+    try:
+        if win.is_minimized():
+            win.restore()
+    except Exception:
+        pass
+    try:
+        win.set_focus()
+        return
+    except Exception as e:
+        first_err = e
+    try:
+        import win32con, win32gui, win32api
+        hwnd = win.handle
+        if win32gui.IsIconic(hwnd):
+            win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
+        # Windows อนุญาตให้ย้ายหน้าต่างขึ้นหน้าได้หลังมีการกดคีย์ -> กด/ปล่อย Alt หนึ่งครั้ง
+        win32api.keybd_event(win32con.VK_MENU, 0, 0, 0)
+        win32api.keybd_event(win32con.VK_MENU, 0, win32con.KEYEVENTF_KEYUP, 0)
+        win32gui.SetWindowPos(hwnd, win32con.HWND_TOPMOST, 0, 0, 0, 0, win32con.SWP_NOMOVE | win32con.SWP_NOSIZE)
+        win32gui.SetWindowPos(hwnd, win32con.HWND_NOTOPMOST, 0, 0, 0, 0, win32con.SWP_NOMOVE | win32con.SWP_NOSIZE)
+        win32gui.SetForegroundWindow(hwnd)
+    except Exception as e:
+        log(f"warn: ดึงหน้าต่างขึ้นหน้าไม่ได้ ({first_err!r} / {e!r}) — ย่อหน้าต่างอื่นที่บัง iVMS ออก")
+
+
 def _grab(rect):
     return ImageGrab.grab(bbox=(rect.left, rect.top, rect.right, rect.bottom), all_screens=True).convert("RGB")
 
@@ -209,12 +237,7 @@ def read_ivms(log=print, save_capture=False) -> ReadResult:
         win = find_ivms_window()
         if win is None:
             raise ReaderError("ไม่เจอหน้าต่าง iVMS-4200 (เปิดค้างไว้และรันสคริปต์แบบ administrator หรือยัง?)")
-        try:
-            if win.is_minimized():
-                win.restore()
-            win.set_focus()
-        except Exception as e:
-            log(f"warn: ดึงหน้าต่างขึ้นหน้าไม่ได้ ({e!r})")
+        _bring_to_front(win, log)
         time.sleep(1.5)
         rect = win.rectangle()
 

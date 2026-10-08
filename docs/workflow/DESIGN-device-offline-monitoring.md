@@ -177,7 +177,7 @@ Mockups: Design canvas "Device Offline Monitoring — Design" — https://claude
 | `README.md` | ติดตั้งบนคอม HQ: pip, ตั้ง Task Scheduler "At log on" + Run with highest privileges + restart on failure, ปิด sleep/lock, iVMS เปิดค้างหน้า Cloud P2P เรียง Offline บนสุด |
 
 กันพัง:
-- Supabase ต่อไม่ได้ → เก็บผลรอบนั้นในไฟล์ `queue.jsonl` แล้วส่งย้อนเมื่อต่อได้
+- Supabase ต่อไม่ได้ → ข้ามรอบนั้น ไม่เก็บผลไว้ส่งย้อน (ปรับระหว่าง /implement 2026-10-08: ผลอ่านเก่าที่ส่งย้อนจะทำให้เวลาหลุด/กลับเพี้ยนและส่งเมลผิดเวลา) — portal เห็นว่าตัวตรวจเงียบและขึ้นแบนเนอร์แดงเอง
 - สคริปต์ crash → Task Scheduler รันใหม่; portal เห็นจาก `monitor_runs` ว่าเงียบ (แบนเนอร์แดง)
 - ไม่เคยกดปุ่มอื่นใน iVMS นอกจาก Refresh
 
@@ -232,7 +232,7 @@ client-side `xlsx` (`json_to_sheet`) แบบเดียวกับ `exportEx
 - `src/types/database.ts` — `StoreMonitor`, `DeviceOutage`, `MonitorRun`, `MonitorSettings`
 - `src/lib/data.ts` — `fetchStoreMonitors`, `fetchOutages(from,to)`, `fetchLatestRun`, `fetchMonitorSettings`
 - `src/lib/mockData.ts` — ข้อมูลจำลองให้ demo ทำงานได้โดยไม่ต่อ Supabase
-- `src/components/providers/AppDataProvider.tsx` — state + poll ทุก 60 วิ (เฉพาะ monitor + run ล่าสุด)
+- `src/components/providers/MonitoringProvider.tsx` (ใหม่, แทนการเพิ่มใน AppDataProvider ที่ยาว 700+ บรรทัด) — state + poll ทุก 60 วิ (เฉพาะ monitor + run ล่าสุด) ครอบใน `src/app/(portal)/layout.tsx`
 - `src/app/(portal)/status/page.tsx` — เขียนใหม่เป็น 4 แท็บ
 - `src/app/(portal)/recovery/[code]/page.tsx` — ใช้ `StoreMonitorCard` แทนการ์ด Device Status เดิม
 - `src/components/layout/Sidebar.tsx` — เพิ่ม Device Status

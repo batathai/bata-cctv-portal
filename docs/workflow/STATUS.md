@@ -1,35 +1,40 @@
 # Workflow Status
 Feature: Device Offline Monitoring (iVMS reader)
-Phase: design ready — awaiting approval
-Design approved: no
+Phase: implement done → next /test
+Design approved: yes — 2026-10-08 — DESIGN-device-offline-monitoring.md as written (iVMS reader, migration 022, 4-tab /status, Store Detail card, confirm Offline after 2 cycles, 10:00–22:00 default hours, R11 dropped from phase 1)
 Updated: 2026-10-08
 
 ## Done
-- Plan: docs/workflow/PLAN-device-offline-monitoring.md (R1–R12, milestones M0–M4)
-- Field test 2026-10-07 at test branch DVR DS-7204HGHI-K1 (FW V4.30.204): DVR email via Gmail works; DVR cannot email on Network Disconnected → detection must run on the HQ side
-- M0 feasibility done 2026-10-07: read iVMS-4200 Cloud P2P Device page by screenshot + Windows OCR + icon colour
-  - 27/27 rows read; Offline-first sort + one page → 19/19 Offline, Total 57 (iVMS ignores synthetic scrolling)
-  - Scripted Refresh click works, sort survives Refresh; screen unstable ~5 s after Refresh → wait ~20 s, double-read, 2 consecutive cycles before alert
-- DECIDED 2026-10-07: DVR must run 24h; business-hours outage = instant email, after-hours = morning summary, not back 30 min after opening = email (R12)
-- DECIDED 2026-10-08: standard business hours **10:00–22:00**, editable per store
-- Design written 2026-10-08: docs/workflow/DESIGN-device-offline-monitoring.md
-  - Migration `022_device_monitoring.sql` (020/021 are taken on the unmerged installation branch): `store_monitor`, `device_outages`, `monitor_runs`, `monitor_settings`; RLS + column GRANTs; script writes with service_role
-  - HQ script split into ivms_reader / state (pure, pytest) / supa / notify / monitor
-  - Screens: /status with 4 tabs (live · history · rollout · settings), Store Detail card + mute, Sidebar entry (page had no menu link)
-  - Mockups: https://claude.ai/artifact/Bv4HZ4Cm7YQJ8rK5KB2sVp
+- Plan: docs/workflow/PLAN-device-offline-monitoring.md (R1–R12)
+- M0 feasibility 2026-10-07: iVMS-4200 Cloud P2P page read by screenshot + Windows OCR + icon colour (27/27 rows; Offline-first sort; scripted Refresh works)
+- Decisions: DVR must run 24h (R12); standard hours 10:00–22:00 editable per store (2026-10-08)
+- Design approved 2026-10-08; mockups https://claude.ai/artifact/Bv4HZ4Cm7YQJ8rK5KB2sVp
+- **Implemented 2026-10-08**
+  - DB: `supabase/migrations/022_device_monitoring.sql` — `store_monitor` (row per store, seeded + trigger for new stores, monitored seeded from `hikconnect_devices.ivms_account`), `device_outages`, `monitor_runs`, `monitor_settings`; RLS + column-level GRANTs (portal can only edit monitored/hours/mute/note + settings); helper `is_hq_admin()`
+  - Portal data: `src/types/database.ts`, `src/lib/data.ts` (`fetchMonitoringSnapshot`, `fetchOutages` paged past 1,000 rows; no mock fallback when Supabase is configured), `src/lib/monitoring.ts` (display rules, hours, durations, validation), `src/lib/monitoringWrite.ts`, demo data in `src/lib/mockData.ts`
+  - `src/components/providers/MonitoringProvider.tsx` — polls every 60 s while the tab is visible; mounted in `src/app/(portal)/layout.tsx`
+  - Screens: `src/app/(portal)/status/page.tsx` rewritten with 4 tabs (`?tab=history|rollout|settings`); `src/components/status/*` (health banner, live table, history + Excel, rollout, settings, mute dialog, hours editor, Store Detail card); Store Detail (`/recovery/[code]`) gets the iVMS card, old card renamed "Camera Health (Survey)"; Sidebar gets "Device Status" with offline count
+  - Export: `src/lib/reports/exportOutagesExcel.ts` (Outages / By Store / After-hours sheets)
+  - HQ script `tools/ivms-monitor/`: `state.py` (pure rules), `test_state.py` (19 tests), `ivms_reader.py` (from probe v6 + refresh probe, double read), `supa.py`, `notify.py`, `monitor.py` (`--once`, `--dry-run`), `README.md` (install + Task Scheduler), `.env.example`, `requirements.txt`; `.env`/logs git-ignored
+- Checks run here: `npx tsc --noEmit` 0 errors · `npm run lint` clean · `npm run build` passes (Google Fonts mocked — sandbox has no internet) · `pytest test_state.py` 19/19 · migration parsed OK by a Postgres parser (pglast) · one monitor cycle smoke-tested with fake Supabase/mailer · demo-mode screenshots of all 4 tabs + Store Detail, no runtime errors
+
+## Adjustments made during /implement (recorded in the design doc)
+- No `queue.jsonl` replay when Supabase is unreachable: replaying old reads would backdate transitions and send emails at the wrong time; the cycle is skipped and the portal's "ระบบตรวจหยุดทำงาน" banner covers it
+- Monitoring state lives in a separate `MonitoringProvider` instead of growing `AppDataProvider` (700+ lines)
+- During a "suspect" cycle the script still records device names / auto-ticks stores it sees, but never touches state, last seen or streaks
+- `CLAUDE.md` NOT replaced on this branch: copying the installation branch's version would describe code that isn't here and conflict at merge. Fix after both branches are merged (add a Device Monitoring section)
 
 ## Open issues
-- Awaiting user approval of the design
-- R11 (latest snapshot) not covered by the iVMS approach — proposed to drop or defer to the FTP fallback
-- R1 serial check not covered yet — need to see whether Cloud P2P page shows a serial column OCR can read
-- Alert recipients (2 groups) not given yet — placeholders in settings, editable in portal
-- Does iVMS export its device list? (would seed the monitored list instead of ticking by hand)
-- Nobody watches when the HQ PC dies at night except the portal banner — free option later: scheduled GitHub Action checks monitor_runs and emails
-- Only devices added to iVMS are monitored (57 of 194 now) — adding devices to iVMS is manual work that can start in parallel
-- Flag to management: some stores switch DVRs off at closing (8 → 19 offline between 20:40 and 20:53) — no night recording
+- Migration 022 not yet run on the real Supabase project (user runs it in SQL Editor)
+- HQ PC setup not done yet: Python deps, `.env`, Task Scheduler (see tools/ivms-monitor/README.md); `ivms_reader.py` can only be tested on the HQ PC (Windows OCR + iVMS)
+- Alert recipients still empty — set in Device Status › ตั้งค่า (suggest emails off for the first day)
+- R1 serial check not covered — need to see whether Cloud P2P page shows a serial column
+- Stores ticked as monitored but not really in iVMS will show Online forever — keep "iVMS Total" = "ticked monitored" (Rollout tab shows both)
+- Nobody watches when the HQ PC dies at night except the portal banner — later option: scheduled GitHub Action checks monitor_runs and emails
+- Only 57 of 194 stores are in iVMS — adding devices is manual work that can start now
+- Flag to management: some stores switch DVRs off at closing (no night recording)
 - Other feature in progress: Installation Project at /test on branch `docs/installation-project-plan`
-- This session cannot push to GitHub — user pushes manually (patch provided)
-- `CLAUDE.md` on this branch still describes BATA Store Payslip; replace with the portal version from the installation branch during /implement
+- This session cannot push to GitHub — user applies the patch and pushes
 
 ## Next step
-User approves the design → `/implement` (start with migration 022 + `state.py` with tests, then portal screens, then HQ script wiring)
+`/test` — run migration 022 on Supabase, set up the script on the HQ PC (`python ivms_reader.py`, then `python monitor.py --once --dry-run`, then a real run), and check R1–R12 on the live portal

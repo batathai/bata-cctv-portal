@@ -296,6 +296,84 @@ export interface ImportBatch {
   rolled_back_at: string | null;
 }
 
+// --- Device Offline Monitoring (migration 022) ---
+// Written by the HQ script (tools/ivms-monitor) with service_role; the
+// portal only edits the per-store settings columns (monitored, hours, mute,
+// note) and the single monitor_settings row. See
+// docs/workflow/DESIGN-device-offline-monitoring.md.
+export type MonitorState = "Online" | "Offline" | "Unknown";
+
+export interface StoreMonitor {
+  store_id: string;
+  monitored: boolean;
+  state: MonitorState;
+  state_since: string | null;
+  last_seen_at: string | null;
+  offline_streak: number;
+  current_outage_id: string | null;
+  ivms_device_name: string | null;
+  first_seen_at: string | null;
+  open_time: string | null; // "HH:MM:SS" — null = use the default
+  close_time: string | null;
+  muted_until: string | null;
+  mute_reason: string | null;
+  muted_by: string | null;
+  note: string | null;
+  updated_at: string;
+}
+
+export interface DeviceOutage {
+  id: string;
+  store_id: string;
+  started_at: string;
+  detected_at: string;
+  ended_at: string | null;
+  duration_minutes: number | null;
+  during_business_hours: boolean;
+  muted: boolean;
+  central_suspect: boolean;
+  alert_sent_at: string | null;
+  recovery_alert_sent_at: string | null;
+  late_open_alert_sent_at: string | null;
+  summary_sent_at: string | null;
+  note: string | null;
+  created_at: string;
+}
+
+export type MonitorRunStatus = "ok" | "partial" | "suspect" | "failed";
+
+export interface MonitorRun {
+  id: string;
+  ran_at: string;
+  status: MonitorRunStatus;
+  ivms_total: number | null;
+  offline_count: number | null;
+  page_full: boolean | null;
+  monitored_count: number | null;
+  unmatched: string[];
+  error: string | null;
+  duration_ms: number | null;
+  script_version: string | null;
+}
+
+export interface MonitorSettings {
+  id: 1;
+  check_interval_minutes: number;
+  confirm_cycles: number;
+  default_open_time: string;
+  default_close_time: string;
+  late_open_grace_minutes: number;
+  mass_alert_threshold: number;
+  suspect_ratio: number;
+  stale_after_minutes: number;
+  alert_recipients: string[];
+  admin_recipients: string[];
+  morning_summary_time: string;
+  emails_enabled: boolean;
+  updated_at: string;
+  updated_by: string | null;
+}
+
 // Composite, denormalized shape used throughout the UI (joins store + asset + hikconnect).
 export interface StoreWithAssets extends Store {
   asset: CctvAsset | null;

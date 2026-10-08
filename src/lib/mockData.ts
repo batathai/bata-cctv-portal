@@ -12,6 +12,9 @@ import type {
   Attachment,
   RecoveryStageHistoryEntry,
   WorkOrderBatch,
+  StoreMonitor,
+  DeviceOutage,
+  MonitorRun,
 } from "@/types/database";
 
 // Deterministic PRNG so demo data is stable across reloads.
@@ -358,4 +361,126 @@ export function generateMockData() {
   });
 
   return { stores, records, audits, vendorQuotations, tickets, attachments, recoveryStageHistory: stageHistory, workOrderBatches };
+}
+
+// --- Device Offline Monitoring demo data (migration 022) ---
+// Times are relative to "now" so the demo always looks live. Roughly 60% of
+// stores are monitored, a few are offline (one in business hours, the rest
+// after-hours shutdowns), one is muted.
+export function generateMockMonitoring(stores: StoreWithAssets[], now: Date = new Date()) {
+  const rnd = mulberry32(20261008);
+  const minsAgo = (m: number) => new Date(now.getTime() - m * 60000).toISOString();
+  // Minutes from "N days ago at HH:MM Bangkok time" until now.
+  const minsSinceBkk = (daysAgo: number, hour: number, minute: number) => {
+    const bkkNow = new Date(now.getTime() + 7 * 3600000);
+    const target = Date.UTC(bkkNow.getUTCFullYear(), bkkNow.getUTCMonth(), bkkNow.getUTCDate() - daysAgo, hour, minute) - 7 * 3600000;
+    return Math.max(1, Math.round((now.getTime() - target) / 60000));
+  };
+  const lastRunAt = minsAgo(2);
+
+  const monitors: StoreMonitor[] = [];
+  const outages: DeviceOutage[] = [];
+  let outageSeq = 0;
+  const addOutage = (storeId: string, startMinsAgo: number, durationMins: number | null, inHours: boolean, muted = false): DeviceOutage => {
+    outageSeq += 1;
+    const started = minsAgo(startMinsAgo);
+    const o: DeviceOutage = {
+      id: `outage_${outageSeq}`,
+      store_id: storeId,
+      started_at: started,
+      detected_at: minsAgo(startMinsAgo - 10),
+      ended_at: durationMins == null ? null : minsAgo(startMinsAgo - durationMins),
+      duration_minutes: durationMins,
+      during_business_hours: inHours,
+      muted,
+      central_suspect: false,
+      alert_sent_at: inHours && !muted ? minsAgo(startMinsAgo - 10) : null,
+      recovery_alert_sent_at: inHours && !muted && durationMins != null ? minsAgo(startMinsAgo - durationMins) : null,
+      late_open_alert_sent_at: null,
+      summary_sent_at: inHours ? null : minsAgo(Math.max(0, startMinsAgo - 600)),
+      note: null,
+      created_at: started,
+    };
+    outages.push(o);
+    return o;
+  };
+
+  stores.forEach((s) => {
+    const monitored = rnd() < 0.6;
+    const base: StoreMonitor = {
+      store_id: s.id,
+      monitored,
+      state: monitored ? "Online" : "Unknown",
+      state_since: monitored ? minsAgo(60 * 24 * (1 + Math.floor(rnd() * 5))) : null,
+      last_seen_at: monitored ? lastRunAt : null,
+      offline_streak: 0,
+      current_outage_id: null,
+      ivms_device_name: monitored ? `${s.store_code} - ${s.store_name}` : null,
+      first_seen_at: monitored ? minsAgo(60 * 24 * (2 + Math.floor(rnd() * 20))) : null,
+      open_time: null,
+      close_time: null,
+      muted_until: null,
+      mute_reason: null,
+      muted_by: null,
+      note: null,
+      updated_at: lastRunAt,
+    };
+    if (monitored) {
+      // Past week: some stores switch DVRs off at closing (after-hours outages).
+      const nights = rnd() < 0.3 ? 1 + Math.floor(rnd() * 6) : 0;
+      for (let n = 1; n <= nights; n++) addOutage(s.id, minsSinceBkk(n, 22, 2 + Math.floor(rnd() * 20)), 690 + Math.floor(rnd() * 60), false);
+      if (rnd() < 0.15) addOutage(s.id, minsSinceBkk(2, 15, Math.floor(rnd() * 50)), 15 + Math.floor(rnd() * 40), true);
+    }
+    monitors.push(base);
+  });
+
+  // Current problems on the first few monitored stores.
+  const monitoredIdx = monitors.map((m, i) => (m.monitored ? i : -1)).filter((i) => i >= 0);
+  const setOffline = (idx: number, startMinsAgo: number, inHours: boolean, muted = false) => {
+    const m = monitors[idx];
+    if (!m) return;
+    // Drop demo history that would overlap the current outage.
+    const cutoff = new Date(now.getTime() - startMinsAgo * 60000).toISOString();
+    for (let k = outages.length - 1; k >= 0; k--) {
+      if (outages[k].store_id === m.store_id && (outages[k].ended_at ?? "") > cutoff) outages.splice(k, 1);
+    }
+    const o = addOutage(m.store_id, startMinsAgo, null, inHours, muted);
+    m.state = "Offline";
+    m.state_since = o.detected_at;
+    m.last_seen_at = o.started_at;
+    m.offline_streak = 2;
+    m.current_outage_id = o.id;
+  };
+  setOffline(monitoredIdx[0], 22, true);
+  setOffline(monitoredIdx[1], 15, true);
+  setOffline(monitoredIdx[2], 900, false);
+  setOffline(monitoredIdx[3], 2520, false, true);
+  if (monitors[monitoredIdx[3]]) {
+    monitors[monitoredIdx[3]].muted_until = new Date(now.getTime() + 7 * 86400000).toISOString();
+    monitors[monitoredIdx[3]].mute_reason = "ห้าง/สาขาปิดปรับปรุง — ปิดซ่อมระบบไฟ";
+  }
+  if (monitors[monitoredIdx[4]]) monitors[monitoredIdx[4]].offline_streak = 1; // being confirmed
+  if (monitors[monitoredIdx[5]]) {
+    monitors[monitoredIdx[5]].open_time = "09:00:00";
+    monitors[monitoredIdx[5]].close_time = "21:00:00";
+  }
+
+  const monitoredCount = monitors.filter((m) => m.monitored).length;
+  const offlineCount = monitors.filter((m) => m.monitored && m.state === "Offline").length;
+  const latestRun: MonitorRun = {
+    id: "run_demo",
+    ran_at: lastRunAt,
+    status: "ok",
+    ivms_total: monitoredCount,
+    offline_count: offlineCount,
+    page_full: false,
+    monitored_count: monitoredCount,
+    unmatched: [],
+    error: null,
+    duration_ms: 31000,
+    script_version: "demo",
+  };
+
+  outages.sort((a, b) => (a.started_at < b.started_at ? 1 : -1));
+  return { monitors, outages, latestRun };
 }

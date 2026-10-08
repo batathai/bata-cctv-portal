@@ -1,6 +1,7 @@
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
-import { generateMockData } from "@/lib/mockData";
-import type { StoreWithAssets, MaintenanceRecord, AuditRecord, VendorQuotation, IncidentTicket, Attachment, RecoveryStageHistoryEntry, WorkOrderBatch } from "@/types/database";
+import { generateMockData, generateMockMonitoring } from "@/lib/mockData";
+import { DEFAULT_MONITOR_SETTINGS } from "@/lib/monitoring";
+import type { StoreWithAssets, MaintenanceRecord, AuditRecord, VendorQuotation, IncidentTicket, Attachment, RecoveryStageHistoryEntry, WorkOrderBatch, StoreMonitor, MonitorRun, MonitorSettings, DeviceOutage } from "@/types/database";
 
 /**
  * Data access layer. Tries Supabase first; if the project has not been
@@ -162,4 +163,92 @@ export async function fetchAttachments(): Promise<Attachment[]> {
     return generateMockData().attachments;
   }
   return data as Attachment[];
+}
+
+// ---------------------------------------------------------------------------
+// Device Offline Monitoring (migration 022). Unlike the fetchers above, these
+// do NOT fall back to demo data when Supabase is configured but the query
+// fails: showing made-up Online/Offline states for real stores would be
+// worse than showing an honest "not installed / couldn't load" message.
+// ---------------------------------------------------------------------------
+
+export interface MonitoringSnapshot {
+  monitors: StoreMonitor[];
+  latestRun: MonitorRun | null;
+  settings: MonitorSettings;
+  /** Migration 022 hasn't been run on this Supabase project yet. */
+  notInstalled: boolean;
+  error: string | null;
+}
+
+function isMissingTable(message: string | undefined) {
+  return !!message && /does not exist|schema cache|relation .* not found|Could not find the table/i.test(message);
+}
+
+export async function fetchMonitoringSnapshot(): Promise<MonitoringSnapshot> {
+  if (!isSupabaseConfigured) {
+    const mock = generateMockMonitoring(generateMockData().stores);
+    return { monitors: mock.monitors, latestRun: mock.latestRun, settings: DEFAULT_MONITOR_SETTINGS, notInstalled: false, error: null };
+  }
+
+  const supabase = createClient();
+  const [mon, run, set] = await Promise.all([
+    supabase.from("store_monitor").select("*"),
+    supabase.from("monitor_runs").select("*").order("ran_at", { ascending: false }).limit(1),
+    supabase.from("monitor_settings").select("*").eq("id", 1).maybeSingle(),
+  ]);
+
+  const firstError = mon.error ?? run.error ?? set.error;
+  if (firstError) {
+    console.error("fetchMonitoringSnapshot failed:", firstError.message);
+    return {
+      monitors: [],
+      latestRun: null,
+      settings: DEFAULT_MONITOR_SETTINGS,
+      notInstalled: isMissingTable(firstError.message),
+      error: firstError.message,
+    };
+  }
+  return {
+    monitors: (mon.data ?? []) as StoreMonitor[],
+    latestRun: ((run.data ?? [])[0] as MonitorRun | undefined) ?? null,
+    settings: { ...DEFAULT_MONITOR_SETTINGS, ...((set.data as MonitorSettings | null) ?? {}) },
+    notInstalled: false,
+    error: null,
+  };
+}
+
+const OUTAGE_PAGE = 1000;
+
+/**
+ * Outages whose start falls in [from, to). Pages through results so a long
+ * date range never silently stops at Supabase's 1,000-row default. Pass
+ * storeId to limit to one store (Store Detail card).
+ */
+export async function fetchOutages(opts: { from?: Date; to?: Date; storeId?: string; limit?: number }): Promise<{ outages: DeviceOutage[]; error: string | null }> {
+  if (!isSupabaseConfigured) {
+    let list = generateMockMonitoring(generateMockData().stores).outages;
+    if (opts.storeId) list = list.filter((o) => o.store_id === opts.storeId);
+    if (opts.from) list = list.filter((o) => new Date(o.started_at) >= opts.from!);
+    if (opts.to) list = list.filter((o) => new Date(o.started_at) < opts.to!);
+    return { outages: opts.limit ? list.slice(0, opts.limit) : list, error: null };
+  }
+
+  const supabase = createClient();
+  const out: DeviceOutage[] = [];
+  for (let offset = 0; ; offset += OUTAGE_PAGE) {
+    let q = supabase.from("device_outages").select("*").order("started_at", { ascending: false });
+    if (opts.storeId) q = q.eq("store_id", opts.storeId);
+    if (opts.from) q = q.gte("started_at", opts.from.toISOString());
+    if (opts.to) q = q.lt("started_at", opts.to.toISOString());
+    const pageSize = opts.limit ? Math.min(OUTAGE_PAGE, opts.limit - out.length) : OUTAGE_PAGE;
+    const { data, error } = await q.range(offset, offset + pageSize - 1);
+    if (error) {
+      console.error("fetchOutages failed:", error.message);
+      return { outages: out, error: error.message };
+    }
+    out.push(...((data ?? []) as DeviceOutage[]));
+    if (!data || data.length < pageSize || (opts.limit && out.length >= opts.limit)) break;
+  }
+  return { outages: out, error: null };
 }

@@ -1,0 +1,6 @@
+winsdk
+pillow
+pywinauto
+pywin32
+requests
+pytest

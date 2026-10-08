@@ -1,8 +1,8 @@
 # Workflow Status
 Feature: Device Offline Monitoring (iVMS reader)
-Phase: implement done → next /test
+Phase: /test in progress (HQ script verified end-to-end on 2026-10-08)
 Design approved: yes — 2026-10-08 — DESIGN-device-offline-monitoring.md as written (iVMS reader, migration 022, 4-tab /status, Store Detail card, confirm Offline after 2 cycles, 10:00–22:00 default hours, R11 dropped from phase 1)
-Updated: 2026-10-08
+Updated: 2026-10-08 (evening)
 
 ## Done
 - Plan: docs/workflow/PLAN-device-offline-monitoring.md (R1–R12)
@@ -17,6 +17,19 @@ Updated: 2026-10-08
   - Export: `src/lib/reports/exportOutagesExcel.ts` (Outages / By Store / After-hours sheets)
   - HQ script `tools/ivms-monitor/`: `state.py` (pure rules), `test_state.py` (19 tests), `ivms_reader.py` (from probe v6 + refresh probe, double read), `supa.py`, `notify.py`, `monitor.py` (`--once`, `--dry-run`), `README.md` (install + Task Scheduler), `.env.example`, `requirements.txt`; `.env`/logs git-ignored
 - Checks run here: `npx tsc --noEmit` 0 errors · `npm run lint` clean · `npm run build` passes (Google Fonts mocked — sandbox has no internet) · `pytest test_state.py` 19/19 · migration parsed OK by a Postgres parser (pglast) · one monitor cycle smoke-tested with fake Supabase/mailer · demo-mode screenshots of all 4 tabs + Store Detail, no runtime errors
+
+## /test — 2026-10-08 (on the office PC with iVMS, user admin.danai)
+- Python 3.14 + winsdk builds fine; `pip install -r requirements.txt` OK
+- `ivms_reader.py` passed after 2 fixes (Win32 bring-to-front fallback; clearer "not sorted" error): ok=True, Total 57, 7 Offline, double read matches
+- Supabase: migration 022 run; `SUPABASE_URL` with `/rest/v1` caused 404 PGRST125 → supa.py now strips it
+- `hikconnect_devices` is empty in production → no monitored seed; ticked 56 stores by SQL from the 57-device list (2 Sep chat). 51545 Robinson Samut Prakan = unmatched code (master has 51501)
+- Real cycles: 1st run streak only; 2nd run new_outages=6, monitor_updates=56 (state + outages rows correct)
+- Email: Gmail SMTP sends OK (in Sent), but delivery to danai.makmee@bata.com is inconsistent — test A/B/C at 17:29 arrived (Outlook rule files them in "Noti CCTV"), alert batches 17:07/17:33 and tests D–H at 17:37 did not. Not content-related → likely corporate filter behaviour (burst / quarantine). Added Date + Message-ID headers; alerts now ONE combined email per cycle (design doc updated)
+- Not yet done: Task Scheduler on the 24h machine; overnight run (after-hours outages, 10:00 morning summary, late-open at 10:30); portal screens not deployed (branch only)
+
+## Waiting on
+- IT: Message Trace / quarantine for batacctv.center@gmail.com → danai.makmee@bata.com (8 Oct 17:07–17:40) and allow-list the sender
+- Decide which PC runs 24h (only ONE machine may run monitor.py)
 
 ## Adjustments made during /implement (recorded in the design doc)
 - No `queue.jsonl` replay when Supabase is unreachable: replaying old reads would backdate transitions and send emails at the wrong time; the cycle is skipped and the portal's "ระบบตรวจหยุดทำงาน" banner covers it
@@ -37,4 +50,4 @@ Updated: 2026-10-08
 - This session cannot push to GitHub — user applies the patch and pushes
 
 ## Next step
-`/test` — run migration 022 on Supabase, set up the script on the HQ PC (`python ivms_reader.py`, then `python monitor.py --once --dry-run`, then a real run), and check R1–R12 on the live portal
+Finish `/test`: Task Scheduler on the 24h PC, check the overnight run + 10:00 morning summary tomorrow, confirm email delivery after IT; then `/review` → `/security` → `/audit` → `/release` to put the portal screens live

@@ -5,7 +5,8 @@ test_mail.py — หาว่าเมลแบบไหนผ่านระบ
   B  ข้อความล้วน, ผู้ส่งชื่อ "BATA CCTV Monitor"
   C  ข้อความ + HTML, ผู้ส่งไม่มีชื่อแสดง
 
-วิธีใช้:  python test_mail.py danai.makmee@bata.com
+วิธีใช้:  python test_mail.py danai.makmee@bata.com        (ชุด A-C)
+         python test_mail.py danai.makmee@bata.com 2      (ชุด D-H: วงเล็บ / ภาษาไทย)
 """
 import os
 import smtplib
@@ -34,13 +35,44 @@ def build(user, to, tag, display_name, html):
     return msg
 
 
+def build2(user, to, tag, subject, body_th):
+    """ชุดที่ 2: ทุกฉบับมีชื่อผู้ส่ง + HTML เหมือนเมลแจ้งเตือนจริง ต่างกันที่หัวข้อ/ภาษาไทย"""
+    msg = EmailMessage()
+    msg["Subject"] = subject
+    msg["From"] = formataddr(("BATA CCTV Monitor", user))
+    msg["To"] = to
+    msg["Date"] = formatdate(localtime=True)
+    msg["Message-ID"] = make_msgid(domain=user.split("@")[-1])
+    text = ("DVR สาขา The Mall 6 Offline ไม่ตอบสนองใน iVMS-4200" if body_th else "DVR The Mall 6 is offline in iVMS-4200")
+    msg.set_content(f"{tag}\n\n{text}")
+    msg.add_alternative(f"<p><b>{tag}</b></p><p>{text}</p>", subtype="html")
+    return msg
+
+
 def main():
     if len(sys.argv) < 2:
-        sys.exit("ใส่อีเมลผู้รับ เช่น: python test_mail.py danai.makmee@bata.com")
+        sys.exit("ใส่อีเมลผู้รับ เช่น: python test_mail.py danai.makmee@bata.com [2]")
     to = sys.argv[1]
     load_env(os.path.join(HERE, ".env"))
     user = os.environ.get("GMAIL_USER", "")
     password = os.environ.get("GMAIL_APP_PASSWORD", "").replace(" ", "")
+    if len(sys.argv) > 2 and sys.argv[2] == "2":
+        tests = [
+            ("D", "CCTV mail test D - name + html, English"),
+            ("E", "[CCTV Offline] test E - brackets, English"),
+            ("F", "CCTV mail test F - Thai body"),
+            ("G", "CCTV ทดสอบ G - Thai subject"),
+            ("H", "[CCTV Offline] 51407 The Mall 6 · BKK 512 — หลุดตั้งแต่ 16:55 (test H)"),
+        ]
+        with smtplib.SMTP("smtp.gmail.com", 587, timeout=30) as smtp:
+            smtp.starttls(context=ssl.create_default_context())
+            smtp.login(user, password)
+            for tag, subject in tests:
+                smtp.send_message(build2(user, to, tag, subject, body_th=tag in ("F", "H")))
+                print(f"sent {tag}: {subject}")
+                time.sleep(2)
+        print("ส่งครบ 5 ฉบับ — ดูว่าฉบับ D / E / F / G / H ฉบับไหนเข้า Outlook")
+        return
     variants = [("A", None, False), ("B", "BATA CCTV Monitor", False), ("C", None, True)]
     with smtplib.SMTP("smtp.gmail.com", 587, timeout=30) as smtp:
         smtp.starttls(context=ssl.create_default_context())

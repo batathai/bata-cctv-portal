@@ -24,11 +24,12 @@ Updated: 2026-10-08 (evening)
 - Supabase: migration 022 run; `SUPABASE_URL` with `/rest/v1` caused 404 PGRST125 → supa.py now strips it
 - `hikconnect_devices` is empty in production → no monitored seed; ticked 56 stores by SQL from the 57-device list (2 Sep chat). 51545 Robinson Samut Prakan = unmatched code (master has 51501)
 - Real cycles: 1st run streak only; 2nd run new_outages=6, monitor_updates=56 (state + outages rows correct)
-- Email: Gmail SMTP sends OK (in Sent), but delivery to danai.makmee@bata.com is inconsistent — test A/B/C at 17:29 arrived (Outlook rule files them in "Noti CCTV"), alert batches 17:07/17:33 and tests D–H at 17:37 did not. Not content-related → likely corporate filter behaviour (burst / quarantine). Added Date + Message-ID headers; alerts now ONE combined email per cycle (design doc updated)
+- **Email solved 17:53:** the company filter drops mail that has BOTH a custom From display name AND an HTML part (tests D–H + every alert); plain-address + HTML always passes (test C). notify.py now sends without a display name → combined alert "[CCTV] Offline ใหม่ 6 — Offline ตอนนี้ 6 สาขา" arrived in Outlook folder "Noti CCTV" (Outlook rule files batacctv.center mail there)
+- (history) Email: Gmail SMTP sends OK (in Sent), but delivery to danai.makmee@bata.com looked inconsistent — test A/B/C at 17:29 arrived (Outlook rule files them in "Noti CCTV"), alert batches 17:07/17:33 and tests D–H at 17:37 did not. Not content-related → likely corporate filter behaviour (burst / quarantine). Added Date + Message-ID headers; alerts now ONE combined email per cycle (design doc updated)
 - Not yet done: Task Scheduler on the 24h machine; overnight run (after-hours outages, 10:00 morning summary, late-open at 10:30); portal screens not deployed (branch only)
 
 ## Waiting on
-- IT: Message Trace / quarantine for batacctv.center@gmail.com → danai.makmee@bata.com (8 Oct 17:07–17:40) and allow-list the sender
+- (optional) IT allow-list for batacctv.center@gmail.com — no longer blocking; delivery works without a display name
 - Decide which PC runs 24h (only ONE machine may run monitor.py)
 
 ## Adjustments made during /implement (recorded in the design doc)
@@ -50,4 +51,4 @@ Updated: 2026-10-08 (evening)
 - This session cannot push to GitHub — user applies the patch and pushes
 
 ## Next step
-Finish `/test`: Task Scheduler on the 24h PC, check the overnight run + 10:00 morning summary tomorrow, confirm email delivery after IT; then `/review` → `/security` → `/audit` → `/release` to put the portal screens live
+Finish `/test`: Task Scheduler on the 24h PC, check the overnight run + 10:00 morning summary tomorrow, add real recipients (CCTV/IT team) to monitor_settings; then `/review` → `/security` → `/audit` → `/release` to put the portal screens live

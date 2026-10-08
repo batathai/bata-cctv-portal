@@ -225,7 +225,9 @@ def _summarize(rows, total):
         raise ReaderError(f"อ่านสถานะไม่ได้ {statuses.count('?')} แถว")
     first_online = statuses.index("Online") if "Online" in statuses else len(statuses)
     if any(s != "Online" for s in statuses[first_online:]):
-        raise ReaderError("ตารางไม่ได้เรียง Offline ไว้บนสุด — คลิกหัวคอลัมน์ 'Resource Usage Status' ใน iVMS 1 ครั้ง")
+        seen = ", ".join(f"{c}:{s[:3]}" for c, _, s in rows[:30])
+        raise ReaderError("ตารางไม่ได้เรียง Offline ไว้บนสุด — คลิกหัวคอลัมน์ 'Resource Usage Status' ใน iVMS 1 ครั้ง"
+                          f" | ลำดับที่อ่านได้ ({len(rows)} แถว): {seen}")
     offline = [(c, n) for c, n, s in rows if s == "Offline"]
     page_full = bool(rows) and first_online == len(statuses)
     return {"total": total, "offline": offline, "page_full": page_full}
@@ -274,3 +276,4 @@ if __name__ == "__main__":
     # ทดสอบอ่านอย่างเดียว ไม่เขียนอะไรขึ้น Supabase: python ivms_reader.py
     r = read_ivms(save_capture=True)
     print(r)
+    print(f"ภาพที่สคริปต์เห็นบันทึกไว้ที่ {CAPTURE}")

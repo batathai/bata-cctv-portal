@@ -14,7 +14,9 @@ from state import Email
 
 class Mailer:
     def __init__(self, user: str, app_password: str, host: str = "smtp.gmail.com", port: int = 587,
-                 sender_name: str = "BATA CCTV Monitor"):
+                 sender_name: str = ""):
+        # ไม่ตั้งชื่อผู้ส่งโดยค่าเริ่มต้น: ทดสอบ 8 ต.ค. พบว่าระบบกรองเมลบริษัททิ้งเมลที่ "มีชื่อผู้ส่ง + HTML"
+        # ทุกฉบับ (test D-H, เมลแจ้งเตือน) แต่ปล่อยเมลที่ไม่มีชื่อผู้ส่ง + HTML (test C) เข้าได้ทุกครั้ง
         self.user, self.password = user, (app_password or "").replace(" ", "")
         self.host, self.port, self.sender_name = host, port, sender_name
 
@@ -29,7 +31,7 @@ class Mailer:
             raise RuntimeError("ไม่มีผู้รับ")
         msg = EmailMessage()
         msg["Subject"] = e.subject
-        msg["From"] = formataddr((self.sender_name, self.user))
+        msg["From"] = formataddr((self.sender_name, self.user)) if self.sender_name else self.user
         msg["To"] = ", ".join(e.to)
         # เมลที่ไม่มี Date / Message-ID ถูกระบบกรองเมลองค์กร (เช่น Microsoft 365) กักเงียบๆ ได้
         # DVR และหน้าเว็บ Gmail ใส่สองหัวนี้เสมอ — smtplib ของ Python ไม่ใส่ให้เอง

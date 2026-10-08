@@ -7,7 +7,7 @@ from __future__ import annotations
 import smtplib
 import ssl
 from email.message import EmailMessage
-from email.utils import formataddr
+from email.utils import formataddr, formatdate, make_msgid
 
 from state import Email
 
@@ -31,6 +31,10 @@ class Mailer:
         msg["Subject"] = e.subject
         msg["From"] = formataddr((self.sender_name, self.user))
         msg["To"] = ", ".join(e.to)
+        # เมลที่ไม่มี Date / Message-ID ถูกระบบกรองเมลองค์กร (เช่น Microsoft 365) กักเงียบๆ ได้
+        # DVR และหน้าเว็บ Gmail ใส่สองหัวนี้เสมอ — smtplib ของ Python ไม่ใส่ให้เอง
+        msg["Date"] = formatdate(localtime=True)
+        msg["Message-ID"] = make_msgid(domain=self.user.split("@")[-1] or None)
         msg.set_content(e.text)
         msg.add_alternative(e.html, subtype="html")
         ctx = ssl.create_default_context()

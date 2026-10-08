@@ -6,6 +6,7 @@ service_role ข้าม RLS ได้ทั้งหมด: key นี้อ�
 """
 from __future__ import annotations
 
+import re
 from datetime import datetime, timedelta
 
 import requests
@@ -21,7 +22,11 @@ class Supa:
     def __init__(self, url: str, service_key: str, timeout: int = 20):
         if not url or not service_key:
             raise SupabaseError("ต้องตั้ง SUPABASE_URL และ SUPABASE_SERVICE_ROLE_KEY ในไฟล์ .env")
-        self.base = url.rstrip("/") + "/rest/v1"
+        # รับได้ทั้ง https://xxx.supabase.co และแบบที่ก๊อปมาพร้อม /rest/v1 (ไม่งั้นจะได้ 404 PGRST125)
+        url = re.sub(r"(/rest/v1)?/*$", "", url.strip().strip('"').strip("'"))
+        if not re.match(r"^https://[^/]+$", url):
+            raise SupabaseError(f"SUPABASE_URL ควรเป็นแบบ https://xxxx.supabase.co (ตอนนี้คือ {url!r})")
+        self.base = url + "/rest/v1"
         self.timeout = timeout
         self.s = requests.Session()
         self.s.headers.update({

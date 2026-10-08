@@ -98,9 +98,10 @@ def test_offline_needs_two_cycles_then_instant_email_in_hours():
     assert p2.monitor_updates["s1"]["state"] == "Offline"
     assert p2.monitor_updates["s1"]["current_outage_id"] == o["id"]
     assert p2.store_online_status == {"s1": "Offline"}
-    assert kinds(p2) == ["offline"]
+    assert kinds(p2) == ["cycle"]
     assert p2.emails[0].marks == [(o["id"], "alert_sent_at")]
-    assert "51403 Future Park" in p2.emails[0].subject
+    assert "Offline ใหม่ 1" in p2.emails[0].subject
+    assert "51403 Future Park" in p2.emails[0].text
 
 
 def test_after_hours_outage_has_no_instant_email():
@@ -122,9 +123,10 @@ def test_recovery_sends_online_email_only_if_alerted():
     p = run(at(14, 8), ok(), m, open_outages=[alerted])
     assert p.outage_updates["oa"]["ended_at"]
     assert p.monitor_updates["s1"]["state"] == "Online"
-    assert kinds(p) == ["online"]
+    assert kinds(p) == ["cycle"]
     assert p.emails[0].marks == [("oa", "recovery_alert_sent_at")]
-    assert "1 ชม. 20 นาที" in p.emails[0].subject
+    assert "กลับมา 1" in p.emails[0].subject
+    assert "1 ชม. 20 นาที" in p.emails[0].text
 
     quiet = Outage(id="ob", store_id="s2", started_at=at(22, 10, day=7), detected_at=at(22, 20, day=7), during_business_hours=False)
     m2 = {"s2": mon("s2", state="Offline", last_seen_at=at(22, 10, day=7), current_outage_id="ob")}
@@ -139,9 +141,10 @@ def test_mass_offline_sends_one_summary_and_flags_central():
     read = ReadResult(ok=True, total=57, offline=[(s.code, s.name) for s in stores])
     p = run(at(14, 20), read, monitors, stores=stores)
     assert len(p.new_outages) == 12
-    assert kinds(p) == ["offline_mass"]
+    assert kinds(p) == ["cycle"]
     assert all(r["central_suspect"] for r in p.new_outages)
     assert len(p.emails[0].marks) == 12
+    assert "ปัญหาฝั่งกลาง" in p.emails[0].text
 
 
 def test_suspect_run_changes_nothing_and_warns_once():
@@ -174,7 +177,8 @@ def test_partial_keeps_unseen_stores_untouched():
     assert p.run["status"] == "partial"
     assert "s1" not in p.monitor_updates                  # มองไม่เห็น -> ไม่อัปเดต last seen
     assert p.monitor_updates["s2"]["state"] == "Offline"
-    assert kinds(p) == ["offline_mass"]                   # หน้าเต็ม -> รวมฉบับเดียว
+    assert kinds(p) == ["cycle"]                          # หน้าเต็ม -> ฉบับเดียว + เตือนฝั่งกลาง
+    assert "หน้าจอ iVMS เต็ม" in p.emails[0].text
 
 
 def test_muted_store_records_outage_but_no_email():
@@ -203,7 +207,7 @@ def test_emails_disabled_still_records():
 def test_unsent_alert_is_retried_within_an_hour():
     o = Outage(id="ox", store_id="s1", started_at=at(12, 40), detected_at=at(12, 50))
     m = {"s1": mon("s1", state="Offline", offline_streak=2, current_outage_id="ox")}
-    assert kinds(run(at(13, 10), ok(offline=["51403"]), m, open_outages=[o])) == ["offline"]
+    assert kinds(run(at(13, 10), ok(offline=["51403"]), m, open_outages=[o])) == ["cycle"]
     assert kinds(run(at(14, 10), ok(offline=["51403"]), m, open_outages=[o])) == []
 
 
@@ -211,10 +215,11 @@ def test_unsent_alert_is_retried_within_an_hour():
 def test_late_open_alert_after_grace():
     o = Outage(id="ol", store_id="s2", started_at=at(22, 10, day=7), detected_at=at(22, 20, day=7), during_business_hours=False)
     m = {"s2": mon("s2", state="Offline", last_seen_at=at(22, 10, day=7), offline_streak=2, current_outage_id="ol")}
-    assert "late_open" not in kinds(run(at(10, 20), ok(offline=["53023"]), m, open_outages=[o]))
+    assert kinds(run(at(10, 20), ok(offline=["53023"]), m, open_outages=[o])) == []
     p = run(at(10, 30), ok(offline=["53023"]), m, open_outages=[o])
-    late = [e for e in p.emails if e.kind == "late_open"]
-    assert len(late) == 1 and late[0].marks == [("ol", "late_open_alert_sent_at")]
+    assert kinds(p) == ["cycle"]
+    assert p.emails[0].marks == [("ol", "late_open_alert_sent_at")]
+    assert "ยังไม่ Online หลังเปิดร้าน 1" in p.emails[0].subject
 
 
 def test_morning_summary_includes_after_hours_outages():
@@ -236,6 +241,26 @@ def test_no_recipients_means_no_emails():
     m = {"s1": mon("s1", offline_streak=1)}
     p = run(at(13, 5), ok(offline=["51403"]), m, s=Settings())
     assert len(p.new_outages) == 1 and kinds(p) == []
+
+
+def test_one_email_per_cycle_lists_everything():
+    """หลุดใหม่ 2 + กลับมา 1 + ยัง Offline อยู่ 1 -> เมลเดียว มีครบทุกหัวข้อ"""
+    # หลุดตั้งแต่ 10:40 วันนี้ (หลังเปิดร้าน) และแจ้งไปแล้ว -> อยู่ในหัวข้อ "ยัง Offline อยู่" เท่านั้น
+    old = Outage(id="old", store_id="s3", started_at=at(10, 40), detected_at=at(10, 50), alert_sent_at=at(10, 50))
+    back = Outage(id="bk", store_id="s2", started_at=at(12), detected_at=at(12, 10), alert_sent_at=at(12, 10))
+    m = {
+        "s1": mon("s1", offline_streak=1, last_seen_at=at(13)),
+        "s2": mon("s2", state="Offline", current_outage_id="bk"),
+        "s3": mon("s3", state="Offline", current_outage_id="old"),
+    }
+    stores = STORES + [Store(id="s4", code="51944", name="MBK", region="Bangkok", zone="511")]
+    m["s4"] = mon("s4", offline_streak=1, last_seen_at=at(13))
+    p = run(at(13, 5), ok(total=4, offline=["51403", "51944", "54013"]), m, stores=stores, open_outages=[old, back])
+    assert kinds(p) == ["cycle"]
+    e = p.emails[0]
+    assert sorted(c for _, c in e.marks) == ["alert_sent_at", "alert_sent_at", "recovery_alert_sent_at"]
+    assert "Offline ใหม่ 2" in e.subject and "กลับมา 1" in e.subject and "Offline ตอนนี้ 3 สาขา" in e.subject
+    assert "ยัง Offline อยู่ก่อนหน้านี้ (1)" in e.text and "54013 Big C Chachoengsao" in e.text
 
 
 if __name__ == "__main__":

@@ -341,7 +341,7 @@ def plan_cycle(
         plan.run["monitored_count"] = sum(1 for m in mons.values() if m.monitored)
         if send and admin_to and failed_streak_before + 1 == FAILED_RUNS_BEFORE_ADMIN_EMAIL:
             plan.emails.append(email_monitor_failed(admin_to, now, err, failed_streak_before + 1))
-        _summary_and_late(plan, now, s, by_id, mons, outages, pending_summary, alert_to, send, portal_url)
+        _finish(plan, now, s, by_id, mons, outages, pending_summary, alert_to, send, portal_url)
         return plan
 
     # สาขาที่เห็นใน iVMS แต่ยังไม่ได้ติ๊ก -> ติ๊กให้เลย (R1/R9) + จำชื่อเครื่อง
@@ -363,7 +363,7 @@ def plan_cycle(
     if status == "suspect":
         if send and admin_to and prev_run_status != "suspect":
             plan.emails.append(email_central(sorted(set(admin_to + alert_to)), now, read, portal_url))
-        _summary_and_late(plan, now, s, by_id, mons, outages, pending_summary, alert_to, send, portal_url)
+        _finish(plan, now, s, by_id, mons, outages, pending_summary, alert_to, send, portal_url)
         return plan
 
     # ---- 3) ตัดสินรายสาขา (ok / partial)
@@ -404,35 +404,32 @@ def plan_cycle(
                 set_mon(sid, **cols)
         # partial + ไม่เห็นในหน้าจอ = มองไม่เห็น -> คงค่าเดิมทั้งหมด
 
-    # ---- 4) เมลหลุด (ในเวลาทำการ, ไม่ mute, ยังไม่เคยส่ง) — รวมฉบับเดียวถ้าเยอะ/หน้าเต็ม
+    # ---- 4) รวบรวมสิ่งที่ต้องแจ้ง แล้วส่งเป็นเมลเดียวต่อรอบ (_finish)
+    due, back, mass = [], [], False
     if send and alert_to:
         cutoff = now - timedelta(minutes=EMAIL_RETRY_MINUTES)
         due = [o for o in outages.values()
                if o.during_business_hours and not o.muted and not o.alert_sent_at and o.detected_at >= cutoff
                and o.store_id in by_id and not mons[o.store_id].muted(now)]
         due.sort(key=lambda o: by_id[o.store_id].code)
-        if due and (len(due) >= s.mass_alert_threshold or read.page_full):
+        mass = bool(due) and (len(due) >= s.mass_alert_threshold or read.page_full)
+        if mass:
             for o in due:
                 o.central_suspect = True
                 plan.outage_updates.setdefault(o.id, {})["central_suspect"] = True
                 _patch_new(plan, o.id, central_suspect=True)
-            plan.emails.append(email_offline_mass(alert_to, now, due, by_id, mons, s, read.page_full, portal_url))
-        else:
-            for o in due:
-                plan.emails.append(email_offline(alert_to, now, o, by_id[o.store_id], mons[o.store_id], s, portal_url))
 
-        # ---- 5) เมลกลับมา (เฉพาะที่เคยแจ้งทันที)
-        back = [o for o in newly_closed + recent_closed
-                if o.alert_sent_at and not o.recovery_alert_sent_at and not o.muted and o.ended_at and o.ended_at >= cutoff]
-        seen_ids, uniq = set(), []
-        for o in back:
-            if o.id not in seen_ids and o.store_id in by_id:
+        # ---- 5) กลับมา Online (เฉพาะที่เคยแจ้งไปแล้ว)
+        seen_ids = set()
+        for o in newly_closed + recent_closed:
+            if (o.alert_sent_at and not o.recovery_alert_sent_at and not o.muted and o.ended_at and o.ended_at >= cutoff
+                    and o.id not in seen_ids and o.store_id in by_id):
                 seen_ids.add(o.id)
-                uniq.append(o)
-        if uniq:
-            plan.emails.append(email_online(alert_to, now, uniq, by_id, portal_url))
+                back.append(o)
+        back.sort(key=lambda o: by_id[o.store_id].code)
 
-    _summary_and_late(plan, now, s, by_id, mons, outages, pending_summary, alert_to, send, portal_url)
+    _finish(plan, now, s, by_id, mons, outages, pending_summary, alert_to, send, portal_url,
+            due=due, back=back, mass=mass, page_full=read.page_full)
     return plan
 
 
@@ -449,7 +446,10 @@ def _patch_new(plan: Plan, outage_id: str, **cols):
             row.update(cols)
 
 
-def _summary_and_late(plan, now, s, by_id, mons, outages, pending_summary, alert_to, send, portal_url):
+def _finish(plan, now, s, by_id, mons, outages, pending_summary, alert_to, send, portal_url,
+            due=(), back=(), mass=False, page_full=False):
+    """เมลแจ้งเตือนสาขา: ไม่เกิน 1 ฉบับต่อรอบตรวจ (รวม หลุดใหม่ / กลับมา / เปิดร้านแล้วยังไม่ Online
+    + รายชื่อที่ยัง Offline ทั้งหมด) แล้วค่อยเมลสรุปเช้าแยกวันละครั้ง"""
     if not (send and alert_to):
         return
     now_l = local(now)
@@ -469,9 +469,16 @@ def _summary_and_late(plan, now, s, by_id, mons, outages, pending_summary, alert
         if now_l >= due_at and within_hours(now, open_t, close_t) and o.started_at < open_dt \
                 and now_l - due_at < timedelta(hours=3):
             late.append((o, st, m, open_t))
-    if late:
-        late.sort(key=lambda x: x[1].code)
-        plan.emails.append(email_late_open(alert_to, now, late, s, portal_url))
+    late.sort(key=lambda x: x[1].code)
+
+    if due or back or late:
+        due_ids = {o.id for o in due}
+        still = sorted(
+            (o for o in outages.values()
+             if o.id not in due_ids and o.store_id in by_id and not o.muted
+             and mons.get(o.store_id) and mons[o.store_id].state == "Offline" and not mons[o.store_id].muted(now)),
+            key=lambda o: o.started_at)
+        plan.emails.append(email_cycle(alert_to, now, list(due), list(back), late, still, by_id, s, mass, page_full, portal_url))
 
     # ---- เมลสรุปเช้า: หลุดนอกเวลาทำการ ตั้งแต่ปิดร้านเมื่อวานถึงเวลาส่งสรุปวันนี้
     summary_dt = datetime.combine(now_l.date(), s.morning_summary_time, BKK)
@@ -531,47 +538,71 @@ def _mk(kind, to, subject, color, title, intro, head, rows, footer, portal_url, 
                  html=_html(color, title, intro, head, rows, footer, portal_url), marks=marks)
 
 
-def email_offline(to, now, o, st, m, s, portal_url):
-    open_t, close_t = m.hours(s)
-    mins = o.minutes(now)
-    rows = [
-        ["สาขา", st.label], ["ภาค / เขต", f"{st.region_short} · {st.zone_code}"],
-        ["Last seen", fmt_day_hm(o.started_at, now)], ["ตรวจพบ", f"{fmt_hm(o.detected_at)} (หลุดมาแล้ว {fmt_duration(mins)})"],
-        ["เวลาทำการ", f"{open_t:%H:%M}–{close_t:%H:%M}"],
-    ]
-    return _mk("offline", to, f"[CCTV Offline] {st.label} · {st.region_short} {st.zone_code} — หลุดตั้งแต่ {fmt_hm(o.started_at)}",
-               RED, f"DVR สาขา {st.name} Offline", "DVR ไม่ตอบสนองใน iVMS-4200 ระหว่างเวลาทำการ", ["", ""], rows,
-               "เช็กเบื้องต้น: โทรถามสาขาว่า DVR มีไฟ / เน็ตซิมใช้ได้ไหม ถ้ากลับมาจะมีเมลแจ้งอีกฉบับ", portal_url,
-               [(o.id, "alert_sent_at")])
+def _html_sections(color, title, intro, sections, footer, portal_url):
+    def esc(x):
+        return str(x).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    parts = []
+    for heading, head, rows in sections:
+        th = "".join(f'<th style="text-align:left;padding:6px 8px;border-bottom:1px solid #eee;color:#6b6b6b;font-weight:600">{esc(h)}</th>' for h in head)
+        trs = "".join("<tr>" + "".join(f'<td style="padding:6px 8px;border-bottom:1px solid #f2f2f4">{esc(c)}</td>' for c in r) + "</tr>" for r in rows)
+        parts.append(f'<h3 style="margin:18px 0 6px;font-size:15px;color:#222">{esc(heading)}</h3>'
+                     f'<table style="border-collapse:collapse;font-size:13px;width:100%"><thead><tr>{th}</tr></thead><tbody>{trs}</tbody></table>')
+    link = (f'<p><a href="{esc(portal_url)}/status" style="display:inline-block;background:{RED};color:#fff;'
+            f'padding:10px 16px;border-radius:8px;text-decoration:none;font-weight:600">เปิดใน Command Center</a></p>') if portal_url else ""
+    return (f'<div style="font-family:Tahoma,Arial,sans-serif;color:#333;max-width:680px">'
+            f'<div style="height:6px;background:{color}"></div>'
+            f'<h2 style="margin:16px 0 8px;color:{color}">{esc(title)}</h2>'
+            f'<p style="margin:0 0 4px">{esc(intro)}</p>{"".join(parts)}'
+            f'<p style="color:#5c5c5c;font-size:13px;margin-top:14px">{esc(footer)}</p>{link}'
+            f'<p style="color:#8a8a8a;font-size:11px">BATA CCTV Command Center · ส่งอัตโนมัติจากตัวตรวจ iVMS ที่ HQ</p></div>')
 
 
-def email_offline_mass(to, now, due, by_id, mons, s, page_full, portal_url):
-    rows = [[by_id[o.store_id].label, by_id[o.store_id].zone_code, fmt_day_hm(o.started_at, now)] for o in due]
-    more = " (หน้าจอ iVMS เต็ม อาจมีมากกว่านี้)" if page_full else ""
-    return _mk("offline_mass", to, f"[CCTV Offline ×{len(due)}] หลายสาขาหลุดพร้อมกัน — อาจเป็นปัญหาฝั่งกลาง",
-               AMBER, f"{len(due)} สาขาหลุดในรอบตรวจเดียว ({fmt_hm(now)} น.){more}",
-               "หลุดพร้อมกันจำนวนมากมักเป็นปัญหาฝั่งกลาง ไม่ใช่ที่สาขา — เช็กก่อน: เน็ต HQ, คอมที่เปิด iVMS, สถานะ Hik-Connect",
-               ["สาขา", "เขต", "Last seen"], rows, "ถ้าเป็นปัญหาที่สาขาจริง จะเห็นค้างเป็น Offline ในหน้า Device Status", portal_url,
-               [(o.id, "alert_sent_at") for o in due])
+def _text_sections(title, intro, sections, footer, portal_url):
+    lines = [title, "", intro]
+    for heading, head, rows in sections:
+        lines += ["", f"== {heading} ==", " | ".join(head)] + [" | ".join(str(c) for c in r) for r in rows]
+    lines += ["", footer] if footer else []
+    if portal_url:
+        lines.append(f"{portal_url}/status")
+    return "\n".join(lines)
 
 
-def email_online(to, now, back, by_id, portal_url):
-    rows = [[by_id[o.store_id].label, fmt_day_hm(o.started_at, now), fmt_hm(o.ended_at), fmt_duration(o.minutes(now))] for o in back]
-    if len(back) == 1:
-        st = by_id[back[0].store_id]
-        subject = f"[CCTV Online] {st.label} กลับมาแล้ว — หลุด {fmt_duration(back[0].minutes(now))}"
+def email_cycle(to, now, due, back, late, still, by_id, s, mass, page_full, portal_url):
+    """เมลเดียวต่อรอบตรวจ — มีเฉพาะหัวข้อที่มีรายการ"""
+    st = lambda o: by_id[o.store_id]  # noqa: E731
+    sections, marks, bits = [], [], []
+    if due:
+        sections.append((f"Offline ใหม่ในเวลาทำการ ({len(due)})", ["สาขา", "เขต", "Last seen", "หลุดมาแล้ว"],
+                         [[st(o).label, f"{st(o).region_short} {st(o).zone_code}", fmt_day_hm(o.started_at, now), fmt_duration(o.minutes(now))] for o in due]))
+        marks += [(o.id, "alert_sent_at") for o in due]
+        bits.append(f"Offline ใหม่ {len(due)}")
+    if late:
+        sections.append((f"เปิดร้านแล้ว {s.late_open_grace_minutes} นาที ยังไม่ Online ({len(late)})", ["สาขา", "เปิดร้าน", "Last seen"],
+                         [[stx.label, f"{open_t:%H:%M}", fmt_day_hm(o.started_at, now)] for o, stx, m, open_t in late]))
+        marks += [(o.id, "late_open_alert_sent_at") for o, _, _, _ in late]
+        bits.append(f"ยังไม่ Online หลังเปิดร้าน {len(late)}")
+    if back:
+        sections.append((f"กลับมา Online แล้ว ({len(back)})", ["สาขา", "หลุด", "กลับ", "นาน"],
+                         [[st(o).label, fmt_day_hm(o.started_at, now), fmt_hm(o.ended_at), fmt_duration(o.minutes(now))] for o in back]))
+        marks += [(o.id, "recovery_alert_sent_at") for o in back]
+        bits.append(f"กลับมา {len(back)}")
+    total_off = len(due) + len(still)
+    if still:
+        sections.append((f"ยัง Offline อยู่ก่อนหน้านี้ ({len(still)})", ["สาขา", "เขต", "ตั้งแต่", "นาน"],
+                         [[st(o).label, f"{st(o).region_short} {st(o).zone_code}", fmt_day_hm(o.started_at, now), fmt_duration(o.minutes(now))] for o in still]))
+
+    if mass:
+        intro = (f"หลุดพร้อมกัน {len(due)} สาขาในรอบเดียว{' (หน้าจอ iVMS เต็ม อาจมีมากกว่านี้)' if page_full else ''} — "
+                 "มักเป็นปัญหาฝั่งกลาง เช็กก่อน: เน็ต HQ, คอมที่เปิด iVMS, สถานะ Hik-Connect")
     else:
-        subject = f"[CCTV Online] {len(back)} สาขากลับมาแล้ว"
-    return _mk("online", to, subject, GREEN, "DVR กลับมา Online แล้ว", "สาขาที่เคยแจ้งว่าหลุด ตอนนี้กลับมาใน iVMS แล้ว",
-               ["สาขา", "หลุด", "กลับ", "นาน"], rows, "", portal_url, [(o.id, "recovery_alert_sent_at") for o in back])
-
-
-def email_late_open(to, now, late, s, portal_url):
-    rows = [[st.label, f"{open_t:%H:%M}", fmt_day_hm(o.started_at, now)] for o, st, m, open_t in late]
-    return _mk("late_open", to, f"[CCTV ยังไม่ Online] {len(late)} สาขาเปิดร้านแล้ว {s.late_open_grace_minutes} นาที",
-               RED, f"เปิดร้านแล้ว {s.late_open_grace_minutes} นาที DVR ยังไม่กลับมา",
-               "ร้านเปิดแล้วแต่ DVR ยังไม่กลับมา — กล้องไม่บันทึกระหว่างเปิดขาย", ["สาขา", "เปิดร้าน", "Last seen"], rows,
-               "", portal_url, [(o.id, "late_open_alert_sent_at") for o, _, _, _ in late])
+        intro = f"รอบตรวจ {fmt_hm(now)} น. · Offline ตอนนี้ {total_off} สาขา (ไม่นับที่ Mute)"
+    color = AMBER if mass else (RED if (due or late) else GREEN)
+    title = "DVR สาขา: " + " · ".join(bits)
+    subject = f"[CCTV] {' · '.join(bits)} — Offline ตอนนี้ {total_off} สาขา ({fmt_hm(now)})"
+    footer = "เช็กเบื้องต้น: โทรถามสาขาว่า DVR มีไฟ / เน็ตซิมใช้ได้ไหม" if (due or late) else ""
+    return Email(kind="cycle", to=to, subject=subject,
+                 text=_text_sections(title, intro, sections, footer, portal_url),
+                 html=_html_sections(color, title, intro, sections, footer, portal_url), marks=marks)
 
 
 def email_summary(to, now, items, by_id, start, end, portal_url):

@@ -20,15 +20,16 @@ import logging
 import os
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from logging.handlers import RotatingFileHandler
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
 from state import ReadResult, plan_cycle  # noqa: E402
+import desktop  # noqa: E402
 
-SCRIPT_VERSION = "1.1.0"
+SCRIPT_VERSION = "1.2.0"
 log = logging.getLogger("ivms-monitor")
 
 
@@ -68,6 +69,7 @@ def failed_streak(runs: list) -> int:
 def run_cycle(supa, mailer, reader, dry_run: bool, portal_url: str) -> int:
     """คืนค่า check_interval_minutes ล่าสุด (ใช้ตั้งเวลารอบถัดไป)"""
     t0 = time.monotonic()
+    desktop.syncing(log.warning)
     read: ReadResult = reader()
     now = datetime.now(timezone.utc)
     log.info("read: ok=%s total=%s offline=%s page_full=%s err=%s", read.ok, read.total,
@@ -87,9 +89,16 @@ def run_cycle(supa, mailer, reader, dry_run: bool, portal_url: str) -> int:
              plan.run["status"], len(plan.new_outages), len(plan.monitor_updates),
              [e.kind for e in plan.emails], plan.run["unmatched"])
 
+    def notify_desktop():
+        nxt = (datetime.now() + timedelta(minutes=settings.check_interval_minutes)).strftime("%H:%M")
+        desktop.finished(at=datetime.now().strftime("%H:%M"), status=plan.run["status"], total=read.total,
+                         offline=len(read.offline), online=len(read.online or []), next_at=nxt,
+                         error=read.error, log=log.warning)
+
     if dry_run:
         for e in plan.emails:
             log.info("[dry-run] email %s -> %s : %s", e.kind, e.to, e.subject)
+        notify_desktop()
         return settings.check_interval_minutes
 
     supa.apply(plan)
@@ -109,6 +118,7 @@ def run_cycle(supa, mailer, reader, dry_run: bool, portal_url: str) -> int:
 
     run = dict(plan.run, ran_at=now.isoformat(), duration_ms=int((time.monotonic() - t0) * 1000), script_version=SCRIPT_VERSION)
     supa.insert_run(run)
+    notify_desktop()
     return settings.check_interval_minutes
 
 
@@ -145,6 +155,9 @@ def main() -> None:
             # ต่อ Supabase ไม่ได้ ฯลฯ: ข้ามรอบนี้ ไม่เก็บผลอ่านไว้ส่งย้อน (เวลาจะเพี้ยนและเมลจะผิด)
             # portal จะเห็นว่าตัวตรวจเงียบและขึ้นแบนเนอร์ "ระบบตรวจหยุดทำงาน" เอง
             log.exception("cycle failed: %s", ex)
+            desktop.finished(at=datetime.now().strftime("%H:%M"), status="failed", total=None, offline=0, online=0,
+                             next_at=(datetime.now() + timedelta(minutes=interval)).strftime("%H:%M"),
+                             error=f"ต่อ Supabase/ระบบไม่ได้: {ex}"[:200], log=log.warning)
         if args.once:
             break
         time.sleep(max(30, interval * 60 - (time.monotonic() - started)))

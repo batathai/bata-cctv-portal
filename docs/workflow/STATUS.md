@@ -26,7 +26,9 @@ Updated: 2026-10-10
 - Probe result 14:16: **clicking the scrollbar track below the thumb scrolls one page** (page 1 = 25 rows, page 2 = 27 new rows); dragging the thumb does nothing
 - **ivms-monitor 1.1.0** (implemented 14:30): `ivms_reader.py` scrolls to top, reads every page (each page read twice 1.5 s apart, must match), clicks the track for the next page until rows seen = Total, scrolls back to top; returns `online` + `offline` + `complete`. `state.py`: when `online` is present, only stores seen are updated (seen Offline → streak/confirm as before; seen Online → Online, closes outage), every seen store is auto-ticked and gets `last_checked_at`; stores not seen are untouched; incomplete read = `partial`. 5 new tests (25/25). Paging loop simulated against a fake 67-row table (from top and from bottom: 67/67, ends at top)
 - Migration `023_store_monitor_last_checked.sql` adds `store_monitor.last_checked_at`; script skips the column until it exists. Live table column "Last seen" → "อัปเดตล่าสุด" (last_checked_at, falls back to last_seen_at)
-- Not tested on Windows yet: real scrollbar detection across 3 pages, and returning to the top
+- Confirmed on the Design PC 14:35: `python ivms_reader.py` → ok=True total=67 complete=True offline=10 online=57 (incl. 52002, 53023). First real run 14:44: web shows monitored 123/194 (67 + 56 from the other account), Offline 8 → 10 after the 2nd round
+- **1.2.0 (14:55, user request):** sync status on the HQ PC — console title "🔄 iVMS กำลัง sync…" during a round; Windows toast after it ("✅ Sync complete" with total/Offline/Online/next round, "🟡 ไม่ครบ", "⚠️ ไม่สำเร็จ" + reason, "⚠️ Offline เกือบทั้งหมด"). No popup at the start on purpose (would cover iVMS). `desktop.py`; failures only log. Toast uses PowerShell's AppUserModelID via winsdk (already installed). Not tested on Windows yet
+- Suggested to the user: confirm Offline after 1 round when switching accounts every 30 min
 - The 56 BKK stores ticked from the 8 Oct list will then simply show last seen 8 Oct (true), no list cleanup needed
 
 ## Fix 2026-10-10 13:40 — reader refuses to read when iVMS is covered (`ivms-monitor` 1.0.1)

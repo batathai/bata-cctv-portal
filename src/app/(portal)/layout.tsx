@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ShieldAlert } from "lucide-react";
 import { AppDataProvider, useAppData } from "@/components/providers/AppDataProvider";
+import { MonitoringProvider } from "@/components/providers/MonitoringProvider";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TopBar } from "@/components/layout/TopBar";
 
@@ -49,6 +50,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
 
   return (
     <AppDataProvider>
+      <MonitoringProvider>
       <div className="flex h-screen overflow-hidden bg-surface-muted dark:bg-surface-dark">
         <Sidebar mobileOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
         <div className="flex-1 flex flex-col min-w-0">
@@ -58,6 +60,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
           </main>
         </div>
       </div>
+      </MonitoringProvider>
     </AppDataProvider>
   );
 }

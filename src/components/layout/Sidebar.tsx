@@ -4,11 +4,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
 import {
-  LayoutDashboard, Server, FileBarChart, Camera, X, ClipboardList, ClipboardCheck,
+  LayoutDashboard, Server, FileBarChart, Camera, X, ClipboardList, ClipboardCheck, Wifi,
 } from "lucide-react";
+import { useMonitoring } from "@/components/providers/MonitoringProvider";
 
 const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/status", label: "Device Status", icon: Wifi },
   { href: "/work-orders", label: "Work Orders", icon: ClipboardList },
   { href: "/assets", label: "Asset Register", icon: Server },
   { href: "/survey", label: "Survey", icon: ClipboardCheck },
@@ -17,6 +19,12 @@ const NAV = [
 
 export function Sidebar({ mobileOpen, onClose }: { mobileOpen: boolean; onClose: () => void }) {
   const pathname = usePathname();
+  const { monitors, stale } = useMonitoring();
+  // Unmuted, monitored stores currently Offline — hidden when the data is stale.
+  const now = Date.now();
+  const offlineCount = stale
+    ? 0
+    : monitors.filter((m) => m.monitored && m.state === "Offline" && !(m.muted_until && new Date(m.muted_until).getTime() > now)).length;
 
   return (
     <>
@@ -60,6 +68,14 @@ export function Sidebar({ mobileOpen, onClose }: { mobileOpen: boolean; onClose:
               >
                 <Icon size={16} />
                 {item.label}
+                {item.href === "/status" && offlineCount > 0 && (
+                  <span
+                    className="ml-auto min-w-[20px] h-5 px-1.5 rounded-full bg-brand text-white text-[11px] font-bold flex items-center justify-center"
+                    aria-label={`${offlineCount} สาขา Offline`}
+                  >
+                    {offlineCount}
+                  </span>
+                )}
               </Link>
             );
           })}

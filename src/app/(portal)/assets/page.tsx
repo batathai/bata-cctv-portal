@@ -9,6 +9,7 @@ import { Card, SectionTitle } from "@/components/ui/Card";
 import { StatusBadge } from "@/components/ui/Badge";
 import { Select } from "@/components/ui/Select";
 import { ExportButtons } from "@/components/reports/ExportButtons";
+import { DeviceDot, DeviceDotLegend } from "@/components/status/DeviceDot";
 import { ZONES } from "@/lib/mockData";
 import { zoneCode, getAreaLabel, regionFromZone } from "@/lib/recovery";
 import type { StoreWithAssets } from "@/types/database";
@@ -117,8 +118,11 @@ function AssetRegisterContent() {
   return (
     <Card className="p-4">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-        <SectionTitle icon={Server}>Asset Register ({filtered.length})</SectionTitle>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-1">
+          <SectionTitle icon={Server}>Asset Register ({filtered.length})</SectionTitle>
+          <DeviceDotLegend />
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
           <Select value={regionFilter} onChange={onRegionChange} options={["Bangkok", "Upcountry"]} placeholder="Region" />
           <Select value={zoneFilter} onChange={(v) => setFilters({ zone: v })} options={zoneOptions.map((z) => z.code)} placeholder="Zone" />
           <div className="relative">
@@ -165,7 +169,13 @@ function AssetRegisterContent() {
                     {s.store_code}
                   </Link>
                 </td>
-                <td className="py-2 pr-3">{s.store_name}</td>
+                <td className="py-2 pr-3">
+                  {/* Live DVR state from iVMS as a dot only; full view is /status. */}
+                  <span className="inline-flex items-center gap-2">
+                    <DeviceDot storeId={s.id} />
+                    {s.store_name}
+                  </span>
+                </td>
                 <td className="py-2 pr-3 text-ink-soft dark:text-white/60">{zoneCode(s.zone)}</td>
                 <td className="py-2 pr-3 font-mono text-xs text-ink-soft dark:text-white/60">{s.asset?.nvr_serial}</td>
                 <td className="py-2 pr-3 text-ink-soft dark:text-white/60">{s.asset?.camera_total ?? "—"}</td>

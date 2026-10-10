@@ -9,6 +9,8 @@ import { EditableStatusBadge } from "@/components/ui/EditableStatusBadge";
 import { EditAssetModal } from "@/components/assets/EditAssetModal";
 import { TicketsCard } from "@/components/assets/TicketsCard";
 import { DeviceIdentityCard } from "@/components/assets/DeviceIdentityCard";
+import { DeviceDot } from "@/components/status/DeviceDot";
+import Link from "next/link";
 import { getAreaLabel, getRecoveryRegion } from "@/lib/recovery";
 import { canManageMasterData, canLogMaintenance } from "@/lib/rbac";
 
@@ -77,6 +79,12 @@ export default function StoreDetailPage() {
             {store.phone && (
               <div className="text-xs text-ink-soft dark:text-white/60 mt-1">Tel: {store.phone}</div>
             )}
+            <div className="flex flex-wrap items-center gap-2 mt-2">
+              <DeviceDot storeId={store.id} withText />
+              <Link href={`/recovery/${store.store_code}`} className="text-xs font-medium text-brand hover:underline">
+                Device Status →
+              </Link>
+            </div>
           </div>
           <EditableStatusBadge storeId={store.id} status={store.overall_status} canEdit={canEditMaster} />
         </div>

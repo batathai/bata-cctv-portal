@@ -2,7 +2,7 @@
 Feature: Device Offline Monitoring (iVMS reader)
 Phase: /test in progress (HQ script verified end-to-end on 2026-10-08)
 Design approved: yes — 2026-10-08 — DESIGN-device-offline-monitoring.md as written (iVMS reader, migration 022, 4-tab /status, Store Detail card, confirm Offline after 2 cycles, 10:00–22:00 default hours, R11 dropped from phase 1)
-Updated: 2026-10-08 (evening)
+Updated: 2026-10-10
 
 ## Done
 - Plan: docs/workflow/PLAN-device-offline-monitoring.md (R1–R12)
@@ -17,6 +17,15 @@ Updated: 2026-10-08 (evening)
   - Export: `src/lib/reports/exportOutagesExcel.ts` (Outages / By Store / After-hours sheets)
   - HQ script `tools/ivms-monitor/`: `state.py` (pure rules), `test_state.py` (19 tests), `ivms_reader.py` (from probe v6 + refresh probe, double read), `supa.py`, `notify.py`, `monitor.py` (`--once`, `--dry-run`), `README.md` (install + Task Scheduler), `.env.example`, `requirements.txt`; `.env`/logs git-ignored
 - Checks run here: `npx tsc --noEmit` 0 errors · `npm run lint` clean · `npm run build` passes (Google Fonts mocked — sandbox has no internet) · `pytest test_state.py` 19/19 · migration parsed OK by a Postgres parser (pglast) · one monitor cycle smoke-tested with fake Supabase/mailer · demo-mode screenshots of all 4 tabs + Store Detail, no runtime errors
+
+## Addition 2026-10-10 — DVR dot in Asset Register (user request, branch `feat/asset-register-device-dot`)
+- User wanted the iVMS Online/Offline result visible from Asset Register. Its Status column is camera health (`overall_status`, Survey/manual) and stays untouched
+- A full "DVR (iVMS)" column was built first, then dropped by the user: it duplicated /status and put two "Online" pills side by side
+- Agreed version: a small coloured dot before the store name (green Online · red Offline · amber กำลังยืนยัน · grey ปิดเตือน · brown ข้อมูลเก่า · no dot = not in iVMS), a one-line legend under the title, tooltip + screen-reader text on every dot; store Details shows "● DVR Offline · หลุดมา 22 นาที" with a link to `/recovery/[code]`
+- Data from `store_monitor` via `MonitoringProvider` (polls every 60 s) — no script change, no migration
+- Files: new `src/components/status/DeviceDot.tsx`; `src/app/(portal)/assets/page.tsx`; `src/app/(portal)/assets/[code]/page.tsx`
+- Checks: `tsc` 0 errors · lint clean · `npm run build` passes (fonts mocked) · demo-mode screenshots desktop + 390 px, no runtime errors
+- Run machine: CENTERSUPPPORT dropped (kept for the VM work); `monitor.py` runs by hand on the Design PC for now
 
 ## /test — 2026-10-08 (on the office PC with iVMS, user admin.danai)
 - Python 3.14 + winsdk builds fine; `pip install -r requirements.txt` OK

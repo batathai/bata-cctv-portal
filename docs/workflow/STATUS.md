@@ -18,6 +18,13 @@ Updated: 2026-10-10
   - HQ script `tools/ivms-monitor/`: `state.py` (pure rules), `test_state.py` (19 tests), `ivms_reader.py` (from probe v6 + refresh probe, double read), `supa.py`, `notify.py`, `monitor.py` (`--once`, `--dry-run`), `README.md` (install + Task Scheduler), `.env.example`, `requirements.txt`; `.env`/logs git-ignored
 - Checks run here: `npx tsc --noEmit` 0 errors · `npm run lint` clean · `npm run build` passes (Google Fonts mocked — sandbox has no internet) · `pytest test_state.py` 19/19 · migration parsed OK by a Postgres parser (pglast) · one monitor cycle smoke-tested with fake Supabase/mailer · demo-mode screenshots of all 4 tabs + Store Detail, no runtime errors
 
+## Decision 2026-10-10 14:13 — sync whatever iVMS account is open (user)
+- HQ has 2 iVMS accounts (to be merged into one later). Rule from now: every store the script sees gets the status it sees (Online/Offline) and a fresh last-seen time; stores not visible in the account open right now are left untouched (keep status + last-seen). A store never synced = no camera in iVMS yet, visible on the web
+- Interval: 30 min, set in Device Status › ตั้งค่า (no code change)
+- Consequence for code: (1) the reader must read ALL rows, not just page one (~26) — needs a way to scroll the iVMS table; (2) `state.py` must stop marking every not-seen monitored store Online (today's rule assumes one account and an Offline-first first page)
+- Step 1 = `tools/ivms-monitor/probe_scroll.py`: tests clicking the scrollbar track and dragging the thumb (wheel / Page Down were ignored on 7 Oct). Waiting for the user to run it on the Design PC
+- The 56 BKK stores ticked from the 8 Oct list will then simply show last seen 8 Oct (true), no list cleanup needed
+
 ## Fix 2026-10-10 13:40 — reader refuses to read when iVMS is covered (`ivms-monitor` 1.0.1)
 - Symptom on the Design PC: 8 stores seen Offline every run but never confirmed; web not updating. Cause: the Command Prompt window overlapped the iVMS table. When Windows blocks bringing iVMS to the front, the screenshot shows that window instead of the status icons → "ไม่เจอปุ่ม Refresh" or a false "Offline 0" read that resets every streak (also explains the wrong 12:42 "กลับมา 6" email)
 - `ivms_reader.py`: `_check_unobstructed()` samples 42 points across the iVMS window with `WindowFromPoint`; any point owned by another process → ReaderError → run status `failed` (no state change). Checked before the Refresh click and before both reads; iVMS is brought to front again after the 20 s settle

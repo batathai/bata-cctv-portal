@@ -36,7 +36,9 @@ from winsdk.windows.storage.streams import DataWriter  # noqa: E402
 SCALE = 2
 SETTLE_SECONDS = 20          # หลัง Refresh หน้าจอยังไม่นิ่ง ~5 วิ (ทดสอบแล้ว) เผื่อไว้ 20
 SECOND_READ_GAP = 5
-CODE_RE = re.compile(r"\b(\d{5})\s*[-–]\s*(.+)")
+# ชื่อเครื่องใน iVMS มีทั้ง "52017 - Lotus Maesot" และ "52002 CentralPlaza Chiang Rai" (ไม่มีขีด)
+# เดิมบังคับต้องมีขีด -> แถวแบบไม่มีขีดถูกข้ามเงียบๆ (พบ 10 ต.ค.: Offline 10 แต่อ่านได้ 8)
+CODE_RE = re.compile(r"\b(\d{5})\s*(?:[-–]\s*)?([^\d\s].*)")
 STATUS_RE = re.compile(r"\b(Online|Offline)\b", re.I)
 TOTAL_RE = re.compile(r"Total\s*\((\d+)\)")
 CAPTURE = "ivms_capture.png"

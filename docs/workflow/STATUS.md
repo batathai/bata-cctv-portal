@@ -24,6 +24,7 @@ Updated: 2026-10-10
 - README: minimise the Command Prompt that runs the script
 - Tested here with stubs only (no Windows); needs a run on the Design PC
 - Confirmed on the Design PC 13:49–13:51: the check fires ("มีหน้าต่างอื่นบัง iVMS ('Administrator: Command Prompt - python monitor.py')") and the round is skipped instead of misread
+- 1.0.3 (13:59): iVMS showed 10 Offline, script read 8. The two missed — 52002 "CentralPlaza Chiang Rai", 53023 "TOPS Plaza Phol" — are named without " - " in iVMS and `CODE_RE` required the dash, so those rows were skipped silently. Dash now optional. Web check at 13:59: the 8 read stores are Offline on /status as expected
 - 1.0.2: the script minimises its own console window before each read (`_minimize_own_console`). Thai in the console looks broken because of the console font; `monitor.log` is UTF-8 and reads fine in Notepad
 
 ## Change 2026-10-10 (afternoon) — Device Status tweaks after first live look (user request)

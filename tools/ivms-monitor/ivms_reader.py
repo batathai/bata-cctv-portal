@@ -102,6 +102,18 @@ def _bring_to_front(win, log=print):
         log(f"warn: ดึงหน้าต่างขึ้นหน้าไม่ได้ ({first_err!r} / {e!r}) — ย่อหน้าต่างอื่นที่บัง iVMS ออก")
 
 
+def _minimize_own_console(log=print):
+    """ย่อหน้าต่าง Command Prompt ที่รันสคริปต์นี้เอง ก่อนอ่านทุกรอบ — ไม่ให้ไปทับ iVMS
+    (พบจริง 10 ต.ค.: หน้าต่างนี้ทับคอลัมน์สถานะ ทำให้อ่านผิด) ดู log ได้ที่ monitor.log หรือหน้าเว็บ"""
+    try:
+        hwnd = ctypes.windll.kernel32.GetConsoleWindow()
+        if hwnd and not ctypes.windll.user32.IsIconic(hwnd):
+            ctypes.windll.user32.ShowWindow(hwnd, 6)  # SW_MINIMIZE
+            time.sleep(0.5)
+    except Exception as e:  # รันแบบไม่มีหน้าต่าง (pythonw / Task Scheduler) ก็ไม่เป็นไร
+        log(f"warn: ย่อหน้าต่าง Command Prompt ไม่ได้ ({e!r})")
+
+
 def _window_at(x, y):
     """(hwnd, pid, title) of the top-level window that is visible at screen point (x, y)."""
     import win32con, win32gui, win32process
@@ -268,6 +280,7 @@ def read_ivms(log=print, save_capture=False) -> ReadResult:
         win = find_ivms_window()
         if win is None:
             raise ReaderError("ไม่เจอหน้าต่าง iVMS-4200 (เปิดค้างไว้และรันสคริปต์แบบ administrator หรือยัง?)")
+        _minimize_own_console(log)
         _bring_to_front(win, log)
         time.sleep(1.5)
         rect = win.rectangle()

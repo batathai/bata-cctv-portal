@@ -23,6 +23,8 @@ Updated: 2026-10-10
 - `ivms_reader.py`: `_check_unobstructed()` samples 42 points across the iVMS window with `WindowFromPoint`; any point owned by another process → ReaderError → run status `failed` (no state change). Checked before the Refresh click and before both reads; iVMS is brought to front again after the 20 s settle
 - README: minimise the Command Prompt that runs the script
 - Tested here with stubs only (no Windows); needs a run on the Design PC
+- Confirmed on the Design PC 13:49–13:51: the check fires ("มีหน้าต่างอื่นบัง iVMS ('Administrator: Command Prompt - python monitor.py')") and the round is skipped instead of misread
+- 1.0.2: the script minimises its own console window before each read (`_minimize_own_console`). Thai in the console looks broken because of the console font; `monitor.log` is UTF-8 and reads fine in Notepad
 
 ## Change 2026-10-10 (afternoon) — Device Status tweaks after first live look (user request)
 - Live tab actions are icon buttons now: wrench (open repair ticket), file (Details → /recovery/[code]), bell-off/bell (Mute / unmute), each with tooltip + aria-label

@@ -102,6 +102,35 @@ def _bring_to_front(win, log=print):
         log(f"warn: ดึงหน้าต่างขึ้นหน้าไม่ได้ ({first_err!r} / {e!r}) — ย่อหน้าต่างอื่นที่บัง iVMS ออก")
 
 
+def _window_at(x, y):
+    """(hwnd, pid, title) of the top-level window that is visible at screen point (x, y)."""
+    import win32con, win32gui, win32process
+    h = win32gui.WindowFromPoint((x, y))
+    root = win32gui.GetAncestor(h, win32con.GA_ROOT) if h else 0
+    pid = win32process.GetWindowThreadProcessId(root)[1] if root else 0
+    title = win32gui.GetWindowText(root) if root else ""
+    return root, pid, title
+
+
+def _check_unobstructed(win, rect):
+    """ภาพจับตามพื้นที่บนจอ: ถ้ามีหน้าต่างอื่น (เช่น Command Prompt, เบราว์เซอร์) บัง iVMS อยู่
+    สคริปต์จะอ่านหน้าต่างนั้นแทนไอคอนสถานะ -> ได้ "Offline 0" ปลอม แล้วทุกสาขาถูกรีเซ็ตเป็น Online
+    (พบจริง 10 ต.ค. บนเครื่อง Design) จึงตรวจจุดตัวอย่างทั่วหน้าต่างก่อนอ่าน ถ้าจุดไหนไม่ใช่ iVMS
+    ให้ล้มรอบนี้ (status=failed ไม่เปลี่ยนสถานะใคร) ดีกว่าอ่านผิด"""
+    try:
+        import win32process
+        ivms_pid = win32process.GetWindowThreadProcessId(win.handle)[1]
+    except Exception:
+        return  # ไม่มี pywin32 -> ข้ามการตรวจ (พฤติกรรมเดิม)
+    w, h = rect.right - rect.left, rect.bottom - rect.top
+    for fx in (0.05, 0.25, 0.5, 0.62, 0.75, 0.95):
+        for fy in (0.06, 0.2, 0.35, 0.5, 0.65, 0.8, 0.95):
+            x, y = rect.left + int(w * fx), rect.top + int(h * fy)
+            hwnd, pid, title = _window_at(x, y)
+            if pid and pid != ivms_pid:
+                raise ReaderError(f"มีหน้าต่างอื่นบัง iVMS อยู่ ('{title or 'ไม่มีชื่อ'}') — ย่อหรือย้ายหน้าต่างนั้นออกจากพื้นที่ iVMS")
+
+
 def _grab(rect):
     return ImageGrab.grab(bbox=(rect.left, rect.top, rect.right, rect.bottom), all_screens=True).convert("RGB")
 
@@ -243,6 +272,7 @@ def read_ivms(log=print, save_capture=False) -> ReadResult:
         time.sleep(1.5)
         rect = win.rectangle()
 
+        _check_unobstructed(win, rect)
         before = _grab(rect)
         words = ocr_words(before)
         btn = next((w for w in words if w["text"].lower().startswith("refresh")), None)
@@ -251,10 +281,14 @@ def read_ivms(log=print, save_capture=False) -> ReadResult:
         mouse.click(coords=(rect.left + int(btn["x"] + btn["w"] / 2), rect.top + int(btn["y"] + btn["h"] / 2)))
         time.sleep(SETTLE_SECONDS)
 
+        _bring_to_front(win, log)  # อาจถูกบังระหว่างรอ 20 วิ
+        time.sleep(1.0)
         rect = win.rectangle()
+        _check_unobstructed(win, rect)
         shot1 = _grab(rect)
         rows1, total1, _ = read_page(shot1)
         time.sleep(SECOND_READ_GAP)
+        _check_unobstructed(win, rect)
         shot2 = _grab(rect)
         rows2, total2, _ = read_page(shot2)
         if save_capture:

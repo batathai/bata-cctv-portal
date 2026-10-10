@@ -18,6 +18,12 @@ Updated: 2026-10-10
   - HQ script `tools/ivms-monitor/`: `state.py` (pure rules), `test_state.py` (19 tests), `ivms_reader.py` (from probe v6 + refresh probe, double read), `supa.py`, `notify.py`, `monitor.py` (`--once`, `--dry-run`), `README.md` (install + Task Scheduler), `.env.example`, `requirements.txt`; `.env`/logs git-ignored
 - Checks run here: `npx tsc --noEmit` 0 errors · `npm run lint` clean · `npm run build` passes (Google Fonts mocked — sandbox has no internet) · `pytest test_state.py` 19/19 · migration parsed OK by a Postgres parser (pglast) · one monitor cycle smoke-tested with fake Supabase/mailer · demo-mode screenshots of all 4 tabs + Store Detail, no runtime errors
 
+## Fix 2026-10-10 13:40 — reader refuses to read when iVMS is covered (`ivms-monitor` 1.0.1)
+- Symptom on the Design PC: 8 stores seen Offline every run but never confirmed; web not updating. Cause: the Command Prompt window overlapped the iVMS table. When Windows blocks bringing iVMS to the front, the screenshot shows that window instead of the status icons → "ไม่เจอปุ่ม Refresh" or a false "Offline 0" read that resets every streak (also explains the wrong 12:42 "กลับมา 6" email)
+- `ivms_reader.py`: `_check_unobstructed()` samples 42 points across the iVMS window with `WindowFromPoint`; any point owned by another process → ReaderError → run status `failed` (no state change). Checked before the Refresh click and before both reads; iVMS is brought to front again after the 20 s settle
+- README: minimise the Command Prompt that runs the script
+- Tested here with stubs only (no Windows); needs a run on the Design PC
+
 ## Change 2026-10-10 (afternoon) — Device Status tweaks after first live look (user request)
 - Live tab actions are icon buttons now: wrench (open repair ticket), file (Details → /recovery/[code]), bell-off/bell (Mute / unmute), each with tooltip + aria-label
 - Wrench shows only when a DVR is Offline ≥ `REPAIR_SUGGEST_MINUTES` (120, in `src/lib/monitoring.ts`) and the user can log maintenance. Red = no open ticket → `/assets/[code]?newTicket=NVR Offline&note=…#tickets`, which opens the New Ticket form pre-filled (nothing is saved until Create Ticket). Grey = store already has an open ticket → links to it

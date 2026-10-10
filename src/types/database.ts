@@ -320,6 +320,8 @@ export interface StoreMonitor {
   muted_by: string | null;
   note: string | null;
   updated_at: string;
+  /** Last script round that saw this store in iVMS, Online or Offline (migration 023; absent before it runs). */
+  last_checked_at?: string | null;
 }
 
 export interface DeviceOutage {

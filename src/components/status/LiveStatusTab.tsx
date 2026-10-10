@@ -152,7 +152,7 @@ export function LiveStatusTab() {
                 <th className="px-2 py-2.5 font-semibold">สาขา</th>
                 <th className="px-2 py-2.5 font-semibold w-[60px]">เขต</th>
                 <th className="px-2 py-2.5 font-semibold w-[170px]">สถานะ</th>
-                <th className="px-2 py-2.5 font-semibold w-[120px]">Last seen</th>
+                <th className="px-2 py-2.5 font-semibold w-[120px]" title="รอบล่าสุดที่สคริปต์เห็นสาขานี้ใน iVMS (บัญชีไหนก็ได้)">อัปเดตล่าสุด</th>
                 <th className="px-2 py-2.5 font-semibold w-[120px]">หลุดมานาน</th>
                 <th className="px-2 py-2.5 font-semibold w-[110px]">เวลาทำการ</th>
                 <th className="px-4 py-2.5 w-[140px]">
@@ -183,7 +183,7 @@ export function LiveStatusTab() {
                     <td className="px-2 py-2.5">
                       <MonitorStatusPill status={r.status} />
                     </td>
-                    <td className="px-2 py-2.5 font-mono text-xs text-ink-soft dark:text-white/60 whitespace-nowrap">{m?.monitored ? formatSeen(m.last_seen_at) : "—"}</td>
+                    <td className="px-2 py-2.5 font-mono text-xs text-ink-soft dark:text-white/60 whitespace-nowrap">{m?.monitored ? formatSeen(m.last_checked_at ?? m.last_seen_at) : "—"}</td>
                     <td className={clsx("px-2 py-2.5 text-xs whitespace-nowrap", r.status === "Offline" ? "font-semibold text-status-offline" : "text-ink-faint")}>
                       {r.offlineMinutes != null ? formatDuration(r.offlineMinutes) : "—"}
                     </td>

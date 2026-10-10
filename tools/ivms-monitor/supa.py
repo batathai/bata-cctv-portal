@@ -28,6 +28,7 @@ class Supa:
             raise SupabaseError(f"SUPABASE_URL ควรเป็นแบบ https://xxxx.supabase.co (ตอนนี้คือ {url!r})")
         self.base = url + "/rest/v1"
         self.timeout = timeout
+        self._has_last_checked = None  # migration 023 รันแล้วหรือยัง (ตรวจครั้งแรกที่เขียน)
         self.s = requests.Session()
         self.s.headers.update({
             "apikey": service_key,
@@ -106,7 +107,12 @@ class Supa:
         for oid, cols in plan.outage_updates.items():
             if cols:
                 self.patch("device_outages", {"id": f"eq.{oid}"}, cols)
+        if self._has_last_checked is None:
+            r = self.s.get(f"{self.base}/store_monitor", params={"select": "last_checked_at", "limit": "1"}, timeout=self.timeout)
+            self._has_last_checked = r.status_code < 300
         for sid, cols in plan.monitor_updates.items():
+            if cols and not self._has_last_checked:
+                cols = {k: v for k, v in cols.items() if k != "last_checked_at"}
             if cols:
                 self.patch("store_monitor", {"store_id": f"eq.{sid}"}, cols)
         # ให้ online_status เดิมของ stores ตรงกับสถานะจริง (เฉพาะสาขาที่ monitored)

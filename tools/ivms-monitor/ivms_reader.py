@@ -35,7 +35,9 @@ from winsdk.windows.storage.streams import DataWriter  # noqa: E402
 
 SCALE = 2
 SETTLE_SECONDS = 20          # หลัง Refresh หน้าจอยังไม่นิ่ง ~5 วิ (ทดสอบแล้ว) เผื่อไว้ 20
-SECOND_READ_GAP = 5
+SECOND_READ_GAP = 5          # (เดิม) ไม่ใช้แล้วตั้งแต่ 1.1.0
+PAGE_GAP = 1.5               # รอหลังเลื่อนหน้า / ระหว่างจับภาพ 2 ครั้งของหน้าเดียวกัน
+MAX_PAGES = 12               # กันวนไม่จบ (67 เครื่อง ≈ 3 หน้า)
 # ชื่อเครื่องใน iVMS มีทั้ง "52017 - Lotus Maesot" และ "52002 CentralPlaza Chiang Rai" (ไม่มีขีด)
 # เดิมบังคับต้องมีขีด -> แถวแบบไม่มีขีดถูกข้ามเงียบๆ (พบ 10 ต.ค.: Offline 10 แต่อ่านได้ 8)
 CODE_RE = re.compile(r"\b(\d{5})\s*(?:[-–]\s*)?([^\d\s].*)")
@@ -260,24 +262,125 @@ def read_page(shot):
     return rows, total, words
 
 
-def _summarize(rows, total):
-    statuses = [r[2] for r in rows]
-    if total and not rows:
-        raise ReaderError(f"iVMS บอก Total({total}) แต่อ่านแถวในตารางไม่ได้เลย")
-    if "?" in statuses:
-        raise ReaderError(f"อ่านสถานะไม่ได้ {statuses.count('?')} แถว")
-    first_online = statuses.index("Online") if "Online" in statuses else len(statuses)
-    if any(s != "Online" for s in statuses[first_online:]):
-        seen = ", ".join(f"{c}:{s[:3]}" for c, _, s in rows[:30])
-        raise ReaderError("ตารางไม่ได้เรียง Offline ไว้บนสุด — คลิกหัวคอลัมน์ 'Resource Usage Status' ใน iVMS 1 ครั้ง"
-                          f" | ลำดับที่อ่านได้ ({len(rows)} แถว): {seen}")
-    offline = [(c, n) for c, n, s in rows if s == "Offline"]
-    page_full = bool(rows) and first_online == len(statuses)
-    return {"total": total, "offline": offline, "page_full": page_full}
+def _header_y(words):
+    h = next((w for w in words if w["text"] == "Name"), None)
+    return h["y"] if h else None
+
+
+def _find_scrollbar(shot, header_y):
+    """แถบเลื่อนแนวตั้งที่ขอบขวาของตาราง: คอลัมน์พิกเซลที่มีช่วง 'สว่างกว่าพื้น' ยาวที่สุด = thumb
+    คืน (x, ยาว, thumb_top, thumb_bottom) ในพิกัดหน้าต่าง หรือ None ถ้าไม่มี (ตารางพอดีหน้าเดียว)
+    ทดสอบบนเครื่อง Design 10 ต.ค.: คลิกรางใต้ thumb = เลื่อนลง 1 หน้า (ล้อเมาส์/Page Down ใช้ไม่ได้)"""
+    w, h = shot.size
+    y0, y1 = int((header_y or 100) + 20), h - 8
+    best = None
+    for x in range(w - 3, max(w - 60, 0), -1):
+        vals = [sum(shot.getpixel((x, y))[:3]) / 3 for y in range(y0, y1)]
+        if not vals:
+            continue
+        bg = sorted(vals)[len(vals) // 4]
+        run = start = 0
+        best_run = (0, 0, 0)
+        for i, v in enumerate(vals):
+            if v > bg + 25:
+                if run == 0:
+                    start = i
+                run += 1
+                if run > best_run[0]:
+                    best_run = (run, start, start + run)
+            else:
+                run = 0
+        if best_run[0] >= 25 and (best is None or best_run[0] > best[1]):
+            best = (x, best_run[0], y0 + best_run[1], y0 + best_run[2])
+    return best
+
+
+def _row_key(rows):
+    return [(c, st) for c, _, st in rows]
+
+
+def _read_stable_page(win, rect):
+    """จับภาพหน้าที่แสดงอยู่ 2 ครั้งห่าง PAGE_GAP ต้องได้ผลตรงกัน (กันหน้าจอยังไม่นิ่ง) ลองซ้ำได้ 1 ครั้ง"""
+    for _ in range(2):
+        _check_unobstructed(win, rect)
+        s1 = _grab(rect)
+        r1, t1, _ = read_page(s1)
+        time.sleep(PAGE_GAP)
+        _check_unobstructed(win, rect)
+        s2 = _grab(rect)
+        r2, t2, w2 = read_page(s2)
+        if _row_key(r1) == _row_key(r2) and t1 == t2:
+            return r2, t2, w2, s2
+        time.sleep(2)
+    raise ReaderError("อ่านหน้าเดียวกัน 2 ครั้งไม่ตรงกัน (หน้าจอยังไม่นิ่ง)")
+
+
+def _scroll_to_top(win, rect):
+    """คลิกรางเหนือ thumb จนแถวบนสุดไม่เปลี่ยน (= อยู่บนสุดแล้ว)"""
+    prev = None
+    for _ in range(MAX_PAGES):
+        shot = _grab(rect)
+        rows, _, words = read_page(shot)
+        first = _row_key(rows)[:3]
+        if prev is not None and first == prev:
+            return
+        prev = first
+        hy = _header_y(words)
+        sb = _find_scrollbar(shot, hy)
+        if not sb:
+            return
+        x, _, top, _ = sb
+        y = top - 15
+        if y <= (hy or 100) + 22:  # ไม่มีรางเหลือเหนือ thumb = บนสุดแล้ว
+            return
+        mouse.click(coords=(rect.left + x, rect.top + y))
+        time.sleep(PAGE_GAP)
+
+
+def _read_all_pages(win, rect):
+    """อ่านทุกหน้าของตาราง: เริ่มจากบนสุด, คลิกรางใต้ thumb ทีละหน้า จนเห็นครบตาม Total
+    คืน (rows_by_device {(code, name): status}, total, first_shot)"""
+    _scroll_to_top(win, rect)
+    seen = {}
+    total = None
+    first_shot = None
+    for page in range(MAX_PAGES):
+        rows, t, words, shot = _read_stable_page(win, rect)
+        first_shot = first_shot or shot
+        if t is not None:
+            total = t
+        if page == 0 and total and not rows:
+            raise ReaderError(f"iVMS บอก Total({total}) แต่อ่านแถวในตารางไม่ได้เลย")
+        new = 0
+        for c, n, st in rows:
+            if st == "?":
+                raise ReaderError(f"อ่านสถานะของ {c} ไม่ได้")
+            key = (c, n)
+            if key in seen and seen[key] != st:
+                raise ReaderError(f"สถานะ {c} ไม่ตรงกันระหว่างหน้า (หน้าจอเปลี่ยนระหว่างอ่าน)")
+            if key not in seen:
+                seen[key] = st
+                new += 1
+        if total is not None and len(seen) >= total:
+            break
+        if page > 0 and new == 0:
+            break
+        sb = _find_scrollbar(shot, _header_y(words))
+        if not sb:
+            break  # ไม่มีแถบเลื่อน = ทั้งตารางอยู่ในหน้าเดียว
+        x, _, _, bottom = sb
+        y = bottom + 20
+        if y >= (rect.bottom - rect.top) - 12:
+            break  # thumb อยู่ล่างสุดแล้ว
+        mouse.click(coords=(rect.left + x, rect.top + y))
+        time.sleep(PAGE_GAP)
+    _scroll_to_top(win, rect)  # คืนหน้าจอให้คนดูเห็นแถวบนสุดเหมือนเดิม
+    return seen, total, first_shot
 
 
 def read_ivms(log=print, save_capture=False) -> ReadResult:
-    """กด Refresh แล้วอ่าน 2 ครั้ง ต้องได้ผลตรงกัน ; คืน ReadResult(ok=False, error=...) เมื่ออ่านไม่ได้"""
+    """กด Refresh, รอหน้าจอนิ่ง, แล้วอ่านครบทุกหน้า (1.1.0)
+    คืน ReadResult(ok, total, offline, online, complete) หรือ ok=False พร้อม error"""
     try:
         win = find_ivms_window()
         if win is None:
@@ -299,22 +402,23 @@ def read_ivms(log=print, save_capture=False) -> ReadResult:
         _bring_to_front(win, log)  # อาจถูกบังระหว่างรอ 20 วิ
         time.sleep(1.0)
         rect = win.rectangle()
-        _check_unobstructed(win, rect)
-        shot1 = _grab(rect)
-        rows1, total1, _ = read_page(shot1)
-        time.sleep(SECOND_READ_GAP)
-        _check_unobstructed(win, rect)
-        shot2 = _grab(rect)
-        rows2, total2, _ = read_page(shot2)
-        if save_capture:
-            shot2.save(CAPTURE)
-
-        if total1 is None or total2 is None:
+        seen, total, first_shot = _read_all_pages(win, rect)
+        if save_capture and first_shot is not None:
+            first_shot.save(CAPTURE)
+        if total is None:
             raise ReaderError("อ่านยอดรวม Total(...) ไม่ได้")
-        a, b = _summarize(rows1, total1), _summarize(rows2, total2)
-        if a["total"] != b["total"] or sorted(a["offline"]) != sorted(b["offline"]):
-            raise ReaderError(f"อ่าน 2 ครั้งไม่ตรงกัน (Offline {len(a['offline'])} vs {len(b['offline'])}, Total {a['total']} vs {b['total']})")
-        return ReadResult(ok=True, total=b["total"], offline=b["offline"], page_full=b["page_full"])
+
+        # รวมเป็นรายสาขา: เครื่องเดียวกันรหัสเดียวกันหลายตัว -> ถ้ามีตัวไหน Offline ถือว่า Offline
+        by_code = {}
+        for (c, n), st in seen.items():
+            name, cur = by_code.get(c, (n, "Online"))
+            by_code[c] = (name, "Offline" if "Offline" in (cur, st) else "Online")
+        offline = sorted((c, n) for c, (n, st) in by_code.items() if st == "Offline")
+        online = sorted((c, n) for c, (n, st) in by_code.items() if st == "Online")
+        complete = len(seen) >= total
+        if not complete:
+            log(f"warn: อ่านได้ {len(seen)} จาก Total {total} เครื่อง")
+        return ReadResult(ok=True, total=total, offline=offline, online=online, complete=complete)
     except ReaderError as e:
         return ReadResult(ok=False, error=str(e))
     except Exception as e:  # ไม่ให้ loop หลักตาย
@@ -324,5 +428,6 @@ def read_ivms(log=print, save_capture=False) -> ReadResult:
 if __name__ == "__main__":
     # ทดสอบอ่านอย่างเดียว ไม่เขียนอะไรขึ้น Supabase: python ivms_reader.py
     r = read_ivms(save_capture=True)
-    print(r)
-    print(f"ภาพที่สคริปต์เห็นบันทึกไว้ที่ {CAPTURE}")
+    print(f"ok={r.ok} total={r.total} complete={r.complete} offline={len(r.offline)} online={len(r.online or [])} error={r.error}")
+    print("Offline:", [c for c, _ in r.offline])
+    print(f"ภาพหน้าแรกบันทึกไว้ที่ {CAPTURE}")

@@ -23,6 +23,10 @@ Updated: 2026-10-10
 - Interval: 30 min, set in Device Status › ตั้งค่า (no code change)
 - Consequence for code: (1) the reader must read ALL rows, not just page one (~26) — needs a way to scroll the iVMS table; (2) `state.py` must stop marking every not-seen monitored store Online (today's rule assumes one account and an Offline-first first page)
 - Step 1 = `tools/ivms-monitor/probe_scroll.py`: tests clicking the scrollbar track and dragging the thumb (wheel / Page Down were ignored on 7 Oct). Waiting for the user to run it on the Design PC
+- Probe result 14:16: **clicking the scrollbar track below the thumb scrolls one page** (page 1 = 25 rows, page 2 = 27 new rows); dragging the thumb does nothing
+- **ivms-monitor 1.1.0** (implemented 14:30): `ivms_reader.py` scrolls to top, reads every page (each page read twice 1.5 s apart, must match), clicks the track for the next page until rows seen = Total, scrolls back to top; returns `online` + `offline` + `complete`. `state.py`: when `online` is present, only stores seen are updated (seen Offline → streak/confirm as before; seen Online → Online, closes outage), every seen store is auto-ticked and gets `last_checked_at`; stores not seen are untouched; incomplete read = `partial`. 5 new tests (25/25). Paging loop simulated against a fake 67-row table (from top and from bottom: 67/67, ends at top)
+- Migration `023_store_monitor_last_checked.sql` adds `store_monitor.last_checked_at`; script skips the column until it exists. Live table column "Last seen" → "อัปเดตล่าสุด" (last_checked_at, falls back to last_seen_at)
+- Not tested on Windows yet: real scrollbar detection across 3 pages, and returning to the top
 - The 56 BKK stores ticked from the 8 Oct list will then simply show last seen 8 Oct (true), no list cleanup needed
 
 ## Fix 2026-10-10 13:40 — reader refuses to read when iVMS is covered (`ivms-monitor` 1.0.1)

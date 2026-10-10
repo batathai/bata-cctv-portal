@@ -180,6 +180,7 @@ class Monitor:
     open_time: Optional[time] = None
     close_time: Optional[time] = None
     muted_until: Optional[datetime] = None
+    last_checked_at: Optional[datetime] = None   # รอบล่าสุดที่เห็นสาขานี้ใน iVMS (migration 023)
 
     @classmethod
     def from_row(cls, r: dict) -> "Monitor":
@@ -196,6 +197,7 @@ class Monitor:
             open_time=parse_time(r.get("open_time")),
             close_time=parse_time(r.get("close_time")),
             muted_until=parse_ts(r.get("muted_until")),
+            last_checked_at=parse_ts(r.get("last_checked_at")),
         )
 
     def hours(self, s: Settings):
@@ -251,6 +253,10 @@ class ReadResult:
     offline: list = field(default_factory=list)   # [(code, name)]
     page_full: bool = False
     error: Optional[str] = None
+    # ตั้งแต่ 1.1.0 ตัวอ่านเลื่อนอ่านครบทุกหน้า: online = เครื่องที่เห็นว่า Online, complete = เห็นครบตาม Total
+    # online=None = ตัวอ่านแบบเก่า (หน้าแรกหน้าเดียว) -> ใช้กติกาเดิม
+    online: Optional[list] = None                  # [(code, name)]
+    complete: bool = True
 
 
 @dataclass
@@ -312,14 +318,24 @@ def plan_cycle(
         status, err = "failed", read.error or "อ่านยอดรวม (Total) ไม่ได้"
     elif read.total > 0 and len(read.offline) / read.total >= s.suspect_ratio:
         status = "suspect"
-    elif read.page_full:
+    elif read.page_full or (read.online is not None and not read.complete):
         status = "partial"
 
+    # full = ตัวอ่านเห็นทุกแถวของบัญชี iVMS ที่เปิดอยู่ (Online + Offline)
+    # กติกา 10 ต.ค. (HQ มี 2 บัญชี): เห็นสาขาไหนอัปเดตตามที่เห็น, ไม่เห็น = ไม่แตะ
+    full = read.online is not None
     matched, unmatched = [], []
+    matched_online = []
     for code, name in (read.offline if status != "failed" else []):
         st = by_code.get(code)
         if st:
             matched.append((st, name))
+        else:
+            unmatched.append(f"{code} - {name}".strip(" -"))
+    for code, name in ((read.online or []) if status != "failed" else []):
+        st = by_code.get(code)
+        if st:
+            matched_online.append((st, name))
         else:
             unmatched.append(f"{code} - {name}".strip(" -"))
 
@@ -345,7 +361,8 @@ def plan_cycle(
         return plan
 
     # สาขาที่เห็นใน iVMS แต่ยังไม่ได้ติ๊ก -> ติ๊กให้เลย (R1/R9) + จำชื่อเครื่อง
-    for st, name in matched:
+    # monitored = "เคย sync แล้ว"; ไม่เคย sync = ยังไม่มีกล้องใน iVMS
+    for st, name in matched + matched_online:
         m = mons[st.id]
         cols = {}
         if not m.monitored:
@@ -368,10 +385,15 @@ def plan_cycle(
 
     # ---- 3) ตัดสินรายสาขา (ok / partial)
     seen_offline = {st.id for st, _ in matched}
+    seen_online = {st.id for st, _ in matched_online}
     newly_closed = []
     for sid, m in mons.items():
         if not m.monitored or sid not in by_id:
             continue
+        if full and sid not in seen_offline and sid not in seen_online:
+            continue  # อยู่บัญชี iVMS อื่น / ไม่ได้เปิดอยู่ตอนนี้ -> คงค่าเดิม (สถานะ + เวลาอัปเดตล่าสุด)
+        if full:
+            set_mon(sid, last_checked_at=now)
         if sid in seen_offline:
             streak = m.offline_streak + 1
             if m.state != "Offline" and streak >= s.confirm_cycles:
@@ -387,7 +409,7 @@ def plan_cycle(
                 plan.store_online_status[sid] = "Offline"
             elif m.offline_streak != streak:
                 set_mon(sid, offline_streak=streak)
-        elif status == "ok":
+        elif status == "ok" or sid in seen_online:
             if m.state == "Offline":
                 o = outages.pop(m.current_outage_id, None) if m.current_outage_id else None
                 if o:

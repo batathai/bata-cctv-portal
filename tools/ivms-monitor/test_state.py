@@ -265,3 +265,53 @@ def test_one_email_per_cycle_lists_everything():
 
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))
+
+
+# ---------------------------------------------------------------- 1.1.0: อ่านครบทุกหน้า, 2 บัญชี iVMS
+def full(total, offline=(), online=(), complete=True):
+    names = {s.code: s.name for s in STORES}
+    return ReadResult(ok=True, total=total, offline=[(c, names.get(c, "?")) for c in offline],
+                      online=[(c, names.get(c, "?")) for c in online], complete=complete)
+
+
+def test_full_read_leaves_stores_of_other_account_untouched():
+    # s1 อยู่บัญชีที่เปิดอยู่ (Online), s2 อยู่อีกบัญชี (ไม่เห็น) -> s2 ห้ามถูกเปลี่ยนเป็น Online
+    mons = {"s1": mon("s1", state="Online"), "s2": mon("s2", state="Offline", offline_streak=3, last_seen_at=at(9))}
+    p = run(at(14), full(1, online=["51403"]), mons)
+    assert "s2" not in p.monitor_updates
+    assert p.monitor_updates["s1"]["last_checked_at"]
+    assert p.run["status"] == "ok"
+
+
+def test_full_read_auto_ticks_online_stores_too():
+    # เห็น s3 Online ครั้งแรก -> ติ๊ก monitored (เคย sync) และเป็น Online ทันที
+    mons = {"s3": mon("s3", monitored=False, state="Unknown", last_seen_at=None)}
+    p = run(at(14), full(1, online=["54013"]), mons)
+    u = p.monitor_updates["s3"]
+    assert u["monitored"] is True and u["state"] == "Online" and u["first_seen_at"]
+    assert p.store_online_status == {"s3": "Online"}
+
+
+def test_full_read_offline_still_needs_two_cycles():
+    mons = {"s1": mon("s1")}
+    p1 = run(at(14), full(10, offline=["51403"]), mons)
+    assert p1.new_outages == [] and p1.monitor_updates["s1"]["offline_streak"] == 1
+    mons["s1"].offline_streak = 1
+    p2 = run(at(14, 30), full(10, offline=["51403"]), mons)
+    assert len(p2.new_outages) == 1 and p2.store_online_status == {"s1": "Offline"}
+
+
+def test_full_read_seen_online_closes_outage():
+    o = Outage(id="o9", store_id="s1", started_at=at(12), detected_at=at(12, 10), during_business_hours=True)
+    mons = {"s1": mon("s1", state="Offline", current_outage_id="o9", offline_streak=2)}
+    p = run(at(14), full(1, online=["51403"]), mons, open_outages=[o])
+    assert p.outage_updates["o9"]["ended_at"]
+    assert p.monitor_updates["s1"]["state"] == "Online"
+
+
+def test_incomplete_full_read_is_partial_but_updates_what_it_saw():
+    mons = {"s1": mon("s1", state="Unknown"), "s2": mon("s2", state="Online")}
+    p = run(at(14), full(3, online=["51403"], complete=False), mons)
+    assert p.run["status"] == "partial"
+    assert p.monitor_updates["s1"]["state"] == "Online"
+    assert "s2" not in p.monitor_updates

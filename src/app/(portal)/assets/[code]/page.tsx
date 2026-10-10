@@ -100,7 +100,7 @@ export default function StoreDetailPage() {
         <Row label="Total" value={store.asset?.camera_total} />
       </Card>
 
-      <Card className="p-5">
+      <Card className="p-5 scroll-mt-20" id="tickets">
         <SectionTitle icon={TicketIcon}>Repair Tickets</SectionTitle>
         <TicketsCard store={store} canEdit={canLogWork} />
       </Card>

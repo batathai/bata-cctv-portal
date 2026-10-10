@@ -48,7 +48,6 @@ function DeviceStatusInner() {
     <div className="space-y-4">
       <div>
         <h1 className="font-display text-xl font-bold text-ink dark:text-white">Device Status</h1>
-        <p className="text-sm text-ink-soft dark:text-white/60">สถานะ DVR ของสาขา อ่านจาก iVMS-4200 ที่ HQ อัตโนมัติ</p>
       </div>
 
       <div role="tablist" aria-label="Device Status" className="flex flex-wrap gap-1 border-b border-black/10 dark:border-white/10">

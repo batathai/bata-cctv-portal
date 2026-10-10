@@ -28,6 +28,8 @@ export const DEFAULT_MONITOR_SETTINGS: MonitorSettings = {
 };
 
 export const MAX_MUTE_DAYS = 30;
+/** Offline at least this long (and not muted) → Device Status suggests opening a repair ticket. */
+export const REPAIR_SUGGEST_MINUTES = 120;
 export const TOTAL_STORES_TARGET = 194;
 const TZ = "Asia/Bangkok";
 

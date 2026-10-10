@@ -18,6 +18,14 @@ Updated: 2026-10-10
   - HQ script `tools/ivms-monitor/`: `state.py` (pure rules), `test_state.py` (19 tests), `ivms_reader.py` (from probe v6 + refresh probe, double read), `supa.py`, `notify.py`, `monitor.py` (`--once`, `--dry-run`), `README.md` (install + Task Scheduler), `.env.example`, `requirements.txt`; `.env`/logs git-ignored
 - Checks run here: `npx tsc --noEmit` 0 errors · `npm run lint` clean · `npm run build` passes (Google Fonts mocked — sandbox has no internet) · `pytest test_state.py` 19/19 · migration parsed OK by a Postgres parser (pglast) · one monitor cycle smoke-tested with fake Supabase/mailer · demo-mode screenshots of all 4 tabs + Store Detail, no runtime errors
 
+## Change 2026-10-10 (afternoon) — Device Status tweaks after first live look (user request)
+- Live tab actions are icon buttons now: wrench (open repair ticket), file (Details → /recovery/[code]), bell-off/bell (Mute / unmute), each with tooltip + aria-label
+- Wrench shows only when a DVR is Offline ≥ `REPAIR_SUGGEST_MINUTES` (120, in `src/lib/monitoring.ts`) and the user can log maintenance. Red = no open ticket → `/assets/[code]?newTicket=NVR Offline&note=…#tickets`, which opens the New Ticket form pre-filled (nothing is saved until Create Ticket). Grey = store already has an open ticket → links to it
+- Page subtitle "สถานะ DVR ของสาขา อ่านจาก iVMS-4200 ที่ HQ อัตโนมัติ" removed
+- Health banner: shown only when screen data can't be trusted (stale / never / notInstalled / suspect). ok, one failed read, page full and count mismatch now show only the "โหลดใหม่" button (admin still gets the 3-failures email; mismatch still visible in Rollout)
+- Files: `src/components/status/LiveStatusTab.tsx`, `src/components/status/MonitorHealthBanner.tsx`, `src/app/(portal)/status/page.tsx`, `src/lib/monitoring.ts`, `src/components/assets/TicketsCard.tsx`, `src/app/(portal)/assets/[code]/page.tsx`
+- First run on the Design PC (10 Oct 12:42–12:56): reader OK (Total 67); 12:42 read 0 Offline because the table was not yet sorted → 6 outages closed wrongly + a wrong "กลับมา 6" email; 12:51/12:56 failed "ไม่เจอปุ่ม Refresh" (iVMS window covered by another window). Open issue: detect an unsorted table when no Offline row is visible (check the sort arrow on the Resource Usage Status header)
+
 ## Addition 2026-10-10 — DVR dot in Asset Register (user request, branch `feat/asset-register-device-dot`)
 - User wanted the iVMS Online/Offline result visible from Asset Register. Its Status column is camera health (`overall_status`, Survey/manual) and stays untouched
 - A full "DVR (iVMS)" column was built first, then dropped by the user: it duplicated /status and put two "Online" pills side by side

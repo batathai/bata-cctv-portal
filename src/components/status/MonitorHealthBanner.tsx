@@ -14,6 +14,26 @@ export function MonitorHealthBanner({ onGoRollout }: { onGoRollout?: () => void 
   const { health, latestRun, settings, error, refresh, loading } = useMonitoring();
   if (loading) return null;
 
+  // User request 2026-10-10: show the coloured strip only when the numbers on
+  // screen can't be trusted (script silent, never ran, DB missing, central
+  // outage). Routine states — ok, one failed read, page full, count mismatch —
+  // show just the reload button; the admin still gets the "failed 3 times"
+  // email and the Rollout tab still shows the count mismatch.
+  const warn = health.kind === "stale" || health.kind === "never" || health.kind === "notInstalled" || health.kind === "suspect";
+  if (!warn) {
+    return (
+      <div className="flex justify-end">
+        <button
+          onClick={() => refresh()}
+          className="inline-flex items-center gap-1.5 text-xs font-medium text-ink-soft dark:text-white/60 underline-offset-2 hover:underline hover:text-ink dark:hover:text-white"
+          aria-label="โหลดสถานะใหม่"
+        >
+          <RefreshCw size={12} /> โหลดใหม่
+        </button>
+      </div>
+    );
+  }
+
   const lastRun = latestRun ? formatSeen(latestRun.ran_at) : "—";
   const tone =
     health.kind === "ok" ? "ok" : health.kind === "stale" || health.kind === "failed" || health.kind === "suspect" || health.kind === "notInstalled" ? "bad" : "warn";

@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import clsx from "clsx";
-import { Search, FileText, BellOff, Bell } from "lucide-react";
+import { Search, FileText, BellOff, Bell, Wrench } from "lucide-react";
 import { useAppData } from "@/components/providers/AppDataProvider";
 import { useMonitoring } from "@/components/providers/MonitoringProvider";
 import { Card } from "@/components/ui/Card";
@@ -11,11 +11,15 @@ import { getStatusLabel } from "@/components/ui/Badge";
 import { MonitorStatusPill } from "@/components/status/MonitorStatusPill";
 import { MuteDialog } from "@/components/status/MuteDialog";
 import {
-  buildLiveRows, formatDuration, formatSeen, ZONES_BY_REGION, TOTAL_STORES_TARGET,
+  buildLiveRows, formatDuration, formatSeen, ZONES_BY_REGION, TOTAL_STORES_TARGET, REPAIR_SUGGEST_MINUTES,
   type DisplayStatus, type RegionKey, type LiveRow,
 } from "@/lib/monitoring";
 import { canLogMaintenance } from "@/lib/rbac";
+import { hasOpenTicket } from "@/lib/tickets";
 import type { StoreWithAssets } from "@/types/database";
+
+const iconBtn =
+  "inline-flex items-center justify-center w-8 h-8 rounded-md border border-black/10 dark:border-white/10 text-ink-soft dark:text-white/70 hover:bg-surface-muted dark:hover:bg-white/5 hover:text-ink dark:hover:text-white";
 
 type StatusFilter = "" | "Offline" | "Online" | "Muted" | "NotMonitored";
 
@@ -27,7 +31,7 @@ function matchesStatus(s: DisplayStatus, f: StatusFilter) {
 
 /** Tab 1 of /status: live Online/Offline per store from the iVMS monitor (R7). */
 export function LiveStatusTab() {
-  const { stores, role } = useAppData();
+  const { stores, role, tickets } = useAppData();
   const { monitors, settings, stale, unmuteStore } = useMonitoring();
   const [region, setRegion] = useState<"" | RegionKey>("");
   const [zone, setZone] = useState("");
@@ -151,7 +155,7 @@ export function LiveStatusTab() {
                 <th className="px-2 py-2.5 font-semibold w-[120px]">Last seen</th>
                 <th className="px-2 py-2.5 font-semibold w-[120px]">หลุดมานาน</th>
                 <th className="px-2 py-2.5 font-semibold w-[110px]">เวลาทำการ</th>
-                <th className="px-4 py-2.5 w-[190px]">
+                <th className="px-4 py-2.5 w-[140px]">
                   <span className="sr-only">การทำงาน</span>
                 </th>
               </tr>
@@ -188,30 +192,41 @@ export function LiveStatusTab() {
                       {r.hours.custom && <span className="ml-1 text-brand" title="ตั้งเฉพาะสาขานี้">*</span>}
                     </td>
                     <td className="px-4 py-2.5">
-                      <div className="flex justify-end gap-1.5">
-                        <Link
-                          href={`/recovery/${r.store.store_code}`}
-                          className="inline-flex items-center gap-1 h-8 px-2.5 text-xs font-medium whitespace-nowrap border border-black/10 dark:border-white/10 rounded-md hover:bg-surface-muted dark:hover:bg-white/5"
-                        >
-                          <FileText size={12} /> Details
+                      <div className="flex justify-end gap-1">
+                        {(() => {
+                          // Wrench = open a repair ticket, offered once a DVR has been offline
+                          // REPAIR_SUGGEST_MINUTES (and isn't muted). If the store already has an
+                          // open ticket, the wrench turns grey and just links to it.
+                          const longOffline = r.status === "Offline" && (r.offlineMinutes ?? 0) >= REPAIR_SUGGEST_MINUTES;
+                          if (!canEdit || !longOffline) return <span className="w-8" aria-hidden="true" />;
+                          const open = hasOpenTicket(r.store.id, tickets);
+                          const label = open ? "มีเคสซ่อมเปิดอยู่แล้ว — ดูเคส" : `เปิดเคสซ่อม (Offline ${formatDuration(r.offlineMinutes)})`;
+                          const href = open
+                            ? `/assets/${r.store.store_code}#tickets`
+                            : `/assets/${r.store.store_code}?newTicket=${encodeURIComponent("NVR Offline")}&note=${encodeURIComponent(
+                                `DVR Offline จาก iVMS ตั้งแต่ ${formatSeen(m?.last_seen_at ?? m?.state_since)} (${formatDuration(r.offlineMinutes)})`
+                              )}#tickets`;
+                          return (
+                            <Link href={href} title={label} aria-label={label} className={clsx(iconBtn, open ? "text-ink-faint" : "text-status-offline border-status-offline/40 bg-status-offline/5")}>
+                              <Wrench size={15} />
+                            </Link>
+                          );
+                        })()}
+                        <Link href={`/recovery/${r.store.store_code}`} title="ดูรายละเอียดสาขา" aria-label="ดูรายละเอียดสาขา" className={iconBtn}>
+                          <FileText size={15} />
                         </Link>
-                        {canEdit && m?.monitored && (
+                        {canEdit && m?.monitored ? (
                           r.muted ? (
-                            <button
-                              onClick={() => unmute(r)}
-                              disabled={busy === r.store.id}
-                              className="inline-flex items-center gap-1 h-8 px-2.5 text-xs font-medium whitespace-nowrap border border-black/10 dark:border-white/10 rounded-md hover:bg-surface-muted dark:hover:bg-white/5 disabled:opacity-50"
-                            >
-                              <Bell size={12} /> ปลด Mute
+                            <button onClick={() => unmute(r)} disabled={busy === r.store.id} title="ปลด Mute" aria-label="ปลด Mute" className={clsx(iconBtn, "disabled:opacity-50")}>
+                              <Bell size={15} />
                             </button>
                           ) : (
-                            <button
-                              onClick={() => setMuteFor(r.store)}
-                              className="inline-flex items-center gap-1 h-8 px-2.5 text-xs font-medium whitespace-nowrap border border-black/10 dark:border-white/10 rounded-md hover:bg-surface-muted dark:hover:bg-white/5"
-                            >
-                              <BellOff size={12} /> Mute
+                            <button onClick={() => setMuteFor(r.store)} title="ปิดเตือนชั่วคราว (Mute)" aria-label="ปิดเตือนชั่วคราว (Mute)" className={iconBtn}>
+                              <BellOff size={15} />
                             </button>
                           )
+                        ) : (
+                          <span className="w-8" aria-hidden="true" />
                         )}
                       </div>
                     </td>
@@ -223,7 +238,7 @@ export function LiveStatusTab() {
           {filtered.length === 0 && <p className="text-sm text-ink-faint py-8 text-center">ไม่มีสาขาในกลุ่มนี้</p>}
         </div>
         <div className="px-4 py-2.5 text-[11px] text-ink-faint border-t border-black/5 dark:border-white/10">
-          เรียง: Offline (หลุดนานสุดบนสุด) → Muted → Online → Not monitored · โหลดใหม่เองทุก 60 วินาที · * = เวลาทำการเฉพาะสาขา
+          เรียง: Offline (หลุดนานสุดบนสุด) → Muted → Online → Not monitored · โหลดใหม่เองทุก 60 วินาที · * = เวลาทำการเฉพาะสาขา · ประแจแดง = Offline เกิน {REPAIR_SUGGEST_MINUTES / 60} ชม. กดเพื่อเปิดเคสซ่อม
         </div>
       </Card>
 

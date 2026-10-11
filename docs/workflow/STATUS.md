@@ -4,6 +4,12 @@ Phase: /test in progress (HQ script verified end-to-end on 2026-10-08)
 Design approved: yes — 2026-10-08 — DESIGN-device-offline-monitoring.md as written (iVMS reader, migration 022, 4-tab /status, Store Detail card, confirm Offline after 2 cycles, 10:00–22:00 default hours, R11 dropped from phase 1)
 Updated: 2026-10-10
 
+## Second feature — Store closure (ปิดสาขา)
+Phase: planning done (2026-10-11) — plan `docs/workflow/PLAN-store-closure.md`
+Trigger: 51512 Seacon Square (closed long ago) showed Online — a leftover from the 1.0.2 rule; cleanup SQL given to the user 2026-10-11
+Decisions (user, 2026-10-11): closed stores hidden everywhere except Asset Register (filter + grey tag); close/reopen via a button in the store's Edit Detail; first batch by SQL
+Next step: `/design` (needs the list of closed store codes)
+
 ## Done
 - Plan: docs/workflow/PLAN-device-offline-monitoring.md (R1–R12)
 - M0 feasibility 2026-10-07: iVMS-4200 Cloud P2P page read by screenshot + Windows OCR + icon colour (27/27 rows; Offline-first sort; scripted Refresh works)

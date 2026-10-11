@@ -11,7 +11,7 @@ import { getStatusLabel } from "@/components/ui/Badge";
 import { MonitorStatusPill } from "@/components/status/MonitorStatusPill";
 import { MuteDialog } from "@/components/status/MuteDialog";
 import {
-  buildLiveRows, formatDuration, formatSeen, ZONES_BY_REGION, TOTAL_STORES_TARGET, REPAIR_SUGGEST_MINUTES,
+  buildLiveRows, formatDuration, formatSeen, ZONES_BY_REGION, REPAIR_SUGGEST_MINUTES,
   type DisplayStatus, type RegionKey, type LiveRow,
 } from "@/lib/monitoring";
 import { canLogMaintenance } from "@/lib/rbac";
@@ -43,9 +43,17 @@ export function LiveStatusTab() {
 
   const rows = useMemo(() => buildLiveRows(stores, monitors, settings, stale), [stores, monitors, settings, stale]);
 
+  // KPI cards follow the region / zone chosen below (user request 2026-10-11):
+  // picking BKK shows only BKK numbers. Search text and the status card itself
+  // don't change the counts.
+  const scoped = useMemo(
+    () => rows.filter((r) => (!region || r.region === region) && (!zone || r.zone === zone)),
+    [rows, region, zone]
+  );
+
   const counts = useMemo(() => {
-    const c = { Offline: 0, Online: 0, Muted: 0, NotMonitored: 0, monitored: 0 };
-    rows.forEach((r) => {
+    const c = { Offline: 0, Online: 0, Muted: 0, NotMonitored: 0, monitored: 0, total: scoped.length };
+    scoped.forEach((r) => {
       if (r.status === "Offline") c.Offline++;
       else if (r.status === "Online" || r.status === "Confirming") c.Online++;
       else if (r.status === "Muted") c.Muted++;
@@ -53,14 +61,12 @@ export function LiveStatusTab() {
       if (r.monitor?.monitored) c.monitored++;
     });
     return c;
-  }, [rows]);
+  }, [scoped]);
 
   const zoneOptions = region ? ZONES_BY_REGION[region] : [...ZONES_BY_REGION.BKK, ...ZONES_BY_REGION.UPC];
   const ql = q.trim().toLowerCase();
-  const filtered = rows.filter(
+  const filtered = scoped.filter(
     (r) =>
-      (!region || r.region === region) &&
-      (!zone || r.zone === zone) &&
       (!ql || (r.store.store_code + " " + r.store.store_name).toLowerCase().includes(ql)) &&
       matchesStatus(r.status, statusFilter)
   );
@@ -100,12 +106,12 @@ export function LiveStatusTab() {
         {kpi("Offline", "Offline", counts.Offline, "text-status-offline")}
         {kpi("Online", "Online", counts.Online, "text-status-healthy")}
         {kpi("Muted", "Muted", counts.Muted, "text-ink-soft dark:text-white/70")}
-        {kpi("NotMonitored", "Not monitored", counts.NotMonitored, "text-ink dark:text-white", `เฝ้าอยู่ ${counts.monitored} / ${TOTAL_STORES_TARGET}`)}
+        {kpi("NotMonitored", "Not monitored", counts.NotMonitored, "text-ink dark:text-white", `เฝ้าอยู่ ${counts.monitored} / ${counts.total}`)}
       </div>
 
       <Card className="overflow-hidden">
         <div className="flex flex-wrap items-center gap-2 px-4 py-3 border-b border-black/5 dark:border-white/10">
-          {([["", "ทั้งหมด"], ["BKK", "BKK · 511 512 513 550"], ["UPC", "UPC · 520 530 540 560"]] as const).map(([k, label]) => (
+          {([["", "ทั้งหมด"], ["BKK", "BKK"], ["UPC", "Upcountry"]] as const).map(([k, label]) => (
             <button
               key={k}
               onClick={() => {

@@ -4,6 +4,11 @@ Phase: /test in progress (HQ script verified end-to-end on 2026-10-08)
 Design approved: yes — 2026-10-08 — DESIGN-device-offline-monitoring.md as written (iVMS reader, migration 022, 4-tab /status, Store Detail card, confirm Offline after 2 cycles, 10:00–22:00 default hours, R11 dropped from phase 1)
 Updated: 2026-10-10
 
+## Change 2026-10-11 — region chips (user request)
+- Live tab chips now read "ทั้งหมด / BKK / Upcountry" (zone numbers removed; the zone dropdown is still there)
+- KPI cards (Offline / Online / Muted / Not monitored + "เฝ้าอยู่ X / N") follow the chosen region and zone; N = stores in that scope instead of the hard-coded 194. Search and status filter don't change the counts
+- Checked in demo mode: all 3/23/1/23 (27/50) → BKK 3/12/1/9 (16/25) → Upcountry 0/11/0/14 (11/25)
+
 ## Second feature — Store closure (ปิดสาขา)
 Phase: planning done (2026-10-11) — plan `docs/workflow/PLAN-store-closure.md`
 Trigger: 51512 Seacon Square (closed long ago) showed Online — a leftover from the 1.0.2 rule; cleanup SQL given to the user 2026-10-11

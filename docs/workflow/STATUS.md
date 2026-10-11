@@ -11,6 +11,10 @@ Updated: 2026-10-10
 - Portal: shared `RepairLink`/`repairReason` — red wrench = DVR offline 2 h+ (NVR Offline ticket), amber wrench = DVR Online + Partial (Camera Failure ticket, remark "DVR Online แต่ดูกล้องไม่ได้ — เปิดงานให้ช่างซ่อม"); used in Device Status and in Asset Register's Status cell. Legend "จุดหน้าชื่อสาขา = DVR จาก iVMS" → "Sync Status". `AppDataProvider` re-reads stores every 2 min while visible (Supabase only)
 - Note: a manual Offline on a synced store is overwritten by the next sync (sync is the truth for the DVR); demo mode shows unsynced mock statuses
 
+## Change 2026-10-11 17:30 — live tab cards (user request)
+- Cards: Offline (now includes Muted: DVR still down, only alerts off) · Online (Online + รอยืนยัน) · **Partial "ต้องซ่อมกล้อง"** (replaces the Muted card; click filters to camera-issue stores) · Not monitored (number only, "เฝ้าอยู่ X / N" removed)
+- Demo check: 4 / 20 / 3 / 23 = 50; Partial filter → 3 rows
+
 ## Design 2026-10-11 17:05 — "ต้องซ่อมกล้อง" status (user request)
 - New display status `CameraIssue` = sync says DVR Online but the store is Partial (camera_issue): amber dot/pill (status-partial, same as the Partial badge), label "ต้องซ่อมกล้อง", tooltip "DVR Online แต่ดูกล้องไม่ได้ — เปิดงานซ่อม"; sorted right after Offline; counts as Online in the KPI card and Online filter; amber wrench → Camera Failure ticket
 - "กำลังยืนยัน" (seen offline 1 of N rounds) removed from the legend; it is still online, so it is a green dot (tooltip explains) and a green pill "Online · รอยืนยัน" in Device Status

@@ -11,7 +11,7 @@ import { getStatusLabel } from "@/components/ui/Badge";
 import { MonitorStatusPill } from "@/components/status/MonitorStatusPill";
 import { MuteDialog } from "@/components/status/MuteDialog";
 import {
-  buildLiveRows, formatDuration, formatSeen, ZONES_BY_REGION, REPAIR_SUGGEST_MINUTES, isDvrOnline,
+  buildLiveRows, formatDuration, formatSeen, ZONES_BY_REGION, REPAIR_SUGGEST_MINUTES,
   type DisplayStatus, type RegionKey, type LiveRow,
 } from "@/lib/monitoring";
 import { canLogMaintenance } from "@/lib/rbac";
@@ -21,11 +21,14 @@ import type { StoreWithAssets } from "@/types/database";
 const iconBtn =
   "inline-flex items-center justify-center w-8 h-8 rounded-md border border-black/10 dark:border-white/10 text-ink-soft dark:text-white/70 hover:bg-surface-muted dark:hover:bg-white/5 hover:text-ink dark:hover:text-white";
 
-type StatusFilter = "" | "Offline" | "Online" | "Muted" | "NotMonitored";
+// KPI cards (user request 2026-10-11): Offline (incl. muted — the DVR is still
+// down, only the alerts are off) · Online · Partial = ต้องซ่อมกล้อง · Not monitored.
+type StatusFilter = "" | "Offline" | "Online" | "CameraIssue" | "NotMonitored";
 
 function matchesStatus(s: DisplayStatus, f: StatusFilter) {
   if (!f) return true;
-  if (f === "Online") return isDvrOnline(s);
+  if (f === "Offline") return s === "Offline" || s === "Muted";
+  if (f === "Online") return s === "Online" || s === "Confirming";
   return s === f;
 }
 
@@ -52,13 +55,12 @@ export function LiveStatusTab() {
   );
 
   const counts = useMemo(() => {
-    const c = { Offline: 0, Online: 0, Muted: 0, NotMonitored: 0, monitored: 0, total: scoped.length };
+    const c = { Offline: 0, Online: 0, CameraIssue: 0, NotMonitored: 0 };
     scoped.forEach((r) => {
-      if (r.status === "Offline") c.Offline++;
-      else if (isDvrOnline(r.status)) c.Online++;
-      else if (r.status === "Muted") c.Muted++;
+      if (matchesStatus(r.status, "Offline")) c.Offline++;
+      else if (matchesStatus(r.status, "Online")) c.Online++;
+      else if (r.status === "CameraIssue") c.CameraIssue++;
       else if (r.status === "NotMonitored") c.NotMonitored++;
-      if (r.monitor?.monitored) c.monitored++;
     });
     return c;
   }, [scoped]);
@@ -105,8 +107,8 @@ export function LiveStatusTab() {
       <div className="flex flex-wrap gap-3">
         {kpi("Offline", "Offline", counts.Offline, "text-status-offline")}
         {kpi("Online", "Online", counts.Online, "text-status-healthy")}
-        {kpi("Muted", "Muted", counts.Muted, "text-ink-soft dark:text-white/70")}
-        {kpi("NotMonitored", "Not monitored", counts.NotMonitored, "text-ink dark:text-white", `เฝ้าอยู่ ${counts.monitored} / ${counts.total}`)}
+        {kpi("CameraIssue", "Partial", counts.CameraIssue, "text-[#8A5A00] dark:text-status-partial", "ต้องซ่อมกล้อง")}
+        {kpi("NotMonitored", "Not monitored", counts.NotMonitored, "text-ink dark:text-white")}
       </div>
 
       <Card className="overflow-hidden">
@@ -233,7 +235,7 @@ export function LiveStatusTab() {
           {filtered.length === 0 && <p className="text-sm text-ink-faint py-8 text-center">ไม่มีสาขาในกลุ่มนี้</p>}
         </div>
         <div className="px-4 py-2.5 text-[11px] text-ink-faint border-t border-black/5 dark:border-white/10">
-          เรียง: Offline (หลุดนานสุดบนสุด) → Muted → Online → Not monitored · โหลดใหม่เองทุก 60 วินาที · * = เวลาทำการเฉพาะสาขา · ประแจแดง = DVR Offline เกิน {REPAIR_SUGGEST_MINUTES / 60} ชม. · ประแจเหลือง = DVR Online แต่ดูกล้องไม่ได้ (Partial) · กดเพื่อเปิดเคสซ่อม
+          เรียง: Offline (หลุดนานสุดบนสุด) → ต้องซ่อมกล้อง → Muted → Online → Not monitored · การ์ด Offline รวมสาขาที่ปิดเตือน (Muted) · โหลดใหม่เองทุก 60 วินาที · * = เวลาทำการเฉพาะสาขา · ประแจแดง = DVR Offline เกิน {REPAIR_SUGGEST_MINUTES / 60} ชม. · ประแจเหลือง = DVR Online แต่ดูกล้องไม่ได้ (Partial) · กดเพื่อเปิดเคสซ่อม
         </div>
       </Card>
 

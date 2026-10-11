@@ -42,6 +42,7 @@ Next step: `/design` (needs the list of closed store codes)
 - Suggested to the user: confirm Offline after 1 round when switching accounts every 30 min
 - 2026-10-11 16:08 (BKK account, Total 57): toast "🟡 Sync ไม่ครบทุกเครื่อง" — Offline 3 + Online 51 = 54 of 57. iVMS had its bottom Event pane open, so the table ended ~260 px above the window bottom; the page-down click (thumb bottom + 20 px) landed in the pane once the thumb was near the end → no scroll → last rows unread. Also all rows were ticked (header checkbox) — not done by the script (it only clicks Refresh and the scrollbar at the far right)
 - **1.2.1:** `_table_bottom()` = lowest OCR'd store-code row; scrollbar search and page-down clicks are limited to the table. Simulated 57 rows with the pane open, from top and bottom: 57/57
+- 16:18: 1.2.1 failed every round — "TypeError: 'float' object cannot be interpreted as an integer": the table bottom comes from OCR word coordinates (floats) and went straight into the click; pywinauto needs ints (the simulation's fake mouse accepted floats). **1.2.2** casts click coordinates and the table bottom to int
 - The 56 BKK stores ticked from the 8 Oct list will then simply show last seen 8 Oct (true), no list cleanup needed
 
 ## Fix 2026-10-10 13:40 — reader refuses to read when iVMS is covered (`ivms-monitor` 1.0.1)

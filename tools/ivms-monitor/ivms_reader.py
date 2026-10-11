@@ -270,7 +270,7 @@ def _header_y(words):
 def _table_bottom(words):
     """y ล่างสุดของแถวที่มีรหัสสาขา = ขอบล่างของตาราง (ใต้นั้นอาจเป็นแผง Event ของ iVMS)"""
     ys = [w["y"] + w["h"] for w in words if re.fullmatch(r"\d{5}", w["text"])]
-    return max(ys) if ys else None
+    return int(max(ys)) if ys else None
 
 
 def _find_scrollbar(shot, header_y, table_bottom=None):
@@ -341,7 +341,7 @@ def _scroll_to_top(win, rect):
         y = top - 15
         if y <= (hy or 100) + 22:  # ไม่มีรางเหลือเหนือ thumb = บนสุดแล้ว
             return
-        mouse.click(coords=(rect.left + x, rect.top + y))
+        mouse.click(coords=(int(rect.left + x), int(rect.top + y)))  # OCR ให้พิกัดเป็นทศนิยม; pywinauto รับแค่ int
         time.sleep(PAGE_GAP)
 
 
@@ -384,7 +384,7 @@ def _read_all_pages(win, rect):
         y = min(bottom + 20, limit)
         if y <= bottom + 2:
             break  # thumb อยู่ล่างสุดแล้ว
-        mouse.click(coords=(rect.left + x, rect.top + y))
+        mouse.click(coords=(int(rect.left + x), int(rect.top + y)))  # OCR ให้พิกัดเป็นทศนิยม; pywinauto รับแค่ int
         time.sleep(PAGE_GAP)
     _scroll_to_top(win, rect)  # คืนหน้าจอให้คนดูเห็นแถวบนสุดเหมือนเดิม
     return seen, total, first_shot

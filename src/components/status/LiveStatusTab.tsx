@@ -107,7 +107,7 @@ export function LiveStatusTab() {
       <div className="flex flex-wrap gap-3">
         {kpi("Offline", "Offline", counts.Offline, "text-status-offline")}
         {kpi("Online", "Online", counts.Online, "text-status-healthy")}
-        {kpi("CameraIssue", "Partial", counts.CameraIssue, "text-[#8A5A00] dark:text-status-partial", "ต้องซ่อมกล้อง")}
+        {kpi("CameraIssue", "Partial", counts.CameraIssue, "text-[#8A5A00] dark:text-status-partial")}
         {kpi("NotMonitored", "Not monitored", counts.NotMonitored, "text-ink dark:text-white")}
       </div>
 

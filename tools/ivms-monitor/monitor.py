@@ -29,7 +29,7 @@ sys.path.insert(0, HERE)
 from state import ReadResult, plan_cycle  # noqa: E402
 import desktop  # noqa: E402
 
-SCRIPT_VERSION = "1.2.0"
+SCRIPT_VERSION = "1.2.1"
 log = logging.getLogger("ivms-monitor")
 
 

@@ -40,6 +40,8 @@ Next step: `/design` (needs the list of closed store codes)
 - Confirmed on the Design PC 14:35: `python ivms_reader.py` → ok=True total=67 complete=True offline=10 online=57 (incl. 52002, 53023). First real run 14:44: web shows monitored 123/194 (67 + 56 from the other account), Offline 8 → 10 after the 2nd round
 - **1.2.0 (14:55, user request):** sync status on the HQ PC — console title "🔄 iVMS กำลัง sync…" during a round; Windows toast after it ("✅ Sync complete" with total/Offline/Online/next round, "🟡 ไม่ครบ", "⚠️ ไม่สำเร็จ" + reason, "⚠️ Offline เกือบทั้งหมด"). No popup at the start on purpose (would cover iVMS). `desktop.py`; failures only log. Toast uses PowerShell's AppUserModelID via winsdk (already installed). Not tested on Windows yet
 - Suggested to the user: confirm Offline after 1 round when switching accounts every 30 min
+- 2026-10-11 16:08 (BKK account, Total 57): toast "🟡 Sync ไม่ครบทุกเครื่อง" — Offline 3 + Online 51 = 54 of 57. iVMS had its bottom Event pane open, so the table ended ~260 px above the window bottom; the page-down click (thumb bottom + 20 px) landed in the pane once the thumb was near the end → no scroll → last rows unread. Also all rows were ticked (header checkbox) — not done by the script (it only clicks Refresh and the scrollbar at the far right)
+- **1.2.1:** `_table_bottom()` = lowest OCR'd store-code row; scrollbar search and page-down clicks are limited to the table. Simulated 57 rows with the pane open, from top and bottom: 57/57
 - The 56 BKK stores ticked from the 8 Oct list will then simply show last seen 8 Oct (true), no list cleanup needed
 
 ## Fix 2026-10-10 13:40 — reader refuses to read when iVMS is covered (`ivms-monitor` 1.0.1)

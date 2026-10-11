@@ -267,12 +267,20 @@ def _header_y(words):
     return h["y"] if h else None
 
 
-def _find_scrollbar(shot, header_y):
+def _table_bottom(words):
+    """y ล่างสุดของแถวที่มีรหัสสาขา = ขอบล่างของตาราง (ใต้นั้นอาจเป็นแผง Event ของ iVMS)"""
+    ys = [w["y"] + w["h"] for w in words if re.fullmatch(r"\d{5}", w["text"])]
+    return max(ys) if ys else None
+
+
+def _find_scrollbar(shot, header_y, table_bottom=None):
     """แถบเลื่อนแนวตั้งที่ขอบขวาของตาราง: คอลัมน์พิกเซลที่มีช่วง 'สว่างกว่าพื้น' ยาวที่สุด = thumb
     คืน (x, ยาว, thumb_top, thumb_bottom) ในพิกัดหน้าต่าง หรือ None ถ้าไม่มี (ตารางพอดีหน้าเดียว)
     ทดสอบบนเครื่อง Design 10 ต.ค.: คลิกรางใต้ thumb = เลื่อนลง 1 หน้า (ล้อเมาส์/Page Down ใช้ไม่ได้)"""
     w, h = shot.size
-    y0, y1 = int((header_y or 100) + 20), h - 8
+    y0 = int((header_y or 100) + 20)
+    # หาเฉพาะในช่วงตาราง: ถ้ามีแผง Event เปิดอยู่ด้านล่าง ปุ่มของแผงนั้นจะถูกเข้าใจผิดว่าเป็นแถบเลื่อน
+    y1 = min(h - 8, int(table_bottom) + 12) if table_bottom else h - 8
     best = None
     for x in range(w - 3, max(w - 60, 0), -1):
         vals = [sum(shot.getpixel((x, y))[:3]) / 3 for y in range(y0, y1)]
@@ -326,7 +334,7 @@ def _scroll_to_top(win, rect):
             return
         prev = first
         hy = _header_y(words)
-        sb = _find_scrollbar(shot, hy)
+        sb = _find_scrollbar(shot, hy, _table_bottom(words))
         if not sb:
             return
         x, _, top, _ = sb
@@ -365,12 +373,16 @@ def _read_all_pages(win, rect):
             break
         if page > 0 and new == 0:
             break
-        sb = _find_scrollbar(shot, _header_y(words))
+        tb = _table_bottom(words)
+        sb = _find_scrollbar(shot, _header_y(words), tb)
         if not sb:
             break  # ไม่มีแถบเลื่อน = ทั้งตารางอยู่ในหน้าเดียว
         x, _, _, bottom = sb
-        y = bottom + 20
-        if y >= (rect.bottom - rect.top) - 12:
+        # คลิกรางใต้ thumb แต่ไม่เกินขอบล่างของตาราง (11 ต.ค.: แผง Event เปิดอยู่ คลิกเลยลงไปโดนแผง
+        # ตารางไม่เลื่อน อ่านไม่ครบ 3 เครื่อง)
+        limit = (tb if tb else (rect.bottom - rect.top)) - 6
+        y = min(bottom + 20, limit)
+        if y <= bottom + 2:
             break  # thumb อยู่ล่างสุดแล้ว
         mouse.click(coords=(rect.left + x, rect.top + y))
         time.sleep(PAGE_GAP)

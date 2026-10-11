@@ -47,7 +47,7 @@ export function MonitorHealthBanner({ onGoRollout }: { onGoRollout?: () => void 
       break;
     case "stale":
       title = "ระบบตรวจหยุดทำงาน";
-      detail = `ไม่มีรายงานจากคอม HQ มา ${formatDuration(health.minutesSinceRun)} (ล่าสุด ${lastRun}) — สถานะด้านล่างเป็นข้อมูลเก่า ไม่ใช่ Offline ทั้งหมด · เช็ก: คอม HQ เปิดอยู่ไหม, iVMS เปิดค้างหน้า Cloud P2P, จอไม่ล็อก`;
+      detail = `ไม่มีรายงานจากคอม HQ มา ${formatDuration(health.minutesSinceRun)} (ล่าสุด ${lastRun}) — ตัวเลขด้านล่างเป็นผล sync ล่าสุดเมื่อ ${lastRun} น. · เช็ก: คอม HQ เปิดอยู่ไหม, iVMS เปิดค้างหน้า Cloud P2P, จอไม่ล็อก`;
       break;
     case "never":
       title = "ยังไม่มีรายงานจากตัวตรวจ";

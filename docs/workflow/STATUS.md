@@ -11,6 +11,11 @@ Updated: 2026-10-10
 - Portal: shared `RepairLink`/`repairReason` — red wrench = DVR offline 2 h+ (NVR Offline ticket), amber wrench = DVR Online + Partial (Camera Failure ticket, remark "DVR Online แต่ดูกล้องไม่ได้ — เปิดงานให้ช่างซ่อม"); used in Device Status and in Asset Register's Status cell. Legend "จุดหน้าชื่อสาขา = DVR จาก iVMS" → "Sync Status". `AppDataProvider` re-reads stores every 2 min while visible (Supabase only)
 - Note: a manual Offline on a synced store is overwritten by the next sync (sync is the truth for the DVR); demo mode shows unsynced mock statuses
 
+## Change 2026-10-11 21:30 — keep the last sync when the script stops (user request)
+- Before: once the last run was older than `stale_after_minutes`, every store turned "ข้อมูลเก่า", the cards showed "—" and the table emptied under a status filter
+- Now `displayStatus()` ignores `stale`: cards, table, dots, Asset Register and the sidebar badge keep the last synced status; the red banner stays and reads "ตัวเลขด้านล่างเป็นผล sync ล่าสุดเมื่อ HH:MM น." The brown "ข้อมูลเก่า" legend item is gone
+- DB values (store_monitor, stores.overall_status) were never cleared — only the display changed
+
 ## Change 2026-10-11 17:30 — live tab cards (user request)
 - Cards: Offline (now includes Muted: DVR still down, only alerts off) · Online (Online + รอยืนยัน) · **Partial "ต้องซ่อมกล้อง"** (replaces the Muted card; click filters to camera-issue stores) · Not monitored (number only, "เฝ้าอยู่ X / N" removed)
 - Demo check: 4 / 20 / 3 / 23 = 50; Partial filter → 3 rows

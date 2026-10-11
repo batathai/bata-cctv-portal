@@ -19,12 +19,10 @@ const NAV = [
 
 export function Sidebar({ mobileOpen, onClose }: { mobileOpen: boolean; onClose: () => void }) {
   const pathname = usePathname();
-  const { monitors, stale } = useMonitoring();
-  // Unmuted, monitored stores currently Offline — hidden when the data is stale.
+  const { monitors } = useMonitoring();
+  // Unmuted, monitored stores Offline at the last sync (kept when the sync stops).
   const now = Date.now();
-  const offlineCount = stale
-    ? 0
-    : monitors.filter((m) => m.monitored && m.state === "Offline" && !(m.muted_until && new Date(m.muted_until).getTime() > now)).length;
+  const offlineCount = monitors.filter((m) => m.monitored && m.state === "Offline" && !(m.muted_until && new Date(m.muted_until).getTime() > now)).length;
 
   return (
     <>

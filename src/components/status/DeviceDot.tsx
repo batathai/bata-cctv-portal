@@ -32,7 +32,6 @@ export const DEVICE_DOT_LEGEND: { status: DisplayStatus; text: string }[] = [
   { status: "CameraIssue", text: "ต้องซ่อมกล้อง" },
   { status: "Offline", text: "Offline" },
   { status: "Muted", text: "ปิดเตือน" },
-  { status: "Stale", text: "ข้อมูลเก่า" },
 ];
 
 function Dot({ status, className }: { status: DisplayStatus; className?: string }) {

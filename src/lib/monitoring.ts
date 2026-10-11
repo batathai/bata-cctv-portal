@@ -185,7 +185,11 @@ export function healthIsStale(h: MonitorHealth): boolean {
 
 export function displayStatus(m: StoreMonitor | null | undefined, stale: boolean, now: Date = new Date()): DisplayStatus {
   if (!m || !m.monitored) return "NotMonitored";
-  if (stale) return "Stale";
+  // User request 2026-10-11: when the HQ script stops, keep showing the last
+  // synced status (and its "อัปเดตล่าสุด" time) instead of blanking every
+  // store; the red banner says how old it is. `stale` is kept in the
+  // signature for callers but no longer changes the status.
+  void stale;
   if (m.state === "Offline") return isMuted(m, now) ? "Muted" : "Offline";
   if (m.state === "Online") return m.offline_streak > 0 ? "Confirming" : "Online";
   return "Unknown";

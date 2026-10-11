@@ -96,7 +96,7 @@ export function LiveStatusTab() {
     >
       <div className="text-xs uppercase tracking-wide text-ink-faint mb-2">{label}</div>
       <div className={clsx("font-display text-2xl font-bold", color)}>
-        {stale && key !== "NotMonitored" ? "—" : value}
+        {value}
         {suffix && <span className="text-sm font-medium text-ink-faint ml-1.5">{suffix}</span>}
       </div>
     </button>

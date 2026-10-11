@@ -2,7 +2,8 @@
 
 import clsx from "clsx";
 import { useMonitoring } from "@/components/providers/MonitoringProvider";
-import { displayStatus, formatDuration, formatSeen, minutesBetween, type DisplayStatus } from "@/lib/monitoring";
+import { displayStatus, formatDuration, formatSeen, minutesBetween, withCameraIssue, type DisplayStatus } from "@/lib/monitoring";
+import type { StoreWithAssets } from "@/types/database";
 
 /**
  * Small coloured dot showing the live DVR state (HQ iVMS script) next to a
@@ -15,7 +16,10 @@ import { displayStatus, formatDuration, formatSeen, minutesBetween, type Display
 const DOT: Record<DisplayStatus, { cls: string; label: string } | null> = {
   Online: { cls: "bg-status-healthy", label: "DVR Online" },
   Offline: { cls: "bg-status-offline", label: "DVR Offline" },
-  Confirming: { cls: "bg-status-partial", label: "DVR กำลังยืนยัน (เห็น Offline 1 รอบ)" },
+  // DVR online but the store is marked Partial: cameras can't be viewed → open a repair job
+  CameraIssue: { cls: "bg-status-partial", label: "ต้องซ่อมกล้อง · DVR Online แต่ดูกล้องไม่ได้ — เปิดงานซ่อม" },
+  // Seen offline once, not confirmed yet: still online (green), tooltip explains
+  Confirming: { cls: "bg-status-healthy", label: "DVR Online · เห็น Offline 1 รอบ รอยืนยัน" },
   Muted: { cls: "bg-ink-soft dark:bg-white/50", label: "DVR Offline · ปิดเตือนอยู่" },
   Stale: { cls: "bg-[#8B5E3C]", label: "DVR ข้อมูลเก่า (ตัวตรวจไม่ได้รายงาน)" },
   Unknown: { cls: "border border-ink-soft dark:border-white/50", label: "DVR รอผลตรวจ" },
@@ -25,8 +29,8 @@ const DOT: Record<DisplayStatus, { cls: string; label: string } | null> = {
 /** Order and wording used by the legend. */
 export const DEVICE_DOT_LEGEND: { status: DisplayStatus; text: string }[] = [
   { status: "Online", text: "Online" },
+  { status: "CameraIssue", text: "ต้องซ่อมกล้อง" },
   { status: "Offline", text: "Offline" },
-  { status: "Confirming", text: "กำลังยืนยัน" },
   { status: "Muted", text: "ปิดเตือน" },
   { status: "Stale", text: "ข้อมูลเก่า" },
 ];
@@ -37,14 +41,15 @@ function Dot({ status, className }: { status: DisplayStatus; className?: string 
   return <span aria-hidden="true" className={clsx("inline-block w-2.5 h-2.5 rounded-full shrink-0", d.cls, className)} />;
 }
 
-export function DeviceDot({ storeId, withText = false }: { storeId: string; withText?: boolean }) {
+export function DeviceDot({ store, withText = false }: { store: StoreWithAssets; withText?: boolean }) {
+  const storeId = store.id;
   const { monitorByStore, stale, loading } = useMonitoring();
   // Empty slot the size of a dot, so store names stay aligned in the table.
   const slot = <span aria-hidden="true" className="inline-block w-2.5 h-2.5 shrink-0" />;
   if (loading) return withText ? null : slot;
   const now = new Date();
   const m = monitorByStore.get(storeId);
-  const status = displayStatus(m, stale, now);
+  const status = withCameraIssue(displayStatus(m, stale, now), store);
   const d = DOT[status];
   if (!d) return withText ? <span className="text-xs text-ink-faint">DVR ยังไม่อยู่ใน iVMS</span> : slot;
 

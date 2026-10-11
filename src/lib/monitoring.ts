@@ -127,12 +127,14 @@ export function isWithinHours(minuteOfDay: number, hours: EffectiveHours): boole
 
 // ---------- status ----------
 
-export type DisplayStatus = "Offline" | "Muted" | "Confirming" | "Online" | "Unknown" | "Stale" | "NotMonitored";
+/** CameraIssue = DVR online (sync) but the store is marked Partial = cameras can't be viewed (user design 2026-10-11). */
+export type DisplayStatus = "Offline" | "CameraIssue" | "Muted" | "Confirming" | "Online" | "Unknown" | "Stale" | "NotMonitored";
 
 export const DISPLAY_STATUS_LABEL: Record<DisplayStatus, string> = {
   Offline: "Offline",
+  CameraIssue: "ต้องซ่อมกล้อง",
   Muted: "Muted (Offline)",
-  Confirming: "Online · กำลังยืนยัน",
+  Confirming: "Online · รอยืนยัน",
   Online: "Online",
   Unknown: "รอผลตรวจ",
   Stale: "ข้อมูลเก่า",
@@ -140,7 +142,7 @@ export const DISPLAY_STATUS_LABEL: Record<DisplayStatus, string> = {
 };
 
 const SORT_RANK: Record<DisplayStatus, number> = {
-  Offline: 0, Muted: 1, Confirming: 2, Stale: 3, Unknown: 4, Online: 5, NotMonitored: 6,
+  Offline: 0, CameraIssue: 1, Muted: 2, Confirming: 3, Stale: 4, Unknown: 5, Online: 6, NotMonitored: 7,
 };
 
 export function isMuted(m: Pick<StoreMonitor, "muted_until"> | null | undefined, now: Date = new Date()): boolean {
@@ -189,6 +191,19 @@ export function displayStatus(m: StoreMonitor | null | undefined, stale: boolean
   return "Unknown";
 }
 
+/**
+ * Sync result + what people reported: DVR online but the store is Partial
+ * (cameras can't be viewed) → "CameraIssue". Everything else unchanged.
+ */
+export function withCameraIssue(status: DisplayStatus, store: Pick<StoreWithAssets, "overall_status"> | null | undefined): DisplayStatus {
+  return (status === "Online" || status === "Confirming") && store?.overall_status === "Partial" ? "CameraIssue" : status;
+}
+
+/** DVR is reachable (green family in counts and filters). */
+export function isDvrOnline(s: DisplayStatus): boolean {
+  return s === "Online" || s === "Confirming" || s === "CameraIssue";
+}
+
 export function statusSortRank(s: DisplayStatus): number {
   return SORT_RANK[s];
 }
@@ -222,7 +237,7 @@ export function buildLiveRows(stores: StoreWithAssets[], monitors: StoreMonitor[
   return stores
     .map((store) => {
       const monitor = byStore.get(store.id) ?? null;
-      const status = displayStatus(monitor, stale, now);
+      const status = withCameraIssue(displayStatus(monitor, stale, now), store);
       const offlineMinutes =
         monitor && monitor.monitored && monitor.state === "Offline" ? minutesBetween(monitor.last_seen_at ?? monitor.state_since, now) : null;
       return {

@@ -11,7 +11,7 @@ import { getStatusLabel } from "@/components/ui/Badge";
 import { MonitorStatusPill } from "@/components/status/MonitorStatusPill";
 import { MuteDialog } from "@/components/status/MuteDialog";
 import {
-  buildLiveRows, formatDuration, formatSeen, ZONES_BY_REGION, REPAIR_SUGGEST_MINUTES,
+  buildLiveRows, formatDuration, formatSeen, ZONES_BY_REGION, REPAIR_SUGGEST_MINUTES, isDvrOnline,
   type DisplayStatus, type RegionKey, type LiveRow,
 } from "@/lib/monitoring";
 import { canLogMaintenance } from "@/lib/rbac";
@@ -25,7 +25,7 @@ type StatusFilter = "" | "Offline" | "Online" | "Muted" | "NotMonitored";
 
 function matchesStatus(s: DisplayStatus, f: StatusFilter) {
   if (!f) return true;
-  if (f === "Online") return s === "Online" || s === "Confirming";
+  if (f === "Online") return isDvrOnline(s);
   return s === f;
 }
 
@@ -55,7 +55,7 @@ export function LiveStatusTab() {
     const c = { Offline: 0, Online: 0, Muted: 0, NotMonitored: 0, monitored: 0, total: scoped.length };
     scoped.forEach((r) => {
       if (r.status === "Offline") c.Offline++;
-      else if (r.status === "Online" || r.status === "Confirming") c.Online++;
+      else if (isDvrOnline(r.status)) c.Online++;
       else if (r.status === "Muted") c.Muted++;
       else if (r.status === "NotMonitored") c.NotMonitored++;
       if (r.monitor?.monitored) c.monitored++;
@@ -175,7 +175,7 @@ export function LiveStatusTab() {
                   ? `กำลังยืนยัน (เห็น Offline ${m?.offline_streak} จาก ${settings.confirm_cycles} รอบ)`
                   : r.status === "NotMonitored"
                   ? "ยังไม่อยู่ใน iVMS"
-                  : r.status === "Online" && r.store.overall_status === "Partial"
+                  : r.status === "CameraIssue"
                   ? CAMERA_ISSUE_REMARK
                   : `กล้อง: ${getStatusLabel(r.store.overall_status)}`;
                 return (

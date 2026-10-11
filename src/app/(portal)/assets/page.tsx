@@ -12,7 +12,7 @@ import { ExportButtons } from "@/components/reports/ExportButtons";
 import { DeviceDot, DeviceDotLegend } from "@/components/status/DeviceDot";
 import { useMonitoring } from "@/components/providers/MonitoringProvider";
 import { RepairLink, repairReason, CAMERA_ISSUE_REMARK } from "@/components/status/RepairLink";
-import { displayStatus, minutesBetween } from "@/lib/monitoring";
+import { displayStatus, minutesBetween, withCameraIssue } from "@/lib/monitoring";
 import { canLogMaintenance } from "@/lib/rbac";
 import { ZONES } from "@/lib/mockData";
 import { zoneCode, getAreaLabel, regionFromZone } from "@/lib/recovery";
@@ -178,7 +178,7 @@ function AssetRegisterContent() {
                 <td className="py-2 pr-3">
                   {/* Live DVR state from iVMS as a dot only; full view is /status. */}
                   <span className="inline-flex items-center gap-2">
-                    <DeviceDot storeId={s.id} />
+                    <DeviceDot store={s} />
                     {s.store_name}
                   </span>
                 </td>
@@ -190,7 +190,7 @@ function AssetRegisterContent() {
                     // Status follows the iVMS sync (migration 024). DVR online but cameras
                     // reported unusable stays Partial, with a remark and a repair wrench.
                     const m = monitorByStore.get(s.id);
-                    const ds = displayStatus(m, stale, new Date());
+                    const ds = withCameraIssue(displayStatus(m, stale, new Date()), s);
                     const off = m && ds === "Offline" ? minutesBetween(m.last_seen_at ?? m.state_since, new Date()) : null;
                     const reason = canEdit ? repairReason(s, m, ds, off) : null;
                     return (

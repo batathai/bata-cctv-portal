@@ -3,8 +3,10 @@ import { DISPLAY_STATUS_LABEL, type DisplayStatus } from "@/lib/monitoring";
 
 const STYLE: Record<DisplayStatus, { pill: string; dot: string }> = {
   Offline: { pill: "bg-status-offline/10 text-brand-dark dark:text-brand-light", dot: "bg-status-offline" },
+  CameraIssue: { pill: "bg-status-partial/15 text-[#8A5A00] dark:text-status-partial", dot: "bg-status-partial" },
   Muted: { pill: "bg-black/5 text-ink-soft dark:bg-white/10 dark:text-white/70", dot: "bg-ink-soft" },
-  Confirming: { pill: "bg-status-partial/15 text-[#8A5A00] dark:text-status-partial", dot: "bg-status-partial" },
+  // Confirming = seen offline 1 of N rounds; the DVR still counts as online, so it stays in the green family
+  Confirming: { pill: "bg-status-healthy/10 text-[#17804A] dark:text-status-healthy", dot: "bg-status-healthy ring-2 ring-status-offline/40" },
   Online: { pill: "bg-status-healthy/10 text-[#17804A] dark:text-status-healthy", dot: "bg-status-healthy" },
   Unknown: { pill: "bg-black/5 text-ink-soft dark:bg-white/10 dark:text-white/70", dot: "bg-status-unknown" },
   Stale: { pill: "bg-status-partial/10 text-[#6E4700] dark:text-status-partial", dot: "bg-status-partial" },

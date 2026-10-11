@@ -10,14 +10,14 @@ import { MonitorStatusPill } from "@/components/status/MonitorStatusPill";
 import { MuteDialog } from "@/components/status/MuteDialog";
 import { BusinessHoursEditor } from "@/components/status/BusinessHoursEditor";
 import { fetchOutages } from "@/lib/data";
-import { displayStatus, formatDuration, formatSeen, isMuted, minutesBetween, outageMinutes } from "@/lib/monitoring";
+import { displayStatus, formatDuration, formatSeen, isMuted, minutesBetween, outageMinutes, withCameraIssue } from "@/lib/monitoring";
 import type { DeviceOutage, StoreWithAssets } from "@/types/database";
 
 /** Store Detail: live iVMS status, business hours, mute and the last 10 outages for one store (R7, R8, R12). */
 export function StoreMonitorCard({ store, canEdit }: { store: StoreWithAssets; canEdit: boolean }) {
   const { monitorByStore, stale, latestRun, settings, unmuteStore, lastLoadedAt } = useMonitoring();
   const m = monitorByStore.get(store.id) ?? null;
-  const status = displayStatus(m, stale);
+  const status = withCameraIssue(displayStatus(m, stale), store);
   const muted = isMuted(m);
   const [outages, setOutages] = useState<DeviceOutage[]>([]);
   const [loadingOutages, setLoadingOutages] = useState(true);

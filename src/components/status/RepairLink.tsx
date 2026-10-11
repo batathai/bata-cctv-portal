@@ -31,7 +31,7 @@ export function repairReason(
       note: `DVR Offline จาก iVMS ตั้งแต่ ${formatSeen(monitor?.last_seen_at ?? monitor?.state_since)} (${formatDuration(offlineMinutes)})`,
     };
   }
-  if ((status === "Online" || status === "Confirming") && store.overall_status === "Partial") {
+  if ((status === "Online" || status === "Confirming" || status === "CameraIssue") && store.overall_status === "Partial") {
     return { kind: "camera", issue: "Camera Failure", note: `${CAMERA_ISSUE_REMARK} (sync ล่าสุด ${formatSeen(monitor?.last_checked_at ?? monitor?.last_seen_at)})` };
   }
   return null;

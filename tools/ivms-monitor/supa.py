@@ -70,9 +70,14 @@ class Supa:
         return Settings.from_row(rows[0] if rows else None)
 
     def load_stores(self) -> list:
-        rows = self.select("stores", select="id,store_code,store_name,region,zone,is_active")
+        base = "id,store_code,store_name,region,zone,is_active"
+        try:  # migration 024 (camera_issue) — ถ้ายังไม่รัน ใช้แบบเดิม และไม่เขียน overall_status
+            rows = self.select("stores", select=base + ",overall_status,camera_issue")
+        except SupabaseError:
+            rows = self.select("stores", select=base)
         return [Store(id=r["id"], code=str(r["store_code"]).strip(), name=r.get("store_name") or "",
-                      region=r.get("region") or "", zone=r.get("zone") or "")
+                      region=r.get("region") or "", zone=r.get("zone") or "",
+                      overall_status=r.get("overall_status"), camera_issue=r.get("camera_issue"))
                 for r in rows if r.get("is_active", True) is not False]
 
     def load_monitors(self) -> dict:
@@ -120,6 +125,11 @@ class Supa:
             ids = [sid for sid, st in plan.store_online_status.items() if st == status]
             for i in range(0, len(ids), 50):
                 self.patch("stores", {"id": f"in.({','.join(ids[i:i + 50])})"}, {"online_status": status})
+        # Status ที่ Dashboard / Asset Register อ่าน (migration 024)
+        for status in ("Healthy", "Partial", "Offline"):
+            ids = [sid for sid, st in plan.store_overall.items() if st == status]
+            for i in range(0, len(ids), 50):
+                self.patch("stores", {"id": f"in.({','.join(ids[i:i + 50])})"}, {"overall_status": status})
 
     def mark_sent(self, marks, at: datetime):
         for oid, col in marks:

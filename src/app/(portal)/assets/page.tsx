@@ -10,6 +10,10 @@ import { StatusBadge } from "@/components/ui/Badge";
 import { Select } from "@/components/ui/Select";
 import { ExportButtons } from "@/components/reports/ExportButtons";
 import { DeviceDot, DeviceDotLegend } from "@/components/status/DeviceDot";
+import { useMonitoring } from "@/components/providers/MonitoringProvider";
+import { RepairLink, repairReason, CAMERA_ISSUE_REMARK } from "@/components/status/RepairLink";
+import { displayStatus, minutesBetween } from "@/lib/monitoring";
+import { canLogMaintenance } from "@/lib/rbac";
 import { ZONES } from "@/lib/mockData";
 import { zoneCode, getAreaLabel, regionFromZone } from "@/lib/recovery";
 import type { StoreWithAssets } from "@/types/database";
@@ -48,7 +52,9 @@ function sortValue(s: StoreWithAssets, key: SortKey): string | number {
 // useSearchParams() below opts this page into client-side rendering, which
 // Next.js requires wrapping in Suspense — see default export at the bottom.
 function AssetRegisterContent() {
-  const { stores, loading } = useAppData();
+  const { stores, loading, tickets, role } = useAppData();
+  const { monitorByStore, stale } = useMonitoring();
+  const canEdit = canLogMaintenance(role);
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -179,7 +185,27 @@ function AssetRegisterContent() {
                 <td className="py-2 pr-3 text-ink-soft dark:text-white/60">{zoneCode(s.zone)}</td>
                 <td className="py-2 pr-3 font-mono text-xs text-ink-soft dark:text-white/60">{s.asset?.nvr_serial}</td>
                 <td className="py-2 pr-3 text-ink-soft dark:text-white/60">{s.asset?.camera_total ?? "—"}</td>
-                <td className="py-2 pr-3"><StatusBadge status={s.overall_status} /></td>
+                <td className="py-2 pr-3">
+                  {(() => {
+                    // Status follows the iVMS sync (migration 024). DVR online but cameras
+                    // reported unusable stays Partial, with a remark and a repair wrench.
+                    const m = monitorByStore.get(s.id);
+                    const ds = displayStatus(m, stale, new Date());
+                    const off = m && ds === "Offline" ? minutesBetween(m.last_seen_at ?? m.state_since, new Date()) : null;
+                    const reason = canEdit ? repairReason(s, m, ds, off) : null;
+                    return (
+                      <div className="flex items-center gap-2">
+                        <div className="flex flex-col items-start gap-0.5">
+                          <StatusBadge status={s.overall_status} />
+                          {reason?.kind === "camera" && (
+                            <span className="text-[11px] text-[#8A5A00] dark:text-status-partial">{CAMERA_ISSUE_REMARK}</span>
+                          )}
+                        </div>
+                        {reason && <RepairLink store={s} reason={reason} tickets={tickets} />}
+                      </div>
+                    );
+                  })()}
+                </td>
                 <td className="py-2 pr-3 text-right">
                   <Link
                     href={`/assets/${s.store_code}`}

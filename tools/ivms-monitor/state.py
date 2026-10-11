@@ -152,6 +152,10 @@ class Store:
     name: str
     region: str = ""        # "Bangkok" | "Upcountry"
     zone: str = ""
+    # migration 024: สถานะที่ Dashboard / Asset Register อ่าน + ธง "กล้องดูไม่ได้" ที่คนตั้ง
+    # camera_issue=None = ยังไม่ได้รัน 024 -> สคริปต์ไม่เขียน overall_status
+    overall_status: Optional[str] = None
+    camera_issue: Optional[bool] = None
 
     @property
     def region_short(self) -> str:
@@ -276,6 +280,7 @@ class Plan:
     new_outages: list = field(default_factory=list)        # [dict] พร้อม insert (มี id แล้ว)
     outage_updates: dict = field(default_factory=dict)     # outage_id -> {col: value}
     store_online_status: dict = field(default_factory=dict)  # store_id -> 'Online' | 'Offline'
+    store_overall: dict = field(default_factory=dict)        # store_id -> 'Healthy' | 'Partial' | 'Offline'
     emails: list = field(default_factory=list)
 
 
@@ -425,6 +430,20 @@ def plan_cycle(
                     plan.store_online_status[sid] = "Online"
                 set_mon(sid, **cols)
         # partial + ไม่เห็นในหน้าจอ = มองไม่เห็น -> คงค่าเดิมทั้งหมด
+
+        # Status ของสาขา (Dashboard / Asset Register / Reports) ตามผล sync — กติกา 11 ต.ค.:
+        # DVR Offline -> Offline; Online -> Online(Healthy) หรือ Partial ถ้าคนเคยแจ้งว่ากล้องดูไม่ได้
+        # ทำเฉพาะสาขาที่รอบนี้เห็นจริง (full read) หรือสถานะ DVR เพิ่งเปลี่ยน
+        st = by_id[sid]
+        if st.camera_issue is not None and (sid in seen_offline or sid in seen_online or sid in plan.store_online_status):
+            if mons[sid].state == "Offline":
+                want = "Offline"
+            elif mons[sid].state == "Online":
+                want = "Partial" if st.camera_issue else "Healthy"
+            else:
+                want = None
+            if want and want != st.overall_status:
+                plan.store_overall[sid] = want
 
     # ---- 4) รวบรวมสิ่งที่ต้องแจ้ง แล้วส่งเป็นเมลเดียวต่อรอบ (_finish)
     due, back, mass = [], [], False

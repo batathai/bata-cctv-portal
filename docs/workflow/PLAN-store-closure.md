@@ -39,7 +39,7 @@ Status: planning done → `/design`
 
 ## Data
 - `stores.is_active boolean default true` — **มีอยู่แล้ว** (schema.sql) แต่หน้าเว็บยังไม่ใช้เลย; สคริปต์ iVMS กรองอยู่แล้ว (`supa.load_stores`)
-- เพิ่มใน migration ใหม่ (`024_store_closure.sql`): `closed_at date`, `close_reason text`, `closed_by uuid → profiles(id)`; ประวัติปิด/เปิด — ตารางเล็ก `store_status_history` (store_id, action open/close, at, by, reason) หรือใช้ audit ที่มีอยู่ถ้ามี (ตรวจตอน `/design`)
+- เพิ่มใน migration ใหม่ (`025_store_closure.sql`): `closed_at date`, `close_reason text`, `closed_by uuid → profiles(id)`; ประวัติปิด/เปิด — ตารางเล็ก `store_status_history` (store_id, action open/close, at, by, reason) หรือใช้ audit ที่มีอยู่ถ้ามี (ตรวจตอน `/design`)
 - ตอนปิด: `store_monitor.monitored = false`, ปิด outage ที่ยังค้าง (`ended_at = now`, note "ปิดสาขา") — ทำใน function เดียวฝั่ง DB เพื่อไม่ให้ค้างครึ่งทาง
 - จุดกรองหลักฝั่งเว็บ: `AppDataProvider` (`allStores` → `stores` memo) — กรองที่เดียว ให้ Asset Register ใช้รายการที่รวมสาขาที่ปิด
 - รายชื่อสาขาที่ปิดจริง: **ยังไม่มี** — ต้องได้จากผู้ใช้
@@ -53,7 +53,7 @@ Status: planning done → `/design`
 6. `CLAUDE.md` บน branch นี้ยังเป็นของโปรเจกต์ Payslip — ไม่ใช้อ้างอิง
 
 ## Milestones
-1. M1 — Migration 024 + function ปิด/เปิด + SQL ปิดชุดแรก (ใช้ได้ทันทีแม้หน้าเว็บยังไม่เสร็จ: สคริปต์ข้ามสาขาที่ปิดแล้ว)
+1. M1 — Migration 025 + function ปิด/เปิด + SQL ปิดชุดแรก (ใช้ได้ทันทีแม้หน้าเว็บยังไม่เสร็จ: สคริปต์ข้ามสาขาที่ปิดแล้ว)
 2. M2 — กรองสาขาที่ปิดใน `AppDataProvider` + ตัวเลข 194 → นับจริง (R4, R6)
 3. M3 — Asset Register: ตัวกรอง + ป้าย + แถบในหน้า Details + ปุ่มปิด/เปิดใน Edit Detail (R1–R3, R5, R8)
 4. M4 — สคริปต์: ปิด outage ค้าง + "ต้องตรวจ" สำหรับเครื่องของสาขาที่ปิด (R7) + ทดสอบ state

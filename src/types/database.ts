@@ -33,6 +33,8 @@ export interface Store {
   latitude: number | null;
   longitude: number | null;
   is_active: boolean;
+  /** Cameras reported unusable while the DVR may be online (migration 024; set by marking the store Partial). */
+  camera_issue?: boolean;
   created_at: string;
   updated_at: string;
   // Sprint 1: Recovery Dashboard fields. All nullable/optional so existing

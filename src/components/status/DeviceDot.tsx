@@ -67,7 +67,7 @@ export function DeviceDotLegend() {
   if (loading || health.kind === "notInstalled") return null;
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-ink-faint">
-      <span>จุดหน้าชื่อสาขา = DVR จาก iVMS:</span>
+      <span>Sync Status:</span>
       {DEVICE_DOT_LEGEND.map((l) => (
         <span key={l.status} className="inline-flex items-center gap-1">
           <Dot status={l.status} className="w-2 h-2" />

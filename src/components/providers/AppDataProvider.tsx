@@ -194,8 +194,22 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     refreshAllData().then(() => {
       if (mounted) setLoading(false);
     });
+    // overall_status now follows the HQ iVMS sync (migration 024, ivms-monitor
+    // 1.3.0), so re-read stores every 2 minutes while the tab is visible:
+    // Dashboard, Asset Register and Reports pick up a sync without a reload.
+    // Only stores — the other tables don't change on a sync. Demo mode has no
+    // database (mock data is regenerated per call), so it's skipped there.
+    const id = isSupabaseConfigured
+      ? window.setInterval(() => {
+          if (document.visibilityState !== "visible") return;
+          fetchStores()
+            .then((s) => mounted && setAllStores(s))
+            .catch(() => undefined);
+        }, 120_000)
+      : undefined;
     return () => {
       mounted = false;
+      if (id) window.clearInterval(id);
     };
   }, []);
 

@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import clsx from "clsx";
-import { Search, FileText, BellOff, Bell, Wrench } from "lucide-react";
+import { Search, FileText, BellOff, Bell } from "lucide-react";
 import { useAppData } from "@/components/providers/AppDataProvider";
 import { useMonitoring } from "@/components/providers/MonitoringProvider";
 import { Card } from "@/components/ui/Card";
@@ -15,7 +15,7 @@ import {
   type DisplayStatus, type RegionKey, type LiveRow,
 } from "@/lib/monitoring";
 import { canLogMaintenance } from "@/lib/rbac";
-import { hasOpenTicket } from "@/lib/tickets";
+import { RepairLink, repairReason, CAMERA_ISSUE_REMARK } from "@/components/status/RepairLink";
 import type { StoreWithAssets } from "@/types/database";
 
 const iconBtn =
@@ -175,6 +175,8 @@ export function LiveStatusTab() {
                   ? `กำลังยืนยัน (เห็น Offline ${m?.offline_streak} จาก ${settings.confirm_cycles} รอบ)`
                   : r.status === "NotMonitored"
                   ? "ยังไม่อยู่ใน iVMS"
+                  : r.status === "Online" && r.store.overall_status === "Partial"
+                  ? CAMERA_ISSUE_REMARK
                   : `กล้อง: ${getStatusLabel(r.store.overall_status)}`;
                 return (
                   <tr key={r.store.id} className="hover:bg-surface-muted/50 dark:hover:bg-white/[0.02]">
@@ -200,23 +202,10 @@ export function LiveStatusTab() {
                     <td className="px-4 py-2.5">
                       <div className="flex justify-end gap-1">
                         {(() => {
-                          // Wrench = open a repair ticket, offered once a DVR has been offline
-                          // REPAIR_SUGGEST_MINUTES (and isn't muted). If the store already has an
-                          // open ticket, the wrench turns grey and just links to it.
-                          const longOffline = r.status === "Offline" && (r.offlineMinutes ?? 0) >= REPAIR_SUGGEST_MINUTES;
-                          if (!canEdit || !longOffline) return <span className="w-8" aria-hidden="true" />;
-                          const open = hasOpenTicket(r.store.id, tickets);
-                          const label = open ? "มีเคสซ่อมเปิดอยู่แล้ว — ดูเคส" : `เปิดเคสซ่อม (Offline ${formatDuration(r.offlineMinutes)})`;
-                          const href = open
-                            ? `/assets/${r.store.store_code}#tickets`
-                            : `/assets/${r.store.store_code}?newTicket=${encodeURIComponent("NVR Offline")}&note=${encodeURIComponent(
-                                `DVR Offline จาก iVMS ตั้งแต่ ${formatSeen(m?.last_seen_at ?? m?.state_since)} (${formatDuration(r.offlineMinutes)})`
-                              )}#tickets`;
-                          return (
-                            <Link href={href} title={label} aria-label={label} className={clsx(iconBtn, open ? "text-ink-faint" : "text-status-offline border-status-offline/40 bg-status-offline/5")}>
-                              <Wrench size={15} />
-                            </Link>
-                          );
+                          // Wrench = open a repair ticket: DVR offline 2 h+ (red) or DVR online but
+                          // cameras reported unusable (amber). Grey = already has an open ticket.
+                          const reason = canEdit ? repairReason(r.store, m, r.status, r.offlineMinutes) : null;
+                          return reason ? <RepairLink store={r.store} reason={reason} tickets={tickets} /> : <span className="w-8" aria-hidden="true" />;
                         })()}
                         <Link href={`/recovery/${r.store.store_code}`} title="ดูรายละเอียดสาขา" aria-label="ดูรายละเอียดสาขา" className={iconBtn}>
                           <FileText size={15} />
@@ -244,7 +233,7 @@ export function LiveStatusTab() {
           {filtered.length === 0 && <p className="text-sm text-ink-faint py-8 text-center">ไม่มีสาขาในกลุ่มนี้</p>}
         </div>
         <div className="px-4 py-2.5 text-[11px] text-ink-faint border-t border-black/5 dark:border-white/10">
-          เรียง: Offline (หลุดนานสุดบนสุด) → Muted → Online → Not monitored · โหลดใหม่เองทุก 60 วินาที · * = เวลาทำการเฉพาะสาขา · ประแจแดง = Offline เกิน {REPAIR_SUGGEST_MINUTES / 60} ชม. กดเพื่อเปิดเคสซ่อม
+          เรียง: Offline (หลุดนานสุดบนสุด) → Muted → Online → Not monitored · โหลดใหม่เองทุก 60 วินาที · * = เวลาทำการเฉพาะสาขา · ประแจแดง = DVR Offline เกิน {REPAIR_SUGGEST_MINUTES / 60} ชม. · ประแจเหลือง = DVR Online แต่ดูกล้องไม่ได้ (Partial) · กดเพื่อเปิดเคสซ่อม
         </div>
       </Card>
 

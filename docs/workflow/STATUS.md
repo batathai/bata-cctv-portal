@@ -4,6 +4,13 @@ Phase: /test in progress (HQ script verified end-to-end on 2026-10-08)
 Design approved: yes — 2026-10-08 — DESIGN-device-offline-monitoring.md as written (iVMS reader, migration 022, 4-tab /status, Store Detail card, confirm Offline after 2 cycles, 10:00–22:00 default hours, R11 dropped from phase 1)
 Updated: 2026-10-10
 
+## Decision + change 2026-10-11 16:45 — Status follows the sync; camera issue stays Partial (user)
+- `stores.overall_status` (Dashboard cards/donut, Asset Register "Status", Reports) now follows the iVMS sync: DVR Offline → Offline; DVR Online → Online (Healthy), or **Partial if someone reported the cameras unusable**; never synced → manual/Survey value as before. Dashboard updates too (user chose the same rule everywhere)
+- Migration `024_camera_issue.sql`: `stores.camera_issue` (+ `camera_issue_at`), backfilled from today's Partial; trigger sets it true when a person/Survey/work order sets Partial and false when set Healthy (incl. Work Order Verified). Changes by the script (service_role) don't touch it
+- ivms-monitor **1.3.0**: `Plan.store_overall` for stores seen this round or whose DVR state changed; skipped until 024 is run (`camera_issue` missing → None). 5 new tests (30/30)
+- Portal: shared `RepairLink`/`repairReason` — red wrench = DVR offline 2 h+ (NVR Offline ticket), amber wrench = DVR Online + Partial (Camera Failure ticket, remark "DVR Online แต่ดูกล้องไม่ได้ — เปิดงานให้ช่างซ่อม"); used in Device Status and in Asset Register's Status cell. Legend "จุดหน้าชื่อสาขา = DVR จาก iVMS" → "Sync Status". `AppDataProvider` re-reads stores every 2 min while visible (Supabase only)
+- Note: a manual Offline on a synced store is overwritten by the next sync (sync is the truth for the DVR); demo mode shows unsynced mock statuses
+
 ## Change 2026-10-11 — region chips (user request)
 - Live tab chips now read "ทั้งหมด / BKK / Upcountry" (zone numbers removed; the zone dropdown is still there)
 - KPI cards (Offline / Online / Muted / Not monitored + "เฝ้าอยู่ X / N") follow the chosen region and zone; N = stores in that scope instead of the hard-coded 194. Search and status filter don't change the counts

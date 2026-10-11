@@ -315,3 +315,43 @@ def test_incomplete_full_read_is_partial_but_updates_what_it_saw():
     assert p.run["status"] == "partial"
     assert p.monitor_updates["s1"]["state"] == "Online"
     assert "s2" not in p.monitor_updates
+
+
+# ---------------------------------------------------------------- 1.3.0: Status ของสาขาตามผล sync (migration 024)
+def stores_with(overall, camera_issue):
+    return [Store(id=x.id, code=x.code, name=x.name, region=x.region, zone=x.zone,
+                  overall_status=overall, camera_issue=camera_issue) for x in STORES]
+
+
+def test_overall_online_without_camera_issue_is_healthy():
+    mons = {"s1": mon("s1")}
+    p = run(at(14), full(10, online=["51403"]), mons, stores=stores_with("Unknown", False))
+    assert p.store_overall == {"s1": "Healthy"}
+
+
+def test_overall_online_with_camera_issue_stays_partial():
+    mons = {"s1": mon("s1")}
+    p = run(at(14), full(10, online=["51403"]), mons, stores=stores_with("Partial", True))
+    assert p.store_overall == {}                       # already Partial -> nothing to write
+    p = run(at(14), full(10, online=["51403"]), mons, stores=stores_with("Offline", True))
+    assert p.store_overall == {"s1": "Partial"}       # back online, cameras still broken
+
+
+def test_overall_confirmed_offline():
+    mons = {"s1": mon("s1", offline_streak=1)}
+    p = run(at(14), full(10, offline=["51403"]), mons, stores=stores_with("Partial", True))
+    assert p.store_overall == {"s1": "Offline"}
+
+
+def test_overall_first_offline_sighting_keeps_status():
+    mons = {"s1": mon("s1")}
+    p = run(at(14), full(10, offline=["51403"]), mons, stores=stores_with("Healthy", False))
+    assert p.store_overall == {}                       # 1 of 2 confirm cycles: still Online
+
+
+def test_overall_untouched_for_other_account_or_before_migration():
+    mons = {"s1": mon("s1"), "s2": mon("s2")}
+    p = run(at(14), full(10, online=["51403"]), mons, stores=stores_with("Offline", False))
+    assert "s2" not in p.store_overall
+    p = run(at(14), full(10, online=["51403"]), mons, stores=stores_with("Offline", None))
+    assert p.store_overall == {}

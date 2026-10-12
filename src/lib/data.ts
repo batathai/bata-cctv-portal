@@ -1,7 +1,7 @@
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { generateMockData, generateMockMonitoring } from "@/lib/mockData";
 import { DEFAULT_MONITOR_SETTINGS } from "@/lib/monitoring";
-import type { StoreWithAssets, MaintenanceRecord, AuditRecord, VendorQuotation, IncidentTicket, Attachment, RecoveryStageHistoryEntry, WorkOrderBatch, StoreMonitor, MonitorRun, MonitorSettings, DeviceOutage } from "@/types/database";
+import type { StoreWithAssets, MaintenanceRecord, AuditRecord, VendorQuotation, IncidentTicket, Attachment, RecoveryStageHistoryEntry, WorkOrderBatch, StoreMonitor, MonitorRun, MonitorSettings, DeviceOutage, InstallationProject, InstallationStageHistoryEntry } from "@/types/database";
 
 /**
  * Data access layer. Tries Supabase first; if the project has not been
@@ -251,4 +251,32 @@ export async function fetchOutages(opts: { from?: Date; to?: Date; storeId?: str
     if (!data || data.length < pageSize || (opts.limit && out.length >= opts.limit)) break;
   }
   return { outages: out, error: null };
+}
+
+/** Installation Project: 1 row per store being installed. */
+export async function fetchInstallationProjects(): Promise<InstallationProject[]> {
+  if (!isSupabaseConfigured) return generateMockData().installationProjects;
+
+  const supabase = createClient();
+  const { data, error } = await supabase.from("installation_projects").select("*").order("created_at", { ascending: false });
+
+  if (error || !data) {
+    console.error("Supabase fetchInstallationProjects failed, falling back to demo data:", error?.message);
+    return generateMockData().installationProjects;
+  }
+  return data as InstallationProject[];
+}
+
+/** Installation Project: per-store stage change log, newest first. */
+export async function fetchInstallationStageHistory(): Promise<InstallationStageHistoryEntry[]> {
+  if (!isSupabaseConfigured) return generateMockData().installationStageHistory;
+
+  const supabase = createClient();
+  const { data, error } = await supabase.from("installation_stage_history").select("*").order("changed_at", { ascending: false });
+
+  if (error || !data) {
+    console.error("Supabase fetchInstallationStageHistory failed, falling back to demo data:", error?.message);
+    return generateMockData().installationStageHistory;
+  }
+  return data as InstallationStageHistoryEntry[];
 }

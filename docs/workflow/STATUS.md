@@ -4,6 +4,13 @@ Phase: /test in progress (HQ script verified end-to-end on 2026-10-08)
 Design approved: yes — 2026-10-08 — DESIGN-device-offline-monitoring.md as written (iVMS reader, migration 022, 4-tab /status, Store Detail card, confirm Offline after 2 cycles, 10:00–22:00 default hours, R11 dropped from phase 1)
 Updated: 2026-10-12
 
+## Fix 2026-10-12 13:45 — Work Order Pipeline counted stores with no work order (user saw ~83 in "Waiting Vendor Quote")
+- Cause: `deriveRecoveryStatus()` returned "Device Not Registered" whenever a store had no `hikconnect_devices` row, and that table is empty in production → almost every store `needsRepair()` → defaulted to stage "Waiting Vendor Quote". Same rule produced the stale remark "Device never registered to Hik-Connect / iVMS" (e.g. 51403 Future Park, Online)
+- `deriveRecoveryStatus()`: only a hikconnect row with an empty `ivms_account` means not registered; no row = unknown (iVMS sync is the source of truth now)
+- New `hasWorkOrder()` (open ticket or `recovery_stage` set); the Dashboard pipeline uses it instead of `needsRepair()`
+- Partial 27 / Repair "กล้อง 22" look too high: `camera_issue` was seeded on 11 Oct from every store Partial at the time, many from the Survey era for other reasons. Review SQL: `scripts/sql/2026-10-12-review-camera-issue.sql` (step 1 list + suggestion, step 2 backup table, step 3 clear confirmed codes by setting Healthy → 024 trigger clears the flag, step 4 optional: clear stored `recovery_status = 'Device Not Registered'` for stores the sync has seen, rollback block). Not run yet — user runs it
+- Checks: tsc 0 · lint clean · build passes · SQL parsed (5 statements) · demo Dashboard unchanged (mock stores all have stages), no runtime errors
+
 ## Merge 2026-10-12 — Installation Project merged into this branch (user)
 - User asked where Work Orders › Timeline / Kanban went: they live on `docs/installation-project-plan` (never merged), and PR #2 was branched from `main`. That branch is now merged here so one branch carries both features
 - Conflicts resolved: `src/lib/data.ts` (kept both the monitoring and the installation fetchers), `src/lib/mockData.ts` (both type imports), this file (Installation status kept below)

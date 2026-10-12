@@ -20,7 +20,7 @@ import {
   RECOVERY_STAGES,
   getRecoveryRegion,
   isStoreChecked,
-  needsRepair,
+  hasWorkOrder,
   getEffectiveRecoveryStage,
   zoneCode,
   getLatestRemark,
@@ -141,12 +141,10 @@ function DashboardContent() {
     value: stores.filter((s) => getRecoveryRegion(s.zone) === r).length,
   }));
 
-  // Scoped to stores actually in a Work Order (needsRepair — the same test
-  // the Work Orders page itself uses), not every store. Counting all 197
-  // stores here meant every healthy store that never had an issue defaulted
-  // into "Verified", drowning out the real pipeline in one giant bar that
-  // didn't match the Work Orders page at all.
-  const workOrderStores = useMemo(() => stores.filter((s) => needsRepair(s, tickets)), [stores, tickets]);
+  // Only stores with a real work order (open ticket or a repair stage set).
+  // needsRepair() also counts issues derived from stale import fields, which
+  // put ~80 stores with no job into "Waiting Vendor Quote" (fixed 2026-10-12).
+  const workOrderStores = useMemo(() => stores.filter((s) => hasWorkOrder(s, tickets)), [stores, tickets]);
   const byStage = RECOVERY_STAGES.map((stage) => ({
     name: stage,
     value: workOrderStores.filter((s) => getEffectiveRecoveryStage(s, tickets) === stage).length,

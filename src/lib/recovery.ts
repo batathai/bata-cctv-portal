@@ -132,7 +132,13 @@ export function deriveRecoveryStatus(store: StoreWithAssets): RecoveryStatus {
   // (a data-completeness gap) — see isStoreChecked, which already uses the
   // same asset != null signal for its own "Stores Checked" count.
   if (!store.asset) return "Normal";
-  if (!store.hikconnect || !store.hikconnect.ivms_account) return "Device Not Registered";
+  // Only a hikconnect row that exists with an empty ivms_account means "not
+  // registered". No row at all is unknown, not a fault: hikconnect_devices is
+  // empty in production (found 2026-10-08), and since the iVMS sync (migration
+  // 022) the Device Status page knows which DVRs are really in iVMS. Guessing
+  // here marked every store "Device Not Registered" and filled the Dashboard's
+  // Work Order Pipeline with ~80 stores that had no work order (2026-10-12).
+  if (store.hikconnect && !store.hikconnect.ivms_account) return "Device Not Registered";
   if (!store.asset.nvr_online) return "DVR Failure";
   if (store.asset.camera_failed > 0) return "Camera Issue";
   return "Normal";
@@ -232,6 +238,15 @@ export function isHealthy(store: StoreWithAssets, tickets: IncidentTicket[]): bo
 // reports "Normal" once Completed/Verified — so a finished repair keeps
 // showing up in the Work Orders list/counts instead of silently
 // disappearing the moment it's fixed. See deriveRecoveryStatus's comment.
+/**
+ * A store with an actual work order: an open ticket or a repair stage someone
+ * set. Unlike needsRepair() it ignores issues derived from old import/Survey
+ * fields, so the Dashboard's Work Order Pipeline shows real jobs only.
+ */
+export function hasWorkOrder(store: StoreWithAssets, tickets: IncidentTicket[]): boolean {
+  return hasOpenTicket(store.id, tickets) || store.recovery_stage != null;
+}
+
 export function needsRepair(store: StoreWithAssets, tickets: IncidentTicket[]): boolean {
   return deriveRecoveryStatus(store) !== "Normal" || hasOpenTicket(store.id, tickets) || store.recovery_stage != null;
 }

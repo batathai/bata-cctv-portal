@@ -14,7 +14,7 @@ import { ZONES } from "@/lib/mockData";
 import { useMonitoring } from "@/components/providers/MonitoringProvider";
 import { MonitorStatusPill } from "@/components/status/MonitorStatusPill";
 import { RepairLink, repairReason, pendingRepairKind } from "@/components/status/RepairLink";
-import { buildLiveRows, countLiveStatuses, matchesLiveStatus, REPAIR_SUGGEST_MINUTES, type LiveRow } from "@/lib/monitoring";
+import { buildLiveRows, countLiveStatuses, matchesLiveStatus, REPAIR_SUGGEST_LABEL, type LiveRow } from "@/lib/monitoring";
 import { canLogMaintenance } from "@/lib/rbac";
 import {
   RECOVERY_STAGES,
@@ -327,7 +327,7 @@ function DashboardContent() {
           {sorted.length === 0 && <p className="text-sm text-ink-faint py-4">No stores match the current filter</p>}
         </div>
         <p className="mt-3 text-[11px] text-ink-faint">
-          สถานะ DVR ชุดเดียวกับหน้า Device Status · Partial = DVR Online แต่ดูกล้องไม่ได้ · Repair = ประแจแดง (DVR Offline เกิน {REPAIR_SUGGEST_MINUTES / 60} ชม.) หรือประแจเหลือง (ต้องซ่อมกล้อง) ที่ยังไม่มีใบงาน
+          สถานะ DVR ชุดเดียวกับหน้า Device Status · Partial = DVR Online แต่ดูกล้องไม่ได้ · Repair = ประแจแดง (DVR Offline เกิน {REPAIR_SUGGEST_LABEL}) หรือประแจเหลือง (ต้องซ่อมกล้อง) ที่ยังไม่มีใบงาน
         </p>
       </Card>
     </div>

@@ -29,7 +29,12 @@ export const DEFAULT_MONITOR_SETTINGS: MonitorSettings = {
 
 export const MAX_MUTE_DAYS = 30;
 /** Offline at least this long (and not muted) → Device Status suggests opening a repair ticket. */
-export const REPAIR_SUGGEST_MINUTES = 120;
+// Red wrench (open an "NVR Offline" ticket) once a DVR has been offline this
+// long. 2 h until 2026-10-12, then 1 day (user): shorter outages are usually a
+// store closing early or a short internet drop and come back on their own.
+export const REPAIR_SUGGEST_MINUTES = 24 * 60;
+/** Same threshold in words, for legends and footnotes. */
+export const REPAIR_SUGGEST_LABEL = "1 วัน";
 export const TOTAL_STORES_TARGET = 194;
 const TZ = "Asia/Bangkok";
 

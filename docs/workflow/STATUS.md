@@ -4,6 +4,10 @@ Phase: /test in progress (HQ script verified end-to-end on 2026-10-08)
 Design approved: yes — 2026-10-08 — DESIGN-device-offline-monitoring.md as written (iVMS reader, migration 022, 4-tab /status, Store Detail card, confirm Offline after 2 cycles, 10:00–22:00 default hours, R11 dropped from phase 1)
 Updated: 2026-10-12
 
+## Change 2026-10-12 14:40 — red wrench after 1 day offline (user)
+- `REPAIR_SUGGEST_MINUTES` 120 → 1440 (`src/lib/monitoring.ts`), new `REPAIR_SUGGEST_LABEL` "1 วัน" used in the Device Status and Dashboard footnotes. Affects the red wrench everywhere (Device Status, Asset Register, Dashboard) and the Dashboard Repair card's DVR count. Amber wrench (camera issue) unchanged
+- Checks: tsc 0 · lint clean
+
 ## Fix 2026-10-12 13:45 — Work Order Pipeline counted stores with no work order (user saw ~83 in "Waiting Vendor Quote")
 - Cause: `deriveRecoveryStatus()` returned "Device Not Registered" whenever a store had no `hikconnect_devices` row, and that table is empty in production → almost every store `needsRepair()` → defaulted to stage "Waiting Vendor Quote". Same rule produced the stale remark "Device never registered to Hik-Connect / iVMS" (e.g. 51403 Future Park, Online)
 - `deriveRecoveryStatus()`: only a hikconnect row with an empty `ivms_account` means not registered; no row = unknown (iVMS sync is the source of truth now)

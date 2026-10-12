@@ -11,7 +11,7 @@ import { getStatusLabel } from "@/components/ui/Badge";
 import { MonitorStatusPill } from "@/components/status/MonitorStatusPill";
 import { MuteDialog } from "@/components/status/MuteDialog";
 import {
-  buildLiveRows, countLiveStatuses, formatDuration, formatSeen, matchesLiveStatus as matchesStatus, ZONES_BY_REGION, REPAIR_SUGGEST_MINUTES,
+  buildLiveRows, countLiveStatuses, formatDuration, formatSeen, matchesLiveStatus as matchesStatus, ZONES_BY_REGION, REPAIR_SUGGEST_LABEL,
   type LiveStatusFilter as StatusFilter, type RegionKey, type LiveRow,
 } from "@/lib/monitoring";
 import { canLogMaintenance } from "@/lib/rbac";
@@ -188,7 +188,7 @@ export function LiveStatusTab() {
                     <td className="px-4 py-2.5">
                       <div className="flex justify-end gap-1">
                         {(() => {
-                          // Wrench = open a repair ticket: DVR offline 2 h+ (red) or DVR online but
+                          // Wrench = open a repair ticket: DVR offline REPAIR_SUGGEST_MINUTES+ (red) or DVR online but
                           // cameras reported unusable (amber). Grey = already has an open ticket.
                           const reason = canEdit ? repairReason(r.store, m, r.status, r.offlineMinutes) : null;
                           return reason ? <RepairLink store={r.store} reason={reason} tickets={tickets} /> : <span className="w-8" aria-hidden="true" />;
@@ -219,7 +219,7 @@ export function LiveStatusTab() {
           {filtered.length === 0 && <p className="text-sm text-ink-faint py-8 text-center">ไม่มีสาขาในกลุ่มนี้</p>}
         </div>
         <div className="px-4 py-2.5 text-[11px] text-ink-faint border-t border-black/5 dark:border-white/10">
-          เรียง: Offline (หลุดนานสุดบนสุด) → ต้องซ่อมกล้อง → Muted → Online → Not monitored · การ์ด Offline รวมสาขาที่ปิดเตือน (Muted) · โหลดใหม่เองทุก 60 วินาที · * = เวลาทำการเฉพาะสาขา · ประแจแดง = DVR Offline เกิน {REPAIR_SUGGEST_MINUTES / 60} ชม. · ประแจเหลือง = DVR Online แต่ดูกล้องไม่ได้ (Partial) · กดเพื่อเปิดเคสซ่อม
+          เรียง: Offline (หลุดนานสุดบนสุด) → ต้องซ่อมกล้อง → Muted → Online → Not monitored · การ์ด Offline รวมสาขาที่ปิดเตือน (Muted) · โหลดใหม่เองทุก 60 วินาที · * = เวลาทำการเฉพาะสาขา · ประแจแดง = DVR Offline เกิน {REPAIR_SUGGEST_LABEL} · ประแจเหลือง = DVR Online แต่ดูกล้องไม่ได้ (Partial) · กดเพื่อเปิดเคสซ่อม
         </div>
       </Card>
 

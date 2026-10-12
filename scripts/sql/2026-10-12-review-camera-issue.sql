@@ -1,6 +1,8 @@
 -- ============================================================================
 -- ตรวจและล้าง "ต้องซ่อมกล้อง" (camera_issue) ที่ค้างมาจากสมัย Survey — 2026-10-12
 -- รันใน Supabase SQL Editor ทีละขั้น (เลือกเฉพาะขั้นนั้นแล้วกด Run)
+-- ขั้นที่แก้ข้อมูล (3, 4) ถูกปิดไว้ด้วย /* */ — กด Run ทั้งไฟล์จะไม่แก้อะไรนอกจากสร้างตารางสำรอง
+-- จะใช้ขั้น 3/4 ให้ลบบรรทัด /* และ */ ของขั้นนั้นออกก่อน
 --
 -- ทำไมต้องตรวจ: migration 024 ตั้ง camera_issue = true ให้ทุกสาขาที่เป็น Partial
 -- ณ วันที่ 11 ต.ค. แต่หลายสาขาเป็น Partial มาตั้งแต่ Survey ด้วยเหตุผลอื่น
@@ -72,6 +74,7 @@ select count(*) as backed_up_rows from public.backup_camera_issue_20261012;
 -- ตั้ง overall_status = 'Healthy' → trigger ของ migration 024 ล้าง camera_issue ให้เอง
 -- เฉพาะสาขาที่ DVR Online อยู่ (สาขาที่ DVR Offline ไม่แตะ ปล่อยให้ sync จัดการ)
 -- ---------------------------------------------------------------------------
+/*  ← ลบบรรทัดนี้เพื่อเปิดใช้ขั้น 3
 update public.stores s
 set overall_status = 'Healthy'
 from public.store_monitor m
@@ -80,6 +83,7 @@ where m.store_id = s.id
   and s.camera_issue
   and s.store_code in ('51132', '51403')   -- ← แก้เป็นรายชื่อจริง
 returning s.store_code, s.store_name, s.overall_status, s.camera_issue;
+*/  -- ← และบรรทัดนี้
 
 
 -- ---------------------------------------------------------------------------
@@ -87,6 +91,7 @@ returning s.store_code, s.store_name, s.overall_status, s.camera_issue;
 -- เจอแล้ว (แปลว่าลงทะเบียนแล้วจริง) ข้อความ Remark "Device never registered to
 -- Hik-Connect / iVMS" ในรายการสาขาจะหายไป ไม่กระทบสถานะ DVR หรือใบงาน
 -- ---------------------------------------------------------------------------
+/*  ← ลบบรรทัดนี้เพื่อเปิดใช้ขั้น 4
 update public.stores s
 set recovery_status = null
 from public.store_monitor m
@@ -94,6 +99,7 @@ where m.store_id = s.id
   and m.last_checked_at is not null
   and s.recovery_status = 'Device Not Registered'
 returning s.store_code, s.store_name;
+*/  -- ← และบรรทัดนี้
 
 
 -- ---------------------------------------------------------------------------

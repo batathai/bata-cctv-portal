@@ -37,6 +37,19 @@ export function repairReason(
   return null;
 }
 
+/**
+ * Dashboard "Repair" card (decision 2026-10-12, option ข): stores that should
+ * get a repair ticket (red or amber wrench) but don't have an open one yet.
+ */
+export function pendingRepairKind(
+  row: { store: StoreWithAssets; monitor: StoreMonitor | null; status: DisplayStatus; offlineMinutes: number | null },
+  tickets: IncidentTicket[]
+): RepairReason["kind"] | null {
+  const reason = repairReason(row.store, row.monitor, row.status, row.offlineMinutes);
+  if (!reason || hasOpenTicket(row.store.id, tickets)) return null;
+  return reason.kind;
+}
+
 const iconBtn =
   "inline-flex items-center justify-center w-8 h-8 rounded-md border border-black/10 dark:border-white/10 hover:bg-surface-muted dark:hover:bg-white/5";
 

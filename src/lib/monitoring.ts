@@ -212,6 +212,40 @@ export function statusSortRank(s: DisplayStatus): number {
   return SORT_RANK[s];
 }
 
+/**
+ * The four status groups shown as KPI cards — shared by Device Status and the
+ * Dashboard so both always show the same numbers (user rule 2026-10-11:
+ * DVR status must match on Device Status, Asset Register and Dashboard).
+ * Offline includes Muted (DVR still down, only the alerts are off).
+ * "Unknown" (monitored, not read yet) belongs to no card.
+ */
+export type LiveStatusFilter = "" | "Offline" | "Online" | "CameraIssue" | "NotMonitored";
+
+export function matchesLiveStatus(s: DisplayStatus, f: LiveStatusFilter): boolean {
+  if (!f) return true;
+  if (f === "Offline") return s === "Offline" || s === "Muted";
+  if (f === "Online") return s === "Online" || s === "Confirming";
+  return s === f;
+}
+
+export interface LiveStatusCounts {
+  Offline: number;
+  Online: number;
+  CameraIssue: number;
+  NotMonitored: number;
+}
+
+export function countLiveStatuses(rows: { status: DisplayStatus }[]): LiveStatusCounts {
+  const c: LiveStatusCounts = { Offline: 0, Online: 0, CameraIssue: 0, NotMonitored: 0 };
+  rows.forEach((r) => {
+    if (matchesLiveStatus(r.status, "Offline")) c.Offline++;
+    else if (matchesLiveStatus(r.status, "Online")) c.Online++;
+    else if (r.status === "CameraIssue") c.CameraIssue++;
+    else if (r.status === "NotMonitored") c.NotMonitored++;
+  });
+  return c;
+}
+
 export type RegionKey = "BKK" | "UPC";
 
 export function regionKey(zone: string): RegionKey {

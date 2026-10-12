@@ -2,7 +2,22 @@
 Feature: Device Offline Monitoring (iVMS reader)
 Phase: /test in progress (HQ script verified end-to-end on 2026-10-08)
 Design approved: yes — 2026-10-08 — DESIGN-device-offline-monitoring.md as written (iVMS reader, migration 022, 4-tab /status, Store Detail card, confirm Offline after 2 cycles, 10:00–22:00 default hours, R11 dropped from phase 1)
-Updated: 2026-10-10
+Updated: 2026-10-12
+
+## Change 2026-10-12 — Dashboard uses the same DVR status as Device Status (user)
+- Cause of "Dashboard Offline 76 vs Device Status ~14": Dashboard counted `stores.overall_status`; the sync only rewrites it for stores it sees, so stores never in iVMS kept their old manual/Survey Offline
+- Dashboard now builds `buildLiveRows()` like the Device Status table. Counting moved to `src/lib/monitoring.ts` (`countLiveStatuses`, `matchesLiveStatus`) and Device Status uses it too, so the two pages can't drift apart
+- Cards: Stores Checked · Online · Partial ("DVR Online แต่ดูกล้องไม่ได้" = CameraIssue) · Offline (incl. Muted) · **Not monitored** (was Unknown; never seen in iVMS) · **Repair = option ข** (user 2026-10-12): red wrench (DVR Offline ≥ 2 h) or amber wrench (Partial) with no open ticket yet — `pendingRepairKind()` in `RepairLink.tsx`; hint shows the DVR / camera split
+- Donut "DVR Status" = Online / Partial / Offline / Not monitored (same colours). Store List shows the Device Status pill + repair wrench instead of the overall_status badge. Old `?status=Healthy|Partial|Unknown` links map to the new buckets
+- `StatCard` gained an optional `hint` line
+- "Unknown" (monitored but not read yet) belongs to no card, same as Device Status
+- Checks: `tsc` 0 errors · lint clean · `npm run build` passes (Google Fonts mocked) · demo mode: Dashboard 4/20/3/23 = Device Status 4/20/3/23, Repair filter → 1 row (51305, amber wrench), 390 px OK, no console errors
+- Migration 024 confirmed run on the real Supabase by the user
+- Not done (later): Motion on the Dashboard; 3D map hero draft (Design canvas "Dashboard DVR + Motion — แบบร่าง") paused by the user
+
+## Decisions 2026-10-12
+- 24 h machine for `monitor.py`: an old PC that is NOT on the domain (no lock-screen GPO)
+- Store closure: still waiting for the list of closed store codes (besides 51512 Seacon Square)
 
 ## Decision + change 2026-10-11 16:45 — Status follows the sync; camera issue stays Partial (user)
 - `stores.overall_status` (Dashboard cards/donut, Asset Register "Status", Reports) now follows the iVMS sync: DVR Offline → Offline; DVR Online → Online (Healthy), or **Partial if someone reported the cameras unusable**; never synced → manual/Survey value as before. Dashboard updates too (user chose the same rule everywhere)

@@ -10,9 +10,12 @@ import { Activity, MapPin, ListChecks, Search, FileText, Radio } from "lucide-re
 import { useAppData } from "@/components/providers/AppDataProvider";
 import { Card, SectionTitle } from "@/components/ui/Card";
 import { StatCard } from "@/components/ui/StatCard";
-import { StatusBadge } from "@/components/ui/Badge";
 import { ZONES } from "@/lib/mockData";
-import { hasOpenTicket } from "@/lib/tickets";
+import { useMonitoring } from "@/components/providers/MonitoringProvider";
+import { MonitorStatusPill } from "@/components/status/MonitorStatusPill";
+import { RepairLink, repairReason, pendingRepairKind } from "@/components/status/RepairLink";
+import { buildLiveRows, countLiveStatuses, matchesLiveStatus, REPAIR_SUGGEST_MINUTES, type LiveRow } from "@/lib/monitoring";
+import { canLogMaintenance } from "@/lib/rbac";
 import {
   RECOVERY_STAGES,
   getRecoveryRegion,
@@ -22,18 +25,16 @@ import {
   zoneCode,
   getLatestRemark,
 } from "@/lib/recovery";
-import type { StoreWithAssets } from "@/types/database";
+import type { IncidentTicket } from "@/types/database";
 
-// Same Online/Partial/Offline/Unknown palette as StatusBadge (Badge.tsx) and
-// the StatCards right above these charts — so "Store Status" always agrees
-// with the numbers the person just looked at, instead of a separate
-// ticket-derived Normal/Under Repair/Completed/Other breakdown that could
-// disagree with them.
+// Same DVR status groups and colours as the Device Status cards (decision
+// 2026-10-12): the donut always agrees with the numbers right above it and
+// with /status. "Not monitored" = never seen in iVMS (was "Unknown").
 const STATUS_COLORS: Record<string, string> = {
   Online: "#1E9E5A",
   Partial: "#E2A400",
   Offline: "#D71920",
-  Unknown: "#8A8A8A",
+  "Not monitored": "#BDBDBD",
 };
 
 // One color per Work Order stage, in RECOVERY_STAGES order — a warm
@@ -63,25 +64,30 @@ function BarCursor({ horizontal, x, y, width, height }: { horizontal?: boolean; 
   return <rect x={x + pad} y={y} width={Math.max(width - pad * 2, 2)} height={height} fill="#D71920" fillOpacity={0.07} rx={4} />;
 }
 
-type Bucket = "all" | "checked" | "Healthy" | "Partial" | "Offline" | "Unknown" | "repair";
+type Bucket = "all" | "checked" | "Online" | "CameraIssue" | "Offline" | "NotMonitored" | "repair";
 
-function bucketMatches(bucket: Bucket, s: StoreWithAssets, audits: any[], tickets: any[]): boolean {
+// Links saved before 2026-10-12 used the old overall_status buckets.
+const LEGACY_BUCKET: Record<string, Bucket> = { Healthy: "Online", Partial: "CameraIssue", Unknown: "NotMonitored" };
+
+function bucketMatches(bucket: Bucket, r: LiveRow, audits: any[], tickets: IncidentTicket[]): boolean {
   switch (bucket) {
     case "checked":
-      return isStoreChecked(s, audits);
+      return isStoreChecked(r.store, audits);
     case "repair":
-      return hasOpenTicket(s.id, tickets);
+      return pendingRepairKind(r, tickets) != null;
     case "all":
       return true;
     default:
-      return s.overall_status === bucket;
+      return matchesLiveStatus(r.status, bucket);
   }
 }
 
 // useSearchParams() below opts this page into client-side rendering, which
 // Next.js requires wrapping in Suspense — see default export at the bottom.
 function DashboardContent() {
-  const { stores, audits, tickets, recoveryStageHistory, loading, filters, setFilters } = useAppData();
+  const { stores, audits, tickets, recoveryStageHistory, loading, filters, setFilters, role } = useAppData();
+  const { monitors, settings, stale, loading: monitorLoading } = useMonitoring();
+  const canEdit = canLogMaintenance(role);
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -89,7 +95,8 @@ function DashboardContent() {
   // clicking a StatCard, opening a store's Details, then hitting Back
   // returns to this same filtered view instead of resetting to "all" — a
   // plain useState is lost on remount since Back re-mounts this page fresh.
-  const bucket = (searchParams.get("status") as Bucket | null) ?? "all";
+  const rawBucket = searchParams.get("status") ?? "all";
+  const bucket = (LEGACY_BUCKET[rawBucket] ?? rawBucket) as Bucket;
   function setBucket(next: Bucket) {
     const params = new URLSearchParams(searchParams.toString());
     if (next === "all") params.delete("status");
@@ -99,37 +106,32 @@ function DashboardContent() {
   }
   const [q, setQ] = useState("");
 
+  // DVR status per store, built exactly like the Device Status table (iVMS sync
+  // + camera issue), so every count below matches /status and Asset Register.
+  const rows = useMemo(() => buildLiveRows(stores, monitors, settings, stale), [stores, monitors, settings, stale]);
+
   const counts = useMemo(() => {
     const checked = stores.filter((s) => isStoreChecked(s, audits)).length;
-    const repair = stores.filter((s) => hasOpenTicket(s.id, tickets)).length;
-    const c: Record<string, number> = { Healthy: 0, Partial: 0, Offline: 0, Unknown: 0 };
-    // Defensive fallback only — no live code path writes "View Only" anymore
-    // (see deriveOverallStatusFromAsset's comment), but if a store somehow
-    // still has that legacy value un-migrated, fold it into Partial rather
-    // than silently dropping it from every count below.
-    stores.forEach((s) => {
-      const key = (s.overall_status as string) === "View Only" ? "Partial" : s.overall_status;
-      c[key] = (c[key] ?? 0) + 1;
+    // Repair (option ข): red/amber wrench without an open ticket yet.
+    let repairDvr = 0;
+    let repairCamera = 0;
+    rows.forEach((r) => {
+      const kind = pendingRepairKind(r, tickets);
+      if (kind === "dvr") repairDvr++;
+      else if (kind === "camera") repairCamera++;
     });
-    return {
-      checked,
-      repair,
-      Healthy: c.Healthy,
-      Partial: c.Partial,
-      Offline: c.Offline,
-      Unknown: c.Unknown,
-    };
-  }, [stores, audits, tickets]);
+    return { checked, repair: repairDvr + repairCamera, repairDvr, repairCamera, ...countLiveStatuses(rows) };
+  }, [stores, rows, audits, tickets]);
 
   // Mirrors the StatCards above exactly (same counts object) so this chart
   // can never show a different picture than the numbers right above it.
   const donut = useMemo(
     () =>
       [
-        { name: "Online", value: counts.Healthy ?? 0 },
-        { name: "Partial", value: counts.Partial ?? 0 },
-        { name: "Offline", value: counts.Offline ?? 0 },
-        { name: "Unknown", value: counts.Unknown ?? 0 },
+        { name: "Online", value: counts.Online },
+        { name: "Partial", value: counts.CameraIssue },
+        { name: "Offline", value: counts.Offline },
+        { name: "Not monitored", value: counts.NotMonitored },
       ].filter((d) => d.value > 0),
     [counts]
   );
@@ -151,27 +153,48 @@ function DashboardContent() {
   }));
 
   const filtered = useMemo(
-    () => stores.filter((s) => bucketMatches(bucket, s, audits, tickets) && (s.store_name + s.store_code).toLowerCase().includes(q.toLowerCase())),
-    [stores, audits, tickets, bucket, q]
+    () => rows.filter((r) => bucketMatches(bucket, r, audits, tickets) && (r.store.store_name + r.store.store_code).toLowerCase().includes(q.toLowerCase())),
+    [rows, audits, tickets, bucket, q]
   );
-  const sorted = useMemo(() => [...filtered].sort((a, b) => a.store_code.localeCompare(b.store_code)), [filtered]);
+  const sorted = useMemo(() => [...filtered].sort((a, b) => a.store.store_code.localeCompare(b.store.store_code)), [filtered]);
 
-  if (loading) return <div className="text-sm text-ink-faint">Loading store data…</div>;
+  if (loading || monitorLoading) return <div className="text-sm text-ink-faint">Loading store data…</div>;
 
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap gap-3">
         <StatCard label="Stores Checked" value={counts.checked} onClick={() => setBucket("checked")} active={bucket === "checked"} />
-        <StatCard label="Online" value={counts.Healthy ?? 0} colorClass="text-status-healthy" onClick={() => setBucket("Healthy")} active={bucket === "Healthy"} />
-        <StatCard label="Partial" value={counts.Partial ?? 0} colorClass="text-status-partial" onClick={() => setBucket("Partial")} active={bucket === "Partial"} />
-        <StatCard label="Offline" value={counts.Offline ?? 0} colorClass="text-status-offline" onClick={() => setBucket("Offline")} active={bucket === "Offline"} />
-        <StatCard label="Unknown" value={counts.Unknown ?? 0} colorClass="text-status-unknown" onClick={() => setBucket("Unknown")} active={bucket === "Unknown"} />
-        <StatCard label="Repair" value={counts.repair} colorClass="text-brand" onClick={() => setBucket("repair")} active={bucket === "repair"} />
+        <StatCard label="Online" value={counts.Online} colorClass="text-status-healthy" onClick={() => setBucket("Online")} active={bucket === "Online"} />
+        <StatCard
+          label="Partial"
+          value={counts.CameraIssue}
+          colorClass="text-[#8A5A00] dark:text-status-partial"
+          hint="DVR Online แต่ดูกล้องไม่ได้"
+          onClick={() => setBucket("CameraIssue")}
+          active={bucket === "CameraIssue"}
+        />
+        <StatCard label="Offline" value={counts.Offline} colorClass="text-status-offline" onClick={() => setBucket("Offline")} active={bucket === "Offline"} />
+        <StatCard
+          label="Not monitored"
+          value={counts.NotMonitored}
+          colorClass="text-ink dark:text-white"
+          hint="ยังไม่เคย sync เจอใน iVMS"
+          onClick={() => setBucket("NotMonitored")}
+          active={bucket === "NotMonitored"}
+        />
+        <StatCard
+          label="Repair"
+          value={counts.repair}
+          colorClass="text-brand"
+          hint={`รอเปิดใบงาน: DVR ${counts.repairDvr} · กล้อง ${counts.repairCamera}`}
+          onClick={() => setBucket("repair")}
+          active={bucket === "repair"}
+        />
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
         <Card className="p-4">
-          <SectionTitle icon={Activity}>Store Status</SectionTitle>
+          <SectionTitle icon={Activity}>DVR Status</SectionTitle>
           <ResponsiveContainer width="100%" height={190}>
             <PieChart>
               <Pie data={donut} dataKey="value" nameKey="name" innerRadius={45} outerRadius={72} paddingAngle={3}>
@@ -274,7 +297,7 @@ function DashboardContent() {
         </div>
 
         <div className="divide-y divide-black/5 dark:divide-white/5">
-          {sorted.map((s) => (
+          {sorted.map(({ store: s, ...r }) => (
             <div key={s.id} className="flex items-center gap-3 py-3 flex-wrap">
               <div className="min-w-0 flex-1">
                 <div className="text-sm font-mono font-semibold text-ink dark:text-white truncate">{s.store_code}</div>
@@ -290,7 +313,11 @@ function DashboardContent() {
                   ) : null;
                 })()}
               </div>
-              <StatusBadge status={s.overall_status} />
+              <MonitorStatusPill status={r.status} />
+              {(() => {
+                const reason = canEdit ? repairReason(s, r.monitor, r.status, r.offlineMinutes) : null;
+                return reason ? <RepairLink store={s} reason={reason} tickets={tickets} /> : null;
+              })()}
               <Link
                 href={`/recovery/${s.store_code}`}
                 className="flex items-center gap-1.5 text-xs font-medium border border-black/10 dark:border-white/10 rounded-md px-3 py-1.5 hover:bg-surface-muted dark:hover:bg-white/5 shrink-0"
@@ -301,6 +328,9 @@ function DashboardContent() {
           ))}
           {sorted.length === 0 && <p className="text-sm text-ink-faint py-4">No stores match the current filter</p>}
         </div>
+        <p className="mt-3 text-[11px] text-ink-faint">
+          สถานะ DVR ชุดเดียวกับหน้า Device Status · Partial = DVR Online แต่ดูกล้องไม่ได้ · Repair = ประแจแดง (DVR Offline เกิน {REPAIR_SUGGEST_MINUTES / 60} ชม.) หรือประแจเหลือง (ต้องซ่อมกล้อง) ที่ยังไม่มีใบงาน
+        </p>
       </Card>
     </div>
   );

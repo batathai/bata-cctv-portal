@@ -11,8 +11,8 @@ import { getStatusLabel } from "@/components/ui/Badge";
 import { MonitorStatusPill } from "@/components/status/MonitorStatusPill";
 import { MuteDialog } from "@/components/status/MuteDialog";
 import {
-  buildLiveRows, formatDuration, formatSeen, ZONES_BY_REGION, REPAIR_SUGGEST_MINUTES,
-  type DisplayStatus, type RegionKey, type LiveRow,
+  buildLiveRows, countLiveStatuses, formatDuration, formatSeen, matchesLiveStatus as matchesStatus, ZONES_BY_REGION, REPAIR_SUGGEST_MINUTES,
+  type LiveStatusFilter as StatusFilter, type RegionKey, type LiveRow,
 } from "@/lib/monitoring";
 import { canLogMaintenance } from "@/lib/rbac";
 import { RepairLink, repairReason, CAMERA_ISSUE_REMARK } from "@/components/status/RepairLink";
@@ -23,14 +23,7 @@ const iconBtn =
 
 // KPI cards (user request 2026-10-11): Offline (incl. muted — the DVR is still
 // down, only the alerts are off) · Online · Partial = ต้องซ่อมกล้อง · Not monitored.
-type StatusFilter = "" | "Offline" | "Online" | "CameraIssue" | "NotMonitored";
-
-function matchesStatus(s: DisplayStatus, f: StatusFilter) {
-  if (!f) return true;
-  if (f === "Offline") return s === "Offline" || s === "Muted";
-  if (f === "Online") return s === "Online" || s === "Confirming";
-  return s === f;
-}
+// Counting lives in src/lib/monitoring.ts so the Dashboard shows the same numbers.
 
 /** Tab 1 of /status: live Online/Offline per store from the iVMS monitor (R7). */
 export function LiveStatusTab() {
@@ -54,16 +47,7 @@ export function LiveStatusTab() {
     [rows, region, zone]
   );
 
-  const counts = useMemo(() => {
-    const c = { Offline: 0, Online: 0, CameraIssue: 0, NotMonitored: 0 };
-    scoped.forEach((r) => {
-      if (matchesStatus(r.status, "Offline")) c.Offline++;
-      else if (matchesStatus(r.status, "Online")) c.Online++;
-      else if (r.status === "CameraIssue") c.CameraIssue++;
-      else if (r.status === "NotMonitored") c.NotMonitored++;
-    });
-    return c;
-  }, [scoped]);
+  const counts = useMemo(() => countLiveStatuses(scoped), [scoped]);
 
   const zoneOptions = region ? ZONES_BY_REGION[region] : [...ZONES_BY_REGION.BKK, ...ZONES_BY_REGION.UPC];
   const ql = q.trim().toLowerCase();

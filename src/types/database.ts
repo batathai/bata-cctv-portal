@@ -40,7 +40,6 @@ export interface Store {
   // Sprint 1: Recovery Dashboard fields. All nullable/optional so existing
   // rows (and any real Supabase project that hasn't run migration 005 yet)
   // keep working — see src/lib/recovery.ts for fallback derivation.
-  is_recovery50?: boolean;
   recovery_status?: RecoveryStatus | null;
   recovery_stage?: RecoveryStage | null;
   cause?: string | null;
@@ -59,9 +58,8 @@ export interface Store {
   // captured (e.g. "รอ vendor ยืนยันวันเข้างาน").
   recovery_notes?: string | null;
   // Which Work Order "Job" this store currently belongs to (migration 017)
-  // — replaces is_recovery50 as the actual scoping mechanism; that field is
-  // left in place but unused going forward (it could only ever represent
-  // one batch). null = not currently part of any job.
+  // — the way stores are picked for a round of work (is_recovery50 was
+  // dropped in migration 025). null = not currently part of any job.
   batch_id?: string | null;
 }
 

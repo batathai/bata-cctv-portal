@@ -110,8 +110,7 @@ export function getLatestQuotation(storeId: string, quotations: VendorQuotation[
 /**
  * Fallback classification for stores that don't (yet) have an explicit
  * `recovery_status` set on the row — e.g. real Supabase rows created before
- * migration 005, or any store outside the flagged Recovery 50 when viewing
- * "All Stores". Keeps the Dashboard Summary meaningful everywhere instead of
+ * migration 005, or any store not yet in a Work Order job. Keeps the Dashboard Summary meaningful everywhere instead of
  * requiring every store to be manually tagged.
  */
 export function deriveRecoveryStatus(store: StoreWithAssets): RecoveryStatus {

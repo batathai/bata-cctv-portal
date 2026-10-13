@@ -13,8 +13,8 @@ import { StatCard } from "@/components/ui/StatCard";
 import { ZONES } from "@/lib/mockData";
 import { useMonitoring } from "@/components/providers/MonitoringProvider";
 import { MonitorStatusPill } from "@/components/status/MonitorStatusPill";
-import { RepairLink, repairReason, pendingRepairKind } from "@/components/status/RepairLink";
-import { buildLiveRows, countLiveStatuses, matchesLiveStatus, REPAIR_SUGGEST_LABEL, type LiveRow } from "@/lib/monitoring";
+import { RepairLink, repairReason } from "@/components/status/RepairLink";
+import { buildLiveRows, countLiveStatuses, matchesLiveStatus, type LiveRow } from "@/lib/monitoring";
 import { canLogMaintenance } from "@/lib/rbac";
 import {
   RECOVERY_STAGES,
@@ -25,7 +25,16 @@ import {
   zoneCode,
   getLatestRemark,
 } from "@/lib/recovery";
-import type { IncidentTicket } from "@/types/database";
+import type { IncidentTicket, StoreWithAssets } from "@/types/database";
+
+// Repair = a work order someone has opened that isn't finished yet
+// (decision 2026-10-13): the number only goes up once a job is opened,
+// not from stores the system thinks need repair.
+function hasOpenWorkOrder(store: StoreWithAssets, tickets: IncidentTicket[]): boolean {
+  if (!hasWorkOrder(store, tickets)) return false;
+  const stage = getEffectiveRecoveryStage(store, tickets);
+  return stage !== "Completed" && stage !== "Verified";
+}
 
 // Same DVR status groups and colours as the Device Status cards (decision
 // 2026-10-12): the donut always agrees with the numbers right above it and
@@ -74,7 +83,7 @@ function bucketMatches(bucket: Bucket, r: LiveRow, audits: any[], tickets: Incid
     case "checked":
       return isStoreChecked(r.store, audits);
     case "repair":
-      return pendingRepairKind(r, tickets) != null;
+      return hasOpenWorkOrder(r.store, tickets);
     case "all":
       return true;
     default:
@@ -112,15 +121,8 @@ function DashboardContent() {
 
   const counts = useMemo(() => {
     const checked = stores.filter((s) => isStoreChecked(s, audits)).length;
-    // Repair (option ข): red/amber wrench without an open ticket yet.
-    let repairDvr = 0;
-    let repairCamera = 0;
-    rows.forEach((r) => {
-      const kind = pendingRepairKind(r, tickets);
-      if (kind === "dvr") repairDvr++;
-      else if (kind === "camera") repairCamera++;
-    });
-    return { checked, repair: repairDvr + repairCamera, repairDvr, repairCamera, ...countLiveStatuses(rows) };
+    const repair = rows.filter((r) => hasOpenWorkOrder(r.store, tickets)).length;
+    return { checked, repair, ...countLiveStatuses(rows) };
   }, [stores, rows, audits, tickets]);
 
   // Mirrors the StatCards above exactly (same counts object) so this chart
@@ -184,7 +186,7 @@ function DashboardContent() {
           label="Repair"
           value={counts.repair}
           colorClass="text-brand"
-          hint={`รอเปิดใบงาน: DVR ${counts.repairDvr} · กล้อง ${counts.repairCamera}`}
+          hint="ใบงานที่ยังไม่ปิด"
           onClick={() => setBucket("repair")}
           active={bucket === "repair"}
         />
@@ -327,7 +329,7 @@ function DashboardContent() {
           {sorted.length === 0 && <p className="text-sm text-ink-faint py-4">No stores match the current filter</p>}
         </div>
         <p className="mt-3 text-[11px] text-ink-faint">
-          สถานะ DVR ชุดเดียวกับหน้า Device Status · Partial = DVR Online แต่ดูกล้องไม่ได้ · Repair = ประแจแดง (DVR Offline เกิน {REPAIR_SUGGEST_LABEL}) หรือประแจเหลือง (ต้องซ่อมกล้อง) ที่ยังไม่มีใบงาน
+          สถานะ DVR ชุดเดียวกับหน้า Device Status · Partial = DVR Online แต่ดูกล้องไม่ได้ · Repair = สาขาที่เปิดใบงานซ่อมแล้วและยังไม่ปิด
         </p>
       </Card>
     </div>

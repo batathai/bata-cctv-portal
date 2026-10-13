@@ -48,7 +48,6 @@ export async function fetchStores(): Promise<StoreWithAssets[]> {
       hikconnect: hikconnect ?? null,
       healthScore: score,
       supplierName: s.suppliers?.name ?? "Unassigned",
-      is_recovery50: s.is_recovery50 ?? false,
       recovery_status: s.recovery_status ?? null,
       recovery_stage: s.recovery_stage ?? null,
       cause: s.cause ?? null,

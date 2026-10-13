@@ -191,7 +191,6 @@ export function generateMockData() {
 
   stores.forEach((s, idx) => {
     const status = distribution[idx] ?? "Normal";
-    s.is_recovery50 = true;
     s.recovery_status = status;
     s.cause = RECOVERY_CAUSE[status];
     s.required_action = RECOVERY_ACTION[status];

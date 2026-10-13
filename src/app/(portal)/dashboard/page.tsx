@@ -184,9 +184,9 @@ function DashboardContent() {
         />
         <StatCard
           label="Repair"
-          value={counts.repair}
-          colorClass="text-brand"
-          hint="ใบงานที่ยังไม่ปิด"
+          value={counts.repair > 0 ? counts.repair : "–"}
+          colorClass={counts.repair > 0 ? "text-brand" : "text-ink-faint"}
+          hint={counts.repair > 0 ? "ใบงานที่ยังไม่ปิด" : "ยังไม่มีงานซ่อมที่เปิดอยู่"}
           onClick={() => setBucket("repair")}
           active={bucket === "repair"}
         />

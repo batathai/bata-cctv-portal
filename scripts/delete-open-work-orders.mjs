@@ -16,6 +16,10 @@
 // Does NOT touch: store rows themselves, cctv_assets, maintenance_history,
 // attachments, store_monitor / online_status (written by the iVMS sync).
 //
+// --include-finished also deletes Completed/Verified work orders, except the
+// store codes listed in --keep (comma-separated), e.g.:
+//   node ./scripts/delete-open-work-orders.mjs --include-finished --keep=54044
+//
 // SAFE BY DEFAULT: no flags = DRY RUN (lists the stores, writes a backup,
 // changes nothing). Add --confirm to apply.
 //
@@ -29,6 +33,10 @@ import { dirname, join } from "path";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const CONFIRMED = process.argv.includes("--confirm");
+const INCLUDE_FINISHED = process.argv.includes("--include-finished");
+const KEEP_CODES = new Set(
+  (process.argv.find((a) => a.startsWith("--keep=")) ?? "--keep=").slice(7).split(",").map((c) => c.trim()).filter(Boolean)
+);
 const OPEN_TICKET_STATUSES = ["Open", "Assigned", "In Progress", "Waiting Parts"];
 
 function loadEnv(path) {
@@ -75,14 +83,15 @@ async function main() {
     const hasWorkOrder = st.some((t) => OPEN_TICKET_STATUSES.includes(t.status)) || s.recovery_stage != null;
     if (!hasWorkOrder) continue;
     const stage = effectiveStage(s, st);
-    if (stage === "Completed" || stage === "Verified") kept.push({ s, stage });
+    const finished = stage === "Completed" || stage === "Verified";
+    if (KEEP_CODES.has(s.store_code) || (finished && !INCLUDE_FINISHED)) kept.push({ s, stage });
     else open.push({ s, stage });
   }
   open.sort((a, b) => a.s.store_code.localeCompare(b.s.store_code));
 
-  console.log(`Open work orders to DELETE: ${open.length}`);
+  console.log(`Work orders to DELETE${INCLUDE_FINISHED ? " (open + finished)" : " (open)"}: ${open.length}`);
   for (const { s, stage } of open) console.log(`  ${s.store_code}  ${s.store_name}  [${stage}]`);
-  console.log(`\nFinished work orders KEPT: ${kept.length}`);
+  console.log(`\nWork orders KEPT: ${kept.length}`);
   for (const { s, stage } of kept) console.log(`  ${s.store_code}  ${s.store_name}  [${stage}]`);
   console.log("");
 
@@ -131,7 +140,7 @@ async function main() {
 
   if (!CONFIRMED) {
     console.log("Check the list above, then re-run with --confirm:");
-    console.log("  node ./scripts/delete-open-work-orders.mjs --confirm");
+    console.log(`  node ./scripts/delete-open-work-orders.mjs ${process.argv.slice(2).join(" ")} --confirm`.replace(/\s+/g, " "));
     return;
   }
 
@@ -162,7 +171,7 @@ async function main() {
     .in("id", ids);
   if (resetErr) throw new Error(`Failed resetting stores: ${resetErr.message}`);
 
-  console.log(`\nDone. Open work orders removed: ${open.length}. Backup kept at: ${backupPath}`);
+  console.log(`\nDone. Work orders removed: ${open.length}. Backup kept at: ${backupPath}`);
 }
 
 main().catch((err) => {

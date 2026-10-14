@@ -556,6 +556,17 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     return project;
   }
 
+  // Mirrors clearCameraIssueAfterInstallDb so Device Status updates without a reload.
+  function clearCameraIssueLocal(storeId: string) {
+    setAllStores((prev) =>
+      prev.map((s) =>
+        s.id === storeId
+          ? { ...s, camera_issue: false, overall_status: s.overall_status === "Partial" ? "Healthy" : s.overall_status }
+          : s
+      )
+    );
+  }
+
   async function advanceInstallationStage(
     project: InstallationProject,
     toStage: InstallationStage,
@@ -566,6 +577,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     if (isSupabaseConfigured) {
       const supabase = createClient();
       await updateInstallationStageDb(supabase, project.id, project.store_id, toStage, fromStage, extra, note);
+      if (toStage === "Verify" || toStage === "Completed") clearCameraIssueLocal(project.store_id);
       setInstallationProjects(await fetchInstallationProjects());
       setInstallationStageHistory(await fetchInstallationStageHistory());
       return;
@@ -607,6 +619,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       if (nowComplete) {
         // Auto-complete (R6): log the transition separately from the checklist write above.
         await updateInstallationStageDb(supabase, project.id, project.store_id, "Completed", project.current_stage, {}, "Verify Checklist ครบ 12/12 (อัตโนมัติ)");
+        clearCameraIssueLocal(project.store_id);
       }
       setInstallationProjects(await fetchInstallationProjects());
       setInstallationStageHistory(await fetchInstallationStageHistory());

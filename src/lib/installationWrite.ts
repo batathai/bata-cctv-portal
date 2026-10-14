@@ -35,6 +35,27 @@ export async function updateInstallationStageDb(
     note: note || null,
   });
   if (historyError) console.error("Failed to log installation stage history:", historyError.message);
+
+  // New system installed -> the old "cameras can't be viewed" flag is about
+  // the old equipment, so clear it (found 2026-10-14: newly installed Top 20
+  // stores still showed "ต้องซ่อมกล้อง"). If the new cameras have a problem,
+  // someone marks the store Partial again after this.
+  if (stage === "Verify" || stage === "Completed") {
+    await clearCameraIssueAfterInstallDb(supabase, storeId);
+  }
+}
+
+/** Clears stores.camera_issue and turns a Partial store back to Healthy (Offline is left to the iVMS sync). */
+export async function clearCameraIssueAfterInstallDb(supabase: SupabaseClient, storeId: string) {
+  const now = new Date().toISOString();
+  const { error } = await supabase.from("stores").update({ camera_issue: false, camera_issue_at: now }).eq("id", storeId);
+  if (error) console.error("Failed to clear camera issue after install:", error.message);
+  const { error: statusError } = await supabase
+    .from("stores")
+    .update({ overall_status: "Healthy" })
+    .eq("id", storeId)
+    .eq("overall_status", "Partial");
+  if (statusError) console.error("Failed to reset Partial after install:", statusError.message);
 }
 
 /**

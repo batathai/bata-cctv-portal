@@ -21,6 +21,13 @@ import { dirname, join } from "path";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const CONFIRMED = process.argv.includes("--confirm");
+// --force=53022,53009 : clear these installed stores even if the flag date is
+// after the install. Needed because migration 024 stamped camera_issue_at =
+// 2026-10-11 on every store that was already Partial, so that date is not a
+// real report date.
+const FORCE = new Set(
+  (process.argv.find((a) => a.startsWith("--force=")) ?? "--force=").slice(8).split(",").map((c) => c.trim()).filter(Boolean)
+);
 
 function loadEnv(path) {
   const out = {};
@@ -61,7 +68,7 @@ async function main() {
     }
     // Issue reported after the install day -> it is about the new system; keep it.
     const issueDay = s.camera_issue_at ? new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Bangkok" }).format(new Date(s.camera_issue_at)) : null;
-    if (p.d2_date && issueDay && issueDay > p.d2_date) {
+    if (p.d2_date && issueDay && issueDay > p.d2_date && !FORCE.has(s.store_code)) {
       keptLater.push({ s, p, issueDay });
       continue;
     }
@@ -95,7 +102,7 @@ async function main() {
 
   if (!CONFIRMED) {
     console.log("Check the list above, then re-run with --confirm:");
-    console.log("  node ./scripts/clear-camera-issue-after-install.mjs --confirm");
+    console.log(`  node ./scripts/clear-camera-issue-after-install.mjs ${process.argv.slice(2).join(" ")} --confirm`.replace(/\s+/g, " "));
     return;
   }
 

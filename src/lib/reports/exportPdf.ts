@@ -3,6 +3,8 @@ import autoTable from "jspdf-autotable";
 import type { StoreWithAssets, MaintenanceRecord } from "@/types/database";
 import { regionFromZone, zoneCode } from "@/lib/recovery";
 import { getStatusLabel } from "@/components/ui/Badge";
+import { countLiveStatuses, formatDateTime, type LiveRow } from "@/lib/monitoring";
+import { REPORT_STATUS_LABEL, formatDurationEn, lastUpdated, sortForReport } from "@/lib/reports/liveStatus";
 
 const BRAND_RED = "#D71920";
 
@@ -61,30 +63,45 @@ export function exportAssetRegisterPdf(stores: StoreWithAssets[]) {
   doc.save("bata-asset-register.pdf");
 }
 
-export function exportExecutivePdf(stores: StoreWithAssets[]) {
+/**
+ * Executive Report — DVR status from the iVMS sync, same four groups and
+ * numbers as the Device Status / Dashboard cards (decision 2026-10-14).
+ * `lastSyncIso` = when the iVMS script last ran (monitor_runs.ran_at).
+ */
+export function exportExecutivePdf(rows: LiveRow[], lastSyncIso: string | null) {
   const doc = new jsPDF();
   header(doc, "Executive Report");
 
-  const counts = { Healthy: 0, Partial: 0, Offline: 0, Unknown: 0 } as Record<string, number>;
-  stores.forEach((s) => (counts[s.overall_status] = (counts[s.overall_status] ?? 0) + 1));
-
+  const c = countLiveStatuses(rows);
   doc.setFontSize(11);
-  doc.text(`Total stores: ${stores.length}`, 14, 30);
+  doc.text(`Total stores: ${rows.length}`, 14, 30);
+  doc.setFontSize(9);
+  doc.text(`Last iVMS sync: ${formatDateTime(lastSyncIso) || "never"} (Bangkok time)`, 14, 36);
 
   autoTable(doc, {
-    startY: 36,
-    head: [["Status", "Count"]],
-    body: (["Healthy", "Partial", "Offline", "Unknown"] as const).map((k) => [getStatusLabel(k), String(counts[k] ?? 0)]),
+    startY: 41,
+    head: [["DVR Status", "Stores"]],
+    body: [
+      ["Online", String(c.Online)],
+      ["Partial - camera repair", String(c.CameraIssue)],
+      ["Offline", String(c.Offline)],
+      ["Not monitored", String(c.NotMonitored)],
+    ],
     headStyles: { fillColor: [51, 51, 51] },
   });
 
   const y = (doc as any).lastAutoTable.finalY + 10;
   autoTable(doc, {
     startY: y,
-    head: [["Store Code", "Store Name", "Zone", "Status"]],
-    body: [...stores]
-      .sort((a, b) => a.store_code.localeCompare(b.store_code))
-      .map((s) => [s.store_code, s.store_name, zoneCode(s.zone), getStatusLabel(s.overall_status)]),
+    head: [["Store Code", "Store Name", "Zone", "DVR Status", "Offline for", "Last updated"]],
+    body: sortForReport(rows).map((r) => [
+      r.store.store_code,
+      r.store.store_name,
+      r.zone,
+      REPORT_STATUS_LABEL[r.status],
+      formatDurationEn(r.offlineMinutes),
+      lastUpdated(r),
+    ]),
     headStyles: { fillColor: [215, 25, 32] },
     styles: { fontSize: 8 },
   });

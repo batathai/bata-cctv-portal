@@ -1,6 +1,6 @@
 import * as XLSX from "xlsx";
 import type { StoreWithAssets, MaintenanceRecord, IncidentTicket, RecoveryStatus, RecoveryStageHistoryEntry, AuditRecord } from "@/types/database";
-import { regionFromZone, zoneCode, deriveRecoveryStatus, getEffectiveRecoveryStage, needsRepair } from "@/lib/recovery";
+import { regionFromZone, zoneCode, deriveRecoveryStatus, getEffectiveRecoveryStage, needsRepair, hasWorkOrder } from "@/lib/recovery";
 import { getStatusLabel } from "@/components/ui/Badge";
 import { countLiveStatuses, formatDateTime, type LiveRow } from "@/lib/monitoring";
 import { REPORT_STATUS_LABEL, formatDurationEn, lastUpdated, sortForReport } from "@/lib/reports/liveStatus";
@@ -193,7 +193,10 @@ export function exportExecutiveSummaryToExcel(
     XLSX.utils.json_to_sheet(
       sortForReport(rows).map((r) => {
         const s = r.store;
-        const inWorkOrder = needsRepair(s, tickets);
+        // Real work orders only (open ticket or a stage someone set). needsRepair()
+        // also guesses from old import / asset fields, which marked stores with
+        // no job as "Open" (found 2026-10-14).
+        const inWorkOrder = hasWorkOrder(s, tickets);
         const stage = inWorkOrder ? getEffectiveRecoveryStage(s, tickets) : null;
         return {
           "Store Code": s.store_code,

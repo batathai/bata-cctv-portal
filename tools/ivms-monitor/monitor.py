@@ -29,7 +29,7 @@ sys.path.insert(0, HERE)
 from state import ReadResult, plan_cycle  # noqa: E402
 import desktop  # noqa: E402
 
-SCRIPT_VERSION = "1.4.2"  # 1.4.2: อ่านแถว Offline สีจาง (OCR รอบ 2 เพิ่มความสว่าง) + นับครบ Total ด้วย Serial ไม่ใช่ชื่อ
+SCRIPT_VERSION = "1.4.3"  # 1.4.3: แถวที่มีรหัสในชื่อ + Serial เทียบกัน ไม่ตรงใช้ Serial (กัน OCR อ่านรหัสเพี้ยนไปสาขาอื่น)
 log = logging.getLogger("ivms-monitor")
 
 

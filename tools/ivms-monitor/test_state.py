@@ -416,3 +416,26 @@ def test_store_code_in_name_still_wins():
     p = run(at(13, 5), read, {"s1": mon("s1", state="Unknown", last_seen_at=None)}, stores=SN_STORES)
     assert p.monitor_updates["s1"]["state"] == "Online"
     assert p.run["unmatched"] == []
+
+
+def test_misread_code_is_corrected_by_serial():
+    """15 ต.ค.: ชื่อ '53012 - Central Udon' แต่ OCR อ่านรหัสเพี้ยนเป็นสาขาอื่น -> Serial ต้องชนะ"""
+    stores = [
+        Store(id="u", code="53012", name="Central Udon", zone="530", serials=("GV9426324",)),
+        Store(id="k", code="53022", name="Central Khon Kaen", zone="530", serials=("GS2403010",)),
+    ]
+    read = ReadResult(ok=True, total=2, complete=True, offline=[],
+                      online=[("53022@SN:GV9426324", "Central Udon"),          # รหัสเพี้ยน แต่ Serial ถูก
+                              ("53022@SN:GS2403010", "Central Khon Kaen")])
+    mons = {"u": mon("u", last_seen_at=at(8)), "k": mon("k", last_seen_at=at(8))}
+    p = run(at(13, 5), read, mons, stores=stores)
+    assert p.monitor_updates["u"]["last_checked_at"]          # Central Udon ได้อัปเดตแล้ว
+    assert p.monitor_updates["k"]["last_checked_at"]
+    assert p.run["unmatched"] == ["ชื่อเครื่องอ่านเป็นรหัส 53022 แต่ Serial GV9426324 เป็นของ 53012 — ใช้ 53012"]
+
+
+def test_code_with_unknown_serial_falls_back_to_code():
+    read = ReadResult(ok=True, total=1, complete=True, offline=[], online=[("51403@SN:X12345678", "Future Park")])
+    p = run(at(13, 5), read, {"s1": mon("s1", state="Unknown", last_seen_at=None)}, stores=SN_STORES)
+    assert p.monitor_updates["s1"]["state"] == "Online"
+    assert p.run["unmatched"] == []

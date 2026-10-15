@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta, timezone
 from typing import Callable, Optional
 
-from serials import SerialIndex, display as serial_display, is_serial_key
+from serials import SerialIndex, display as serial_display, split_key
 
 # ประเทศไทยไม่มี daylight saving — ใช้ offset คงที่ ไม่ต้องพึ่ง tzdata บน Windows
 BKK = timezone(timedelta(hours=7))
@@ -335,14 +335,28 @@ def plan_cycle(
     full = read.online is not None
     serial_index = SerialIndex((st.id, sn) for st in stores for sn in st.serials)
 
+    notes = []   # ข้อสังเกตที่ไม่ใช่ unmatched แต่ต้องให้คนตรวจ (เช่น รหัสในชื่อไม่ตรงกับ Serial)
+
     def resolve(key: str):
-        """key = รหัสสาขา 5 หลัก (จากชื่อเครื่อง) หรือ SN:... (จาก Serial) -> (Store | None, ข้อความ unmatched)"""
-        if not is_serial_key(key):
-            st = by_code.get(key)
-            return st, None if st else f"{key} - {{name}}"
-        sid, how = serial_index.resolve_key(key)
-        if sid:
-            return by_id[sid], None
+        """key -> (Store | None, ข้อความ unmatched)
+        key = รหัสสาขา / SN:... / รหัส@SN:... (ดู serials.split_key)
+        1.4.3: ถ้ามีทั้งรหัสในชื่อและ Serial แล้วชี้คนละสาขา -> เชื่อ Serial
+        (15 ต.ค.: 53012 Central Udon ไม่อัปเดตเลย ทั้งที่อยู่ใน iVMS — OCR อ่านรหัสในชื่อเพี้ยนไปเป็นสาขาอื่น
+         รหัส 5 หลักเพี้ยนไปตรงกับสาขาอื่นได้ง่าย แต่ Serial 9 ตัวที่ตรงกับ DB เป๊ะแทบเป็นไปไม่ได้โดยบังเอิญ)"""
+        code, skey = split_key(key)
+        st_code = by_code.get(code) if code else None
+        st_sn, how = (None, "none")
+        if skey:
+            sid, how = serial_index.resolve_key(skey)
+            st_sn = by_id.get(sid) if sid else None
+        if st_sn:
+            if st_code and st_code.id != st_sn.id:
+                notes.append(f"ชื่อเครื่องอ่านเป็นรหัส {code} แต่ Serial {serial_display(skey)} เป็นของ {st_sn.code} — ใช้ {st_sn.code}")
+            return st_sn, None
+        if st_code:
+            return st_code, None
+        if code:
+            return None, f"{code} - {{name}}"
         why = "Serial ตรงกับหลายสาขา" if how == "ambiguous" else "ไม่มี Serial นี้ในสาขาใด"
         return None, f"Serial {serial_display(key)} ({why}) - {{name}}"
 
@@ -366,7 +380,7 @@ def plan_cycle(
         "ivms_total": read.total,
         "offline_count": len(read.offline) if status != "failed" else None,
         "page_full": read.page_full if status != "failed" else None,
-        "unmatched": unmatched,
+        "unmatched": unmatched + notes,
         "error": err,
     }
 

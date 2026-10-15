@@ -42,18 +42,38 @@ def make_key(col_serial: str, paren_serial: str = "") -> Optional[str]:
     return SERIAL_PREFIX + ",".join(dict.fromkeys(good))
 
 
+# key รวม (1.4.3): "53012@SN:GV9426324" = ชื่อเครื่องมีรหัสสาขา และอ่าน Serial ได้ด้วย ใช้เทียบกันว่าตรงสาขาเดียวกันไหม
+CODE_SEP = "@"
+
+
+def split_key(key: str) -> tuple:
+    """key -> (รหัสสาขา | None, "SN:..." | None)"""
+    if CODE_SEP in key:
+        code, sn = key.split(CODE_SEP, 1)
+        return code or None, sn if sn.startswith(SERIAL_PREFIX) else None
+    if key.startswith(SERIAL_PREFIX):
+        return None, key
+    return key or None, None
+
+
+def with_code(code: str, serial_key: Optional[str]) -> str:
+    return f"{code}{CODE_SEP}{serial_key}" if serial_key else code
+
+
 def is_serial_key(key: str) -> bool:
-    return key.startswith(SERIAL_PREFIX)
+    """จับคู่ได้ด้วย Serial เท่านั้น (ชื่อเครื่องไม่มีรหัสสาขา)"""
+    return split_key(key)[0] is None and split_key(key)[1] is not None
 
 
 def key_serials(key: str) -> list:
-    return [s for s in key[len(SERIAL_PREFIX):].split(",") if s] if is_serial_key(key) else []
+    sn = split_key(key)[1]
+    return [s for s in sn[len(SERIAL_PREFIX):].split(",") if s] if sn else []
 
 
 def display(key: str) -> str:
-    """ใช้แสดงในหน้า Rollout / log"""
-    return key_serials(key)[0] if is_serial_key(key) else key
-
+    """ใช้แสดงในหน้า Rollout / log: รหัสสาขาถ้ามี ไม่งั้น serial ตัวแรก"""
+    code, _ = split_key(key)
+    return code if code else (key_serials(key) or [key])[0]
 
 
 class SerialIndex:
@@ -97,7 +117,7 @@ class SerialIndex:
         return None, "none"
 
     def resolve_key(self, key: str) -> tuple:
-        """key แบบ SN:a[,b] -> (store_id หรือ None, เหตุผล)
+        """key ที่มี SN:a[,b] -> (store_id หรือ None, เหตุผล)
         ลอง serial ทุกตัวใน key: ต้องชี้ไปสาขาเดียวกัน ถ้าชี้คนละสาขา = ambiguous"""
         found, reasons = {}, []
         for s in key_serials(key):

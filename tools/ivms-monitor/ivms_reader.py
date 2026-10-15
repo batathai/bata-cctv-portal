@@ -15,7 +15,7 @@ import ctypes
 import re
 import time
 
-from serials import SERIAL_PREFIX, canon, display as serial_display, key_serials, make_key
+from serials import canon, display as serial_display, key_serials, make_key, split_key, with_code
 from state import ReadResult
 
 # ต้องตั้งก่อน import pywinauto: ให้พิกัดหน้าต่างกับภาพหน้าจอเป็นพิกเซลจริงชุดเดียวกัน
@@ -319,28 +319,33 @@ def read_page(shot):
     return [(k, n, st) for k, n, st, _ in rows], total, both
 
 
+def _row_serial_key(row, serial_hdr, status_x, name):
+    """Serial ของแถว: คอลัมน์ Serial No. + serial ในวงเล็บของชื่อ -> "SN:..." หรือ None"""
+    if serial_hdr is None:
+        return None
+    col = "".join(w["text"] for w in row["words"] if serial_hdr["x"] - 15 <= w["x"] < status_x - 15)
+    col = col if SERIAL_WORD_RE.fullmatch(re.sub(r"[^A-Za-z0-9]", "", col).upper() or "-") else ""
+    paren = PAREN_SERIAL_RE.search(re.sub(r"\s+", "", name))
+    return make_key(col, paren.group(1) if paren else "")
+
+
 def _row_device(row, serial_hdr, conn_hdr, status_x):
     """หนึ่งแถว -> (key, name)
-    key = รหัสสาขา 5 หลัก ถ้าชื่อเครื่องขึ้นต้นด้วยรหัส (แบบเดิม)
-        = "SN:<serial คอลัมน์>[,<serial ในวงเล็บของชื่อ>]" ถ้าชื่อไม่มีรหัส (เครื่อง HQ 15 ต.ค.)
-        = None ถ้าไม่ใช่แถวเครื่อง (หัวตาราง, ปุ่ม ฯลฯ)"""
+    key = "53012@SN:GV9426324" ชื่อเครื่องมีรหัสสาขา และอ่าน Serial ได้ (1.4.3: เทียบสองค่ากันใน state)
+        = "53012"               ชื่อมีรหัสสาขา แต่อ่าน Serial ไม่ได้
+        = "SN:<คอลัมน์>[,<วงเล็บ>]" ชื่อไม่มีรหัสสาขา (เครื่อง HQ 15 ต.ค.)
+        = None                  ไม่ใช่แถวเครื่อง (หัวตาราง, ปุ่ม ฯลฯ)"""
+    name_end = (conn_hdr["x"] - 15 if conn_hdr else serial_hdr["x"] - 15) if (conn_hdr or serial_hdr) else None
+    name_col = " ".join(w["text"] for w in row["words"]
+                        if (name_end is None or w["x"] < name_end) and w["text"] not in ("☐", "□")).strip()
     m = CODE_RE.search(row["text"])
     if m:
         name = re.split(r"\s+(?:\S{1,2}\s+)?H?\s?ik-?Connect", m.group(2))[0].strip()[:60]
-        return m.group(1), name
-    if serial_hdr is None:
-        return None, ""
-    # คอลัมน์ Serial No.: คำที่อยู่ระหว่างหัวคอลัมน์ Serial กับคอลัมน์สถานะ
-    col = "".join(w["text"] for w in row["words"] if serial_hdr["x"] - 15 <= w["x"] < status_x - 15)
-    col = col if SERIAL_WORD_RE.fullmatch(re.sub(r"[^A-Za-z0-9]", "", col).upper() or "-") else ""
-    # คอลัมน์ Name: คำที่อยู่ซ้ายของคอลัมน์ Connection Type
-    name_end = conn_hdr["x"] - 15 if conn_hdr else serial_hdr["x"] - 15
-    name = " ".join(w["text"] for w in row["words"] if w["x"] < name_end and w["text"] not in ("☐", "□")).strip()
-    paren = PAREN_SERIAL_RE.search(re.sub(r"\s+", "", name))
-    key = make_key(col, paren.group(1) if paren else "")
+        return with_code(m.group(1), _row_serial_key(row, serial_hdr, status_x, name_col)), name
+    key = _row_serial_key(row, serial_hdr, status_x, name_col)
     if key is None:
         return None, ""
-    return key, name[:60]
+    return key, name_col[:60]
 
 
 def _header_y(words):
@@ -433,7 +438,7 @@ def _device_id(code_or_key, name, seen):
     ยอดเลยถึง Total ทั้งที่มีแถวที่อ่านไม่ออก (15 ต.ค.: Total 81 แต่ขาด Offline 2 เครื่อง ระบบคิดว่าครบ)
     - เครื่องที่จับด้วย Serial: เครื่องเดียวกัน = serial ตรงกัน (หลังแปลงตัวที่ OCR สับสน) อย่างน้อย 1 ตัว
     - เครื่องที่จับด้วยรหัสสาขา: (รหัส, ชื่อแบบตัดช่องว่าง/ตัวพิมพ์) — สาขาหนึ่งอาจมีหลายเครื่องคนละชื่อ"""
-    if code_or_key.startswith(SERIAL_PREFIX):
+    if split_key(code_or_key)[1]:
         mine = {canon(x) for x in key_serials(code_or_key)}
         for k in seen:
             if k[0] == "SN" and mine & set(k[1]):
@@ -545,7 +550,13 @@ if __name__ == "__main__":
     r = read_ivms(save_capture=True)
     print(f"ok={r.ok} total={r.total} complete={r.complete} offline={len(r.offline)} online={len(r.online or [])} error={r.error}")
     print("Offline:", [serial_display(c) for c, _ in r.offline])
-    sn = [c for c, _ in r.offline + (r.online or []) if c.startswith("SN:")]
+    allrows = r.offline + (r.online or [])
+    sn = [c for c, _ in allrows if c.startswith("SN:")]
     if sn:
-        print(f"จับคู่ด้วย Serial {len(sn)} เครื่อง:", ", ".join(serial_display(c) for c in sn))
+        print(f"ชื่อไม่มีรหัสสาขา — จับคู่ด้วย Serial {len(sn)} เครื่อง:", ", ".join(serial_display(c) for c in sn))
+    pairs = sorted(c for c, _ in allrows if "@" in c)
+    if pairs:
+        # 1.4.3: รหัสที่อ่านจากชื่อ ← Serial ของแถวเดียวกัน (สคริปต์เทียบกับ DB ตอนรัน monitor.py; ไม่ตรงจะใช้ Serial)
+        print(f"ชื่อมีรหัสสาขา + อ่าน Serial ได้ {len(pairs)} เครื่อง:",
+              ", ".join(f"{split_key(c)[0]}←{key_serials(c)[0]}" for c in pairs))
     print(f"ภาพหน้าแรกบันทึกไว้ที่ {CAPTURE}")

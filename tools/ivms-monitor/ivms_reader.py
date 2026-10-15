@@ -68,19 +68,45 @@ def _process_name(pid):
         return "?"
 
 
-def find_ivms_window():
-    by_title = None
+def _list_windows():
+    out = []
     for w in Desktop(backend="uia").windows():
         try:
             title = (w.window_text() or "").strip()
             exe = _process_name(w.element_info.process_id).lower()
         except Exception:
             continue
-        if exe.startswith("ivms") and title == "iVMS-4200":
+        out.append((w, title, exe))
+    return out
+
+
+def find_ivms_window():
+    """หาหน้าต่าง iVMS-4200
+    15 ต.ค.: เครื่อง HQ อาจมีชื่อหน้าต่างไม่ตรง "iVMS-4200" เป๊ะ (เช่นมีเลขเวอร์ชันต่อท้าย)
+    -> ยอมรับชื่อที่ขึ้นต้นด้วย iVMS-4200 ด้วย, และยอมรับโปรแกรม iVMS ที่ชื่อหน้าต่างมีคำว่า iVMS"""
+    wins = _list_windows()
+    best = None
+    for w, title, exe in wins:
+        t = title.lower()
+        if exe in ("notepad.exe", "python.exe", "pythonw.exe", "cmd.exe", "explorer.exe", "windowsterminal.exe"):
+            continue
+        if exe.startswith("ivms") and t == "ivms-4200":
             return w
-        if title == "iVMS-4200" and exe not in ("notepad.exe", "python.exe", "cmd.exe"):
-            by_title = by_title or w
-    return by_title
+        score = 3 if exe.startswith("ivms") and t.startswith("ivms-4200") else \
+                2 if t == "ivms-4200" else \
+                1 if t.startswith("ivms-4200") or (exe.startswith("ivms") and "ivms" in t) else 0
+        if score and (best is None or score > best[0]):
+            best = (score, w)
+    return best[1] if best else None
+
+
+def _visible_titles(limit=12):
+    """ไว้ใส่ใน error ให้รู้ว่าสคริปต์เห็นหน้าต่างอะไรบ้าง"""
+    try:
+        items = [f"{t} [{e}]" for _, t, e in _list_windows() if t][:limit]
+        return "; ".join(items) or "(ไม่เห็นหน้าต่างที่มีชื่อเลย)"
+    except Exception as ex:
+        return f"(ดูรายชื่อหน้าต่างไม่ได้: {ex!r})"
 
 
 def _bring_to_front(win, log=print):
@@ -428,7 +454,13 @@ def read_ivms(log=print, save_capture=False) -> ReadResult:
     try:
         win = find_ivms_window()
         if win is None:
-            raise ReaderError("ไม่เจอหน้าต่าง iVMS-4200 (เปิดค้างไว้และรันสคริปต์แบบ administrator หรือยัง?)")
+            admin = ""
+            try:
+                admin = "" if ctypes.windll.shell32.IsUserAnAdmin() else " · Command Prompt นี้ไม่ได้ Run as administrator"
+            except Exception:
+                pass
+            raise ReaderError("ไม่เจอหน้าต่าง iVMS-4200 (เปิดค้างไว้ ไม่ย่อ และรันสคริปต์แบบ administrator หรือยัง?)"
+                              f"{admin} · หน้าต่างที่เห็น: {_visible_titles()}")
         _minimize_own_console(log)
         _bring_to_front(win, log)
         time.sleep(1.5)

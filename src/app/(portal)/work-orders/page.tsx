@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ClipboardList, Plus, Archive, CheckCircle2, Loader2, AlertCircle } from "lucide-react";
 import { useAppData } from "@/components/providers/AppDataProvider";
 import { Card, SectionTitle } from "@/components/ui/Card";
+import { WorkOrdersTabs } from "@/components/work-orders/WorkOrdersTabs";
 import { needsRepair, getEffectiveRecoveryStage } from "@/lib/recovery";
 import { canLogMaintenance } from "@/lib/rbac";
 
@@ -42,6 +43,7 @@ export default function WorkOrdersBatchListPage() {
 
   return (
     <div className="space-y-5">
+      <WorkOrdersTabs />
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h1 className="font-display text-lg font-bold text-ink dark:text-white">Work Orders</h1>

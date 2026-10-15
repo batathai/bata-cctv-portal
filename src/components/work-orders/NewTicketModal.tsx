@@ -34,8 +34,18 @@ export function NewTicketModal({ onClose, assignToBatchId }: { onClose: () => vo
 
   const matches = useMemo(() => {
     if (!query.trim()) return [];
-    const q = query.toLowerCase();
-    return stores.filter((s) => (s.store_name + s.store_code).toLowerCase().includes(q)).slice(0, 8);
+    // Match every word typed, in any order, against "code name" — so
+    // "54044", "robinson", "54044 - Robinson Chachoengsao" (the same
+    // "code - name" text the list shows) and "chachoengsao 54044" all find
+    // the store. Separators like "-" or "·" are ignored.
+    const words = query.toLowerCase().split(/[^a-z0-9\u0E00-\u0E7F]+/).filter(Boolean);
+    if (words.length === 0) return [];
+    return stores
+      .filter((s) => {
+        const hay = `${s.store_code} ${s.store_name}`.toLowerCase();
+        return words.every((w) => hay.includes(w));
+      })
+      .slice(0, 8);
   }, [stores, query]);
 
   // If the picked store already belongs to a different ACTIVE job, flag it —
@@ -62,7 +72,11 @@ export function NewTicketModal({ onClose, assignToBatchId }: { onClose: () => vo
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     if (!selectedStore) {
-      setError("Pick a store first.");
+      setError("Pick a store from the list first.");
+      return;
+    }
+    if (!issueType) {
+      setError("Pick an issue type.");
       return;
     }
     setSaving(true);
@@ -141,8 +155,8 @@ export function NewTicketModal({ onClose, assignToBatchId }: { onClose: () => vo
                           className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted dark:hover:bg-white/5 flex items-center justify-between gap-2"
                         >
                           <span className="min-w-0 truncate">
-                            <span className="text-ink dark:text-white">{s.store_name}</span>{" "}
-                            <span className="font-mono text-[11px] text-ink-faint">{s.store_code}</span>
+                            <span className="font-mono text-[11px] text-ink-faint">{s.store_code}</span>{" "}
+                            <span className="text-ink dark:text-white">{s.store_name}</span>
                           </span>
                           {alreadyOpen && <span className="text-[10px] text-status-partial shrink-0">already open</span>}
                         </button>
@@ -150,14 +164,15 @@ export function NewTicketModal({ onClose, assignToBatchId }: { onClose: () => vo
                     })}
                   </div>
                 )}
-                {query.trim() && matches.length === 0 && <p className="text-xs text-ink-faint mt-1.5">No store matches &quot;{query}&quot;.</p>}
+                {query.trim() && matches.length === 0 && <p className="text-xs text-ink-faint mt-1.5">No store matches &quot;{query}&quot;. Try just the store code, e.g. 54044.</p>}
+                {matches.length > 0 && <p className="text-[11px] text-ink-faint mt-1.5">Click a store in the list to select it.</p>}
               </div>
             )}
           </div>
 
           <div>
             <label className="text-xs font-medium text-ink-faint mb-1 block">Issue Type</label>
-            <Select value={issueType} onChange={(v) => setIssueType(v as TicketIssueType)} options={TICKET_ISSUE_TYPES} placeholder="Issue Type" />
+            <Select value={issueType} onChange={(v) => setIssueType(v as TicketIssueType)} options={TICKET_ISSUE_TYPES} placeholder="— Pick an issue type —" variant="full" />
           </div>
 
           <div>
@@ -183,7 +198,7 @@ export function NewTicketModal({ onClose, assignToBatchId }: { onClose: () => vo
             </button>
             <button
               type="submit"
-              disabled={saving || !selectedStore}
+              disabled={saving || !selectedStore || !issueType}
               className="flex items-center gap-1.5 text-xs font-medium bg-brand text-white rounded-md px-3 py-1.5 disabled:opacity-60"
             >
               {saving && <Loader2 size={12} className="animate-spin" />}

@@ -10,6 +10,7 @@ import { EditableStatusBadge } from "@/components/ui/EditableStatusBadge";
 import { StageTimeline } from "@/components/recovery/StageTimeline";
 import { TicketsCard } from "@/components/assets/TicketsCard";
 import { IvmsLookup } from "@/components/recovery/IvmsLookup";
+import { StoreMonitorCard } from "@/components/status/StoreMonitorCard";
 import { zoneCode, getCause, getRequiredAction, deriveRecoveryStatus, getRecoveryRegion } from "@/lib/recovery";
 import { canLogMaintenance } from "@/lib/rbac";
 import type { StoreWithAssets } from "@/types/database";
@@ -85,10 +86,12 @@ export default function RecoveryStoreDetailPage() {
         </Card>
 
         <Card className="p-5">
-          <SectionTitle icon={Wifi}>Device Status</SectionTitle>
+          <SectionTitle icon={Wifi}>Camera Health (Survey)</SectionTitle>
           <DeviceStatusRow store={store} canEdit={canLogMaintenance(role)} />
         </Card>
       </div>
+
+      <StoreMonitorCard store={store} canEdit={canLogMaintenance(role)} />
 
       <RecoveryInfoCard store={store} canEdit={canLogMaintenance(role)} />
 

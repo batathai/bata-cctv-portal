@@ -9,6 +9,11 @@ import { Card, SectionTitle } from "@/components/ui/Card";
 import { StatusBadge } from "@/components/ui/Badge";
 import { Select } from "@/components/ui/Select";
 import { ExportButtons } from "@/components/reports/ExportButtons";
+import { DeviceDot, DeviceDotLegend } from "@/components/status/DeviceDot";
+import { useMonitoring } from "@/components/providers/MonitoringProvider";
+import { RepairLink, repairReason, CAMERA_ISSUE_REMARK } from "@/components/status/RepairLink";
+import { displayStatus, minutesBetween, withCameraIssue } from "@/lib/monitoring";
+import { canLogMaintenance } from "@/lib/rbac";
 import { ZONES } from "@/lib/mockData";
 import { zoneCode, getAreaLabel, regionFromZone } from "@/lib/recovery";
 import type { StoreWithAssets } from "@/types/database";
@@ -47,7 +52,9 @@ function sortValue(s: StoreWithAssets, key: SortKey): string | number {
 // useSearchParams() below opts this page into client-side rendering, which
 // Next.js requires wrapping in Suspense — see default export at the bottom.
 function AssetRegisterContent() {
-  const { stores, loading } = useAppData();
+  const { stores, loading, tickets, role } = useAppData();
+  const { monitorByStore, stale } = useMonitoring();
+  const canEdit = canLogMaintenance(role);
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -117,8 +124,11 @@ function AssetRegisterContent() {
   return (
     <Card className="p-4">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-        <SectionTitle icon={Server}>Asset Register ({filtered.length})</SectionTitle>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-1">
+          <SectionTitle icon={Server}>Asset Register ({filtered.length})</SectionTitle>
+          <DeviceDotLegend />
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
           <Select value={regionFilter} onChange={onRegionChange} options={["Bangkok", "Upcountry"]} placeholder="Region" />
           <Select value={zoneFilter} onChange={(v) => setFilters({ zone: v })} options={zoneOptions.map((z) => z.code)} placeholder="Zone" />
           <div className="relative">
@@ -165,11 +175,37 @@ function AssetRegisterContent() {
                     {s.store_code}
                   </Link>
                 </td>
-                <td className="py-2 pr-3">{s.store_name}</td>
+                <td className="py-2 pr-3">
+                  {/* Live DVR state from iVMS as a dot only; full view is /status. */}
+                  <span className="inline-flex items-center gap-2">
+                    <DeviceDot store={s} />
+                    {s.store_name}
+                  </span>
+                </td>
                 <td className="py-2 pr-3 text-ink-soft dark:text-white/60">{zoneCode(s.zone)}</td>
                 <td className="py-2 pr-3 font-mono text-xs text-ink-soft dark:text-white/60">{s.asset?.nvr_serial}</td>
                 <td className="py-2 pr-3 text-ink-soft dark:text-white/60">{s.asset?.camera_total ?? "—"}</td>
-                <td className="py-2 pr-3"><StatusBadge status={s.overall_status} /></td>
+                <td className="py-2 pr-3">
+                  {(() => {
+                    // Status follows the iVMS sync (migration 024). DVR online but cameras
+                    // reported unusable stays Partial, with a remark and a repair wrench.
+                    const m = monitorByStore.get(s.id);
+                    const ds = withCameraIssue(displayStatus(m, stale, new Date()), s);
+                    const off = m && ds === "Offline" ? minutesBetween(m.last_seen_at ?? m.state_since, new Date()) : null;
+                    const reason = canEdit ? repairReason(s, m, ds, off) : null;
+                    return (
+                      <div className="flex items-center gap-2">
+                        <div className="flex flex-col items-start gap-0.5">
+                          <StatusBadge status={s.overall_status} />
+                          {reason?.kind === "camera" && (
+                            <span className="text-[11px] text-[#8A5A00] dark:text-status-partial">{CAMERA_ISSUE_REMARK}</span>
+                          )}
+                        </div>
+                        {reason && <RepairLink store={s} reason={reason} tickets={tickets} />}
+                      </div>
+                    );
+                  })()}
+                </td>
                 <td className="py-2 pr-3 text-right">
                   <Link
                     href={`/assets/${s.store_code}`}

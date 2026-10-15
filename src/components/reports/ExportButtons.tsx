@@ -3,7 +3,7 @@
 import { FileSpreadsheet, FileText } from "lucide-react";
 import { useAppData } from "@/components/providers/AppDataProvider";
 import { exportStoresToExcel, exportMaintenanceToExcel } from "@/lib/reports/exportExcel";
-import { exportExecutivePdf, exportOfflineStoresPdf, exportAssetRegisterPdf } from "@/lib/reports/exportPdf";
+import { exportOfflineStoresPdf, exportAssetRegisterPdf } from "@/lib/reports/exportPdf";
 import type { StoreWithAssets } from "@/types/database";
 
 export function ExportButtons({
@@ -11,7 +11,7 @@ export function ExportButtons({
   reportType,
 }: {
   stores: StoreWithAssets[];
-  reportType: "asset-register" | "executive" | "offline" | "maintenance";
+  reportType: "asset-register" | "offline" | "maintenance";
 }) {
   const { maintenance } = useAppData();
   const storeMap = new Map(stores.map((s) => [s.id, s]));
@@ -26,8 +26,7 @@ export function ExportButtons({
 
   function handlePdf() {
     if (reportType === "offline") exportOfflineStoresPdf(stores);
-    else if (reportType === "asset-register") exportAssetRegisterPdf(stores);
-    else exportExecutivePdf(stores);
+    else exportAssetRegisterPdf(stores);
   }
 
   return (

@@ -1,7 +1,9 @@
 import * as XLSX from "xlsx";
 import type { StoreWithAssets, MaintenanceRecord, IncidentTicket, RecoveryStatus, RecoveryStageHistoryEntry, AuditRecord } from "@/types/database";
-import { regionFromZone, zoneCode, deriveRecoveryStatus, getEffectiveRecoveryStage, needsRepair } from "@/lib/recovery";
+import { regionFromZone, zoneCode, deriveRecoveryStatus, getEffectiveRecoveryStage, needsRepair, hasWorkOrder } from "@/lib/recovery";
 import { getStatusLabel } from "@/components/ui/Badge";
+import { countLiveStatuses, formatDateTime, type LiveRow } from "@/lib/monitoring";
+import { REPORT_STATUS_LABEL, formatDurationEn, lastUpdated, sortForReport } from "@/lib/reports/liveStatus";
 
 function download(wb: XLSX.WorkBook, filename: string) {
   XLSX.writeFile(wb, filename);
@@ -163,39 +165,48 @@ export function exportWorkOrdersToExcel(
  * default them to "Waiting Vendor Quote" / "Open" — misleading for a store
  * that was simply always fine.
  */
+/**
+ * Executive Report (Excel) — DVR status from the iVMS sync, same groups and
+ * numbers as Device Status / Dashboard (decision 2026-10-14), plus each
+ * store's work order columns as before.
+ */
 export function exportExecutiveSummaryToExcel(
-  stores: StoreWithAssets[],
+  rows: LiveRow[],
+  lastSyncIso: string | null,
   tickets: IncidentTicket[] = [],
   history: RecoveryStageHistoryEntry[] = [],
   filename = "bata-executive-summary.xlsx"
 ) {
-  const counts = { Healthy: 0, Partial: 0, Offline: 0, Unknown: 0 } as Record<string, number>;
-  stores.forEach((s) => (counts[s.overall_status] = (counts[s.overall_status] ?? 0) + 1));
-
+  const c = countLiveStatuses(rows);
   const summaryRows = [
-    { Metric: "Total Stores", Value: stores.length },
-    { Metric: "Online", Value: counts.Healthy ?? 0 },
-    { Metric: "Partial", Value: counts.Partial ?? 0 },
-    { Metric: "Offline", Value: counts.Offline ?? 0 },
-    { Metric: "Unknown", Value: counts.Unknown ?? 0 },
+    { Metric: "Last iVMS sync (Bangkok time)", Value: formatDateTime(lastSyncIso) || "never" },
+    { Metric: "Total Stores", Value: rows.length },
+    { Metric: "Online", Value: c.Online },
+    { Metric: "Partial - camera repair", Value: c.CameraIssue },
+    { Metric: "Offline", Value: c.Offline },
+    { Metric: "Not monitored", Value: c.NotMonitored },
   ];
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryRows), "Summary");
   XLSX.utils.book_append_sheet(
     wb,
     XLSX.utils.json_to_sheet(
-      stores.map((s) => {
-        const inWorkOrder = needsRepair(s, tickets);
+      sortForReport(rows).map((r) => {
+        const s = r.store;
+        // Real work orders only (open ticket or a stage someone set). needsRepair()
+        // also guesses from old import / asset fields, which marked stores with
+        // no job as "Open" (found 2026-10-14).
+        const inWorkOrder = hasWorkOrder(s, tickets);
         const stage = inWorkOrder ? getEffectiveRecoveryStage(s, tickets) : null;
         return {
           "Store Code": s.store_code,
           "Store Name": s.store_name,
           Region: regionFromZone(s.zone),
           Zone: zoneCode(s.zone),
-          Status: getStatusLabel(s.overall_status),
+          "DVR Status": REPORT_STATUS_LABEL[r.status],
+          "Offline For": formatDurationEn(r.offlineMinutes),
+          "Last Updated": lastUpdated(r),
           "Work Order Status": stage ? (stage === "Verified" || stage === "Completed" ? "Closed" : "Open") : "",
-          "Online Status": inWorkOrder ? onlineStatusLabel(s) : "",
-          "Camera Status": inWorkOrder ? cameraStatusLabel(s) : "",
           Cause: inWorkOrder ? causeLabel(s) : "",
           Remark: inWorkOrder ? latestNoteFor(s.id, history) ?? s.recovery_notes ?? "" : "",
         };

@@ -33,12 +33,13 @@ export interface Store {
   latitude: number | null;
   longitude: number | null;
   is_active: boolean;
+  /** Cameras reported unusable while the DVR may be online (migration 024; set by marking the store Partial). */
+  camera_issue?: boolean;
   created_at: string;
   updated_at: string;
   // Sprint 1: Recovery Dashboard fields. All nullable/optional so existing
   // rows (and any real Supabase project that hasn't run migration 005 yet)
   // keep working — see src/lib/recovery.ts for fallback derivation.
-  is_recovery50?: boolean;
   recovery_status?: RecoveryStatus | null;
   recovery_stage?: RecoveryStage | null;
   cause?: string | null;
@@ -57,9 +58,8 @@ export interface Store {
   // captured (e.g. "รอ vendor ยืนยันวันเข้างาน").
   recovery_notes?: string | null;
   // Which Work Order "Job" this store currently belongs to (migration 017)
-  // — replaces is_recovery50 as the actual scoping mechanism; that field is
-  // left in place but unused going forward (it could only ever represent
-  // one batch). null = not currently part of any job.
+  // — the way stores are picked for a round of work (is_recovery50 was
+  // dropped in migration 025). null = not currently part of any job.
   batch_id?: string | null;
 }
 
@@ -223,7 +223,12 @@ export type AttachmentFolder =
   | "Repair Reports"
   | "Invoice"
   | "Warranty"
-  | "Manual";
+  | "Manual"
+  // Installation Project (migration 020)
+  | "Site Survey Photos"
+  | "Permit Documents"
+  | "Camera Install Photos"
+  | "Verify Photos";
 
 export interface Attachment {
   id: string;
@@ -275,6 +280,44 @@ export interface RecoveryStageHistoryEntry {
   changed_at: string;
 }
 
+// Installation Project (migration 020): tracks new-CCTV installation
+// progress per store, separate from the Recovery/repair flow above (see
+// docs/workflow/DESIGN-installation-project.md). D1/D2 = scheduled vs
+// actual install date.
+export type InstallationStage =
+  | "Quotation"
+  | "Permit"
+  | "Scheduled"
+  | "Installing"
+  | "Verify"
+  | "Completed";
+
+export interface InstallationProject {
+  id: string;
+  store_id: string;
+  wave: string;
+  current_stage: InstallationStage;
+  approved_quotation_id: string | null;
+  permit_submitted_at: string | null;
+  d1_date: string | null;
+  d2_date: string | null;
+  verify_checked: string[];
+  verify_total: number;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InstallationStageHistoryEntry {
+  id: string;
+  store_id: string;
+  from_stage: InstallationStage | null;
+  to_stage: InstallationStage;
+  note: string | null;
+  changed_by: string | null;
+  changed_at: string;
+}
+
 export interface Profile {
   id: string;
   full_name: string | null;
@@ -294,6 +337,86 @@ export interface ImportBatch {
   status: "completed" | "rolled_back" | "failed";
   created_at: string;
   rolled_back_at: string | null;
+}
+
+// --- Device Offline Monitoring (migration 022) ---
+// Written by the HQ script (tools/ivms-monitor) with service_role; the
+// portal only edits the per-store settings columns (monitored, hours, mute,
+// note) and the single monitor_settings row. See
+// docs/workflow/DESIGN-device-offline-monitoring.md.
+export type MonitorState = "Online" | "Offline" | "Unknown";
+
+export interface StoreMonitor {
+  store_id: string;
+  monitored: boolean;
+  state: MonitorState;
+  state_since: string | null;
+  last_seen_at: string | null;
+  offline_streak: number;
+  current_outage_id: string | null;
+  ivms_device_name: string | null;
+  first_seen_at: string | null;
+  open_time: string | null; // "HH:MM:SS" — null = use the default
+  close_time: string | null;
+  muted_until: string | null;
+  mute_reason: string | null;
+  muted_by: string | null;
+  note: string | null;
+  updated_at: string;
+  /** Last script round that saw this store in iVMS, Online or Offline (migration 023; absent before it runs). */
+  last_checked_at?: string | null;
+}
+
+export interface DeviceOutage {
+  id: string;
+  store_id: string;
+  started_at: string;
+  detected_at: string;
+  ended_at: string | null;
+  duration_minutes: number | null;
+  during_business_hours: boolean;
+  muted: boolean;
+  central_suspect: boolean;
+  alert_sent_at: string | null;
+  recovery_alert_sent_at: string | null;
+  late_open_alert_sent_at: string | null;
+  summary_sent_at: string | null;
+  note: string | null;
+  created_at: string;
+}
+
+export type MonitorRunStatus = "ok" | "partial" | "suspect" | "failed";
+
+export interface MonitorRun {
+  id: string;
+  ran_at: string;
+  status: MonitorRunStatus;
+  ivms_total: number | null;
+  offline_count: number | null;
+  page_full: boolean | null;
+  monitored_count: number | null;
+  unmatched: string[];
+  error: string | null;
+  duration_ms: number | null;
+  script_version: string | null;
+}
+
+export interface MonitorSettings {
+  id: 1;
+  check_interval_minutes: number;
+  confirm_cycles: number;
+  default_open_time: string;
+  default_close_time: string;
+  late_open_grace_minutes: number;
+  mass_alert_threshold: number;
+  suspect_ratio: number;
+  stale_after_minutes: number;
+  alert_recipients: string[];
+  admin_recipients: string[];
+  morning_summary_time: string;
+  emails_enabled: boolean;
+  updated_at: string;
+  updated_by: string | null;
 }
 
 // Composite, denormalized shape used throughout the UI (joins store + asset + hikconnect).
@@ -320,6 +443,8 @@ export interface Database {
       incident_tickets: { Row: IncidentTicket; Insert: Partial<IncidentTicket>; Update: Partial<IncidentTicket> };
       recovery_stage_history: { Row: RecoveryStageHistoryEntry; Insert: Partial<RecoveryStageHistoryEntry>; Update: Partial<RecoveryStageHistoryEntry> };
       attachments: { Row: Attachment; Insert: Partial<Attachment>; Update: Partial<Attachment> };
+      installation_projects: { Row: InstallationProject; Insert: Partial<InstallationProject>; Update: Partial<InstallationProject> };
+      installation_stage_history: { Row: InstallationStageHistoryEntry; Insert: Partial<InstallationStageHistoryEntry>; Update: Partial<InstallationStageHistoryEntry> };
     };
   };
 }

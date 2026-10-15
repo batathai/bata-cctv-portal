@@ -15,7 +15,7 @@ import ctypes
 import re
 import time
 
-from serials import display as serial_display, make_key
+from serials import SERIAL_PREFIX, canon, display as serial_display, key_serials, make_key
 from state import ReadResult
 
 # ต้องตั้งก่อน import pywinauto: ให้พิกัดหน้าต่างกับภาพหน้าจอเป็นพิกเซลจริงชุดเดียวกัน
@@ -46,8 +46,9 @@ STATUS_RE = re.compile(r"\b(Online|Offline)\b", re.I)
 TOTAL_RE = re.compile(r"Total\s*\((\d+)\)")
 # 15 ต.ค.: เครื่อง HQ ไม่ได้ตั้งชื่อเป็นรหัสสาขา ชื่อเป็น "DS-7204HGHI-K1(G83641193)" -> จับคู่ด้วย Serial แทน
 # serial ของ Hikvision รุ่นที่ใช้: ตัวอักษร 1–3 ตัวตามด้วยตัวเลข 6–10 ตัว (G83641193, FM1646055, GV9426178)
-SERIAL_WORD_RE = re.compile(r"[A-Z]{1,3}[0-9OIL]{6,10}")
-PAREN_SERIAL_RE = re.compile(r"\(([A-Za-z0-9]{6,14})\)\s*$")
+SERIAL_WORD_RE = re.compile(r"[A-Z]{1,3}[0-9OILZSB]{6,10}")
+# วงเล็บท้ายชื่อ: OCR อาจอ่าน ")" เป็น "]" "}" "|" "l" "1" หรือหายไปเลย
+PAREN_SERIAL_RE = re.compile(r"[(\[{]([A-Za-z0-9]{6,14})[)\]}|lI1]?\s*$")
 CAPTURE = "ivms_capture.png"
 
 
@@ -225,8 +226,14 @@ async def _ocr_words_async(img):
     return words
 
 
-def ocr_words(shot):
-    prep = ImageOps.invert(ImageOps.grayscale(shot)).resize((shot.width * SCALE, shot.height * SCALE))
+def ocr_words(shot, boost=False):
+    """boost=True: ทำให้ตัวหนังสือสีเทาจางสว่างขึ้นก่อน OCR
+    15 ต.ค.: แถว Offline ใน iVMS เป็นตัวหนังสือสีเทาจาง OCR ปกติอ่านชื่อ/Serial ไม่ออก
+    (บนจอมี Offline 3 แต่อ่านได้ 1 — เครื่องที่ชื่อไม่มีรหัสสาขาหลุดทั้งคู่)"""
+    g = ImageOps.grayscale(shot)
+    if boost:
+        g = g.point(lambda v: min(255, int(v * 2.2)))
+    prep = ImageOps.invert(g).resize((shot.width * SCALE, shot.height * SCALE))
     return asyncio.run(_ocr_words_async(prep))
 
 
@@ -262,26 +269,7 @@ def _icon_color(img, col_x, row_cy):
     return "?"
 
 
-def read_page(shot):
-    """หนึ่งภาพ -> (rows=[(code, name, status)], total, words)"""
-    words = ocr_words(shot)
-    joined = " ".join(w["text"] for w in words)
-    m_total = TOTAL_RE.search(joined)
-    total = int(m_total.group(1)) if m_total else None
-
-    header = next((w for w in words if w["text"].lower().startswith(("resource", "usage"))), None)
-    status_words = [w for w in words if STATUS_RE.fullmatch(w["text"])]
-    if header is not None:
-        col_x = header["x"]
-    elif status_words:
-        xs = sorted(w["x"] for w in status_words)
-        col_x = xs[len(xs) // 2] - 20
-    else:
-        return [], total, words
-
-    serial_hdr = next((w for w in words if w["text"].lower().startswith("serial")), None)
-    conn_hdr = next((w for w in words if w["text"].lower().startswith("connection")), None)
-
+def _parse_rows(words, shot, col_x, serial_hdr, conn_hdr):
     rows = []
     for row in _group_rows(words):
         key, name = _row_device(row, serial_hdr, conn_hdr, col_x)
@@ -291,8 +279,44 @@ def read_page(shot):
         if status == "?":
             s = STATUS_RE.search(row["text"])
             status = s.group(1).capitalize() if s else "?"
-        rows.append((key, name, status))
-    return rows, total, words
+        rows.append((key, name, status, row["cy"]))
+    return rows
+
+
+def read_page(shot):
+    """หนึ่งภาพ -> (rows=[(code, name, status)], total, words)
+    OCR 2 รอบ: ปกติ + เพิ่มความสว่าง (boost) แล้วรวมแถวที่รอบปกติอ่านไม่ได้เข้ามา"""
+    words = ocr_words(shot)
+    joined = " ".join(w["text"] for w in words)
+    m_total = TOTAL_RE.search(joined)
+    total = int(m_total.group(1)) if m_total else None
+
+    boosted = ocr_words(shot, boost=True)
+    both = words + boosted
+    if total is None:
+        m_total = TOTAL_RE.search(" ".join(w["text"] for w in boosted))
+        total = int(m_total.group(1)) if m_total else None
+
+    header = next((w for w in both if w["text"].lower().startswith(("resource", "usage"))), None)
+    status_words = [w for w in both if STATUS_RE.fullmatch(w["text"])]
+    if header is not None:
+        col_x = header["x"]
+    elif status_words:
+        xs = sorted(w["x"] for w in status_words)
+        col_x = xs[len(xs) // 2] - 20
+    else:
+        return [], total, words
+
+    serial_hdr = next((w for w in both if w["text"].lower().startswith("serial")), None)
+    conn_hdr = next((w for w in both if w["text"].lower().startswith("connection")), None)
+
+    rows = _parse_rows(words, shot, col_x, serial_hdr, conn_hdr)
+    for r in _parse_rows(boosted, shot, col_x, serial_hdr, conn_hdr):
+        if all(abs(r[3] - x[3]) > 8 for x in rows):  # แถวที่รอบปกติอ่านไม่ได้ (มักเป็นแถว Offline สีจาง)
+            rows.append(r)
+    rows.sort(key=lambda r: r[3])
+    # words ที่คืนไปใช้หาหัวตาราง/แถบเลื่อน: รวมทั้ง 2 รอบ ให้ขอบล่างของตารางครบทุกแถว
+    return [(k, n, st) for k, n, st, _ in rows], total, both
 
 
 def _row_device(row, serial_hdr, conn_hdr, status_x):
@@ -403,6 +427,21 @@ def _scroll_to_top(win, rect):
         time.sleep(PAGE_GAP)
 
 
+def _device_id(code_or_key, name, seen):
+    """ตัวระบุเครื่องสำหรับนับว่าอ่านครบ Total หรือยัง (1.4.2)
+    เดิมใช้ (key, ชื่อ) -> แถวเดียวกันที่ OCR อ่านชื่อ/serial เพี้ยนต่างกันในแต่ละหน้าถูกนับ 2 ครั้ง
+    ยอดเลยถึง Total ทั้งที่มีแถวที่อ่านไม่ออก (15 ต.ค.: Total 81 แต่ขาด Offline 2 เครื่อง ระบบคิดว่าครบ)
+    - เครื่องที่จับด้วย Serial: เครื่องเดียวกัน = serial ตรงกัน (หลังแปลงตัวที่ OCR สับสน) อย่างน้อย 1 ตัว
+    - เครื่องที่จับด้วยรหัสสาขา: (รหัส, ชื่อแบบตัดช่องว่าง/ตัวพิมพ์) — สาขาหนึ่งอาจมีหลายเครื่องคนละชื่อ"""
+    if code_or_key.startswith(SERIAL_PREFIX):
+        mine = {canon(x) for x in key_serials(code_or_key)}
+        for k in seen:
+            if k[0] == "SN" and mine & set(k[1]):
+                return k
+        return ("SN", tuple(sorted(mine)))
+    return ("CODE", code_or_key, canon(name))
+
+
 def _read_all_pages(win, rect):
     """อ่านทุกหน้าของตาราง: เริ่มจากบนสุด, คลิกรางใต้ thumb ทีละหน้า จนเห็นครบตาม Total
     คืน (rows_by_device {(code, name): status}, total, first_shot)"""
@@ -421,11 +460,11 @@ def _read_all_pages(win, rect):
         for c, n, st in rows:
             if st == "?":
                 raise ReaderError(f"อ่านสถานะของ {serial_display(c)} ไม่ได้")
-            key = (c, n)
-            if key in seen and seen[key] != st:
+            key = _device_id(c, n, seen)
+            if key in seen and seen[key][2] != st:
                 raise ReaderError(f"สถานะ {serial_display(c)} ไม่ตรงกันระหว่างหน้า (หน้าจอเปลี่ยนระหว่างอ่าน)")
             if key not in seen:
-                seen[key] = st
+                seen[key] = (c, n, st)
                 new += 1
         if total is not None and len(seen) >= total:
             break
@@ -486,7 +525,7 @@ def read_ivms(log=print, save_capture=False) -> ReadResult:
 
         # รวมเป็นรายสาขา: เครื่องเดียวกันรหัสเดียวกันหลายตัว -> ถ้ามีตัวไหน Offline ถือว่า Offline
         by_code = {}
-        for (c, n), st in seen.items():
+        for c, n, st in seen.values():
             name, cur = by_code.get(c, (n, "Online"))
             by_code[c] = (name, "Offline" if "Offline" in (cur, st) else "Online")
         offline = sorted((c, n) for c, (n, st) in by_code.items() if st == "Offline")

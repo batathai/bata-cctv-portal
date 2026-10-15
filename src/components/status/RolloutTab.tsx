@@ -134,7 +134,7 @@ export function RolloutTab() {
                   {u}
                 </div>
               ))}
-              <div className="text-xs text-ink-soft dark:text-white/60">แก้ชื่อเครื่องใน iVMS ให้ขึ้นต้นด้วยรหัสสาขาที่ถูกต้อง หรือแก้รหัสสาขาใน portal</div>
+              <div className="text-xs text-ink-soft dark:text-white/60">รายการ Serial: กรอก Serial ของ DVR ในหน้า Asset Register ของสาขานั้น (ช่อง NVR Serial) · รายการรหัสสาขา: แก้ชื่อเครื่องใน iVMS หรือรหัสสาขาใน portal</div>
             </div>
           ) : (
             health.kind !== "mismatch" && <p className="text-sm text-ink-faint">ไม่มีรายการที่ต้องตรวจ</p>

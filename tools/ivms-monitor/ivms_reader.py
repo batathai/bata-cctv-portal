@@ -15,6 +15,7 @@ import ctypes
 import re
 import time
 
+from serials import display as serial_display, make_key
 from state import ReadResult
 
 # ต้องตั้งก่อน import pywinauto: ให้พิกัดหน้าต่างกับภาพหน้าจอเป็นพิกเซลจริงชุดเดียวกัน
@@ -43,6 +44,10 @@ MAX_PAGES = 12               # กันวนไม่จบ (67 เครื�
 CODE_RE = re.compile(r"\b(\d{5})\s*(?:[-–]\s*)?([^\d\s].*)")
 STATUS_RE = re.compile(r"\b(Online|Offline)\b", re.I)
 TOTAL_RE = re.compile(r"Total\s*\((\d+)\)")
+# 15 ต.ค.: เครื่อง HQ ไม่ได้ตั้งชื่อเป็นรหัสสาขา ชื่อเป็น "DS-7204HGHI-K1(G83641193)" -> จับคู่ด้วย Serial แทน
+# serial ของ Hikvision รุ่นที่ใช้: ตัวอักษร 1–3 ตัวตามด้วยตัวเลข 6–10 ตัว (G83641193, FM1646055, GV9426178)
+SERIAL_WORD_RE = re.compile(r"[A-Z]{1,3}[0-9OIL]{6,10}")
+PAREN_SERIAL_RE = re.compile(r"\(([A-Za-z0-9]{6,14})\)\s*$")
 CAPTURE = "ivms_capture.png"
 
 
@@ -248,18 +253,44 @@ def read_page(shot):
     else:
         return [], total, words
 
+    serial_hdr = next((w for w in words if w["text"].lower().startswith("serial")), None)
+    conn_hdr = next((w for w in words if w["text"].lower().startswith("connection")), None)
+
     rows = []
     for row in _group_rows(words):
-        m = CODE_RE.search(row["text"])
-        if not m:
+        key, name = _row_device(row, serial_hdr, conn_hdr, col_x)
+        if key is None:
             continue
         status = {"green": "Online", "grey": "Offline"}.get(_icon_color(shot, col_x, row["cy"]), "?")
         if status == "?":
             s = STATUS_RE.search(row["text"])
             status = s.group(1).capitalize() if s else "?"
-        name = re.split(r"\s+(?:\S{1,2}\s+)?H?\s?ik-?Connect", m.group(2))[0].strip()[:60]
-        rows.append((m.group(1), name, status))
+        rows.append((key, name, status))
     return rows, total, words
+
+
+def _row_device(row, serial_hdr, conn_hdr, status_x):
+    """หนึ่งแถว -> (key, name)
+    key = รหัสสาขา 5 หลัก ถ้าชื่อเครื่องขึ้นต้นด้วยรหัส (แบบเดิม)
+        = "SN:<serial คอลัมน์>[,<serial ในวงเล็บของชื่อ>]" ถ้าชื่อไม่มีรหัส (เครื่อง HQ 15 ต.ค.)
+        = None ถ้าไม่ใช่แถวเครื่อง (หัวตาราง, ปุ่ม ฯลฯ)"""
+    m = CODE_RE.search(row["text"])
+    if m:
+        name = re.split(r"\s+(?:\S{1,2}\s+)?H?\s?ik-?Connect", m.group(2))[0].strip()[:60]
+        return m.group(1), name
+    if serial_hdr is None:
+        return None, ""
+    # คอลัมน์ Serial No.: คำที่อยู่ระหว่างหัวคอลัมน์ Serial กับคอลัมน์สถานะ
+    col = "".join(w["text"] for w in row["words"] if serial_hdr["x"] - 15 <= w["x"] < status_x - 15)
+    col = col if SERIAL_WORD_RE.fullmatch(re.sub(r"[^A-Za-z0-9]", "", col).upper() or "-") else ""
+    # คอลัมน์ Name: คำที่อยู่ซ้ายของคอลัมน์ Connection Type
+    name_end = conn_hdr["x"] - 15 if conn_hdr else serial_hdr["x"] - 15
+    name = " ".join(w["text"] for w in row["words"] if w["x"] < name_end and w["text"] not in ("☐", "□")).strip()
+    paren = PAREN_SERIAL_RE.search(re.sub(r"\s+", "", name))
+    key = make_key(col, paren.group(1) if paren else "")
+    if key is None:
+        return None, ""
+    return key, name[:60]
 
 
 def _header_y(words):
@@ -269,7 +300,8 @@ def _header_y(words):
 
 def _table_bottom(words):
     """y ล่างสุดของแถวที่มีรหัสสาขา = ขอบล่างของตาราง (ใต้นั้นอาจเป็นแผง Event ของ iVMS)"""
-    ys = [w["y"] + w["h"] for w in words if re.fullmatch(r"\d{5}", w["text"])]
+    ys = [w["y"] + w["h"] for w in words
+          if re.fullmatch(r"\d{5}", w["text"]) or SERIAL_WORD_RE.fullmatch(w["text"])]
     return int(max(ys)) if ys else None
 
 
@@ -362,10 +394,10 @@ def _read_all_pages(win, rect):
         new = 0
         for c, n, st in rows:
             if st == "?":
-                raise ReaderError(f"อ่านสถานะของ {c} ไม่ได้")
+                raise ReaderError(f"อ่านสถานะของ {serial_display(c)} ไม่ได้")
             key = (c, n)
             if key in seen and seen[key] != st:
-                raise ReaderError(f"สถานะ {c} ไม่ตรงกันระหว่างหน้า (หน้าจอเปลี่ยนระหว่างอ่าน)")
+                raise ReaderError(f"สถานะ {serial_display(c)} ไม่ตรงกันระหว่างหน้า (หน้าจอเปลี่ยนระหว่างอ่าน)")
             if key not in seen:
                 seen[key] = st
                 new += 1
@@ -441,5 +473,8 @@ if __name__ == "__main__":
     # ทดสอบอ่านอย่างเดียว ไม่เขียนอะไรขึ้น Supabase: python ivms_reader.py
     r = read_ivms(save_capture=True)
     print(f"ok={r.ok} total={r.total} complete={r.complete} offline={len(r.offline)} online={len(r.online or [])} error={r.error}")
-    print("Offline:", [c for c, _ in r.offline])
+    print("Offline:", [serial_display(c) for c, _ in r.offline])
+    sn = [c for c, _ in r.offline + (r.online or []) if c.startswith("SN:")]
+    if sn:
+        print(f"จับคู่ด้วย Serial {len(sn)} เครื่อง:", ", ".join(serial_display(c) for c in sn))
     print(f"ภาพหน้าแรกบันทึกไว้ที่ {CAPTURE}")

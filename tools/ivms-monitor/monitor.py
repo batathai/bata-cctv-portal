@@ -29,7 +29,7 @@ sys.path.insert(0, HERE)
 from state import ReadResult, plan_cycle  # noqa: E402
 import desktop  # noqa: E402
 
-SCRIPT_VERSION = "1.3.0"
+SCRIPT_VERSION = "1.4.0"  # 1.4.0: จับคู่เครื่องด้วย Serial เมื่อชื่อใน iVMS ไม่มีรหัสสาขา
 log = logging.getLogger("ivms-monitor")
 
 

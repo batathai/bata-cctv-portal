@@ -355,3 +355,64 @@ def test_overall_untouched_for_other_account_or_before_migration():
     assert "s2" not in p.store_overall
     p = run(at(14), full(10, online=["51403"]), mons, stores=stores_with("Offline", None))
     assert p.store_overall == {}
+
+
+# ---------------------------------------------------------------- จับคู่ด้วย Serial (15 ต.ค.)
+from serials import SerialIndex, make_key  # noqa: E402
+
+SN_STORES = [
+    Store(id="s1", code="51403", name="Future Park", zone="512", serials=("G83641193",)),
+    # แบบยาว (ป้ายใต้เครื่อง) ต้องจับคู่กับ serial สั้นใน iVMS ได้
+    Store(id="s2", code="53023", name="TOPS Plaza Phol", zone="530",
+          serials=("DS-7604NXI-K1/4P(D)0120230101CCRRFM1646055WCVU",)),
+    Store(id="s3", code="54013", name="Big C Chachoengsao", zone="540", serials=("G83641198",)),
+]
+
+
+def sn(col, paren=""):
+    return make_key(col, paren)
+
+
+def test_make_key_collapses_lookalikes():
+    assert make_key("FM1646O55", "FM1646055") == "SN:FM1646055"
+    assert make_key("G83641193", "G83641193") == "SN:G83641193"
+    assert make_key("", "") is None
+    assert make_key("G8364l193", "G83641198") == "SN:G8364L193,G83641198"   # อ่านไม่ตรงกัน -> เก็บทั้งคู่
+
+
+def test_serial_index_exact_contains_and_ocr_lookalikes():
+    idx = SerialIndex((st.id, s) for st in SN_STORES for s in st.serials)
+    assert idx.lookup("G83641193") == ("s1", "exact")
+    assert idx.lookup("G8364I193") == ("s1", "exact")        # I/1 ที่ OCR สับสน
+    assert idx.lookup("FM1646055") == ("s2", "contains")     # serial ยาวใน DB
+    assert idx.lookup("G83641194") == (None, "none")         # ไม่ยอมรับ "ต่าง 1 ตัว" (เครื่องล็อตเดียวกันเลขติดกัน)
+
+
+def test_serial_key_pointing_to_two_stores_is_ambiguous():
+    idx = SerialIndex((st.id, s) for st in SN_STORES for s in st.serials)
+    assert idx.resolve_key("SN:G83641193,G83641198") == (None, "ambiguous")
+    assert idx.resolve_key("SN:G83641193,X9999999") == ("s1", "exact")
+
+
+def test_plan_matches_devices_by_serial_and_reports_unknown():
+    read = ReadResult(ok=True, total=4, complete=True,
+                      offline=[(sn("G83641193"), "DS-7204HGHI-K1(G83641193)")],
+                      online=[(sn("FM1646O55", "FM1646055"), "DS-7604NXI-K1/4P(D)(FM1646055)"),
+                              (sn("G83641198"), "DS-7204HGHI-K1(G83641198)"),
+                              (sn("G83642797"), "DS-7204HGHI-K1(G83642797)")])
+    mons = {sid: mon(sid, monitored=False, state="Unknown", last_seen_at=None) for sid in ("s1", "s2", "s3")}
+    p = run(at(13, 5), read, mons, stores=SN_STORES)
+    assert p.run["status"] == "ok"
+    for sid in ("s1", "s2", "s3"):
+        assert p.monitor_updates[sid]["monitored"] is True
+    assert p.monitor_updates["s2"]["state"] == "Online"
+    assert p.monitor_updates["s1"]["offline_streak"] == 1                  # ยังไม่ยืนยัน (ต้อง 2 รอบ)
+    assert p.monitor_updates["s1"]["ivms_device_name"].startswith("51403 - DS-7204HGHI-K1")
+    assert p.run["unmatched"] == ["Serial G83642797 (ไม่มี Serial นี้ในสาขาใด) - DS-7204HGHI-K1(G83642797)"]
+
+
+def test_store_code_in_name_still_wins():
+    read = ReadResult(ok=True, total=1, complete=True, offline=[], online=[("51403", "Future Park")])
+    p = run(at(13, 5), read, {"s1": mon("s1", state="Unknown", last_seen_at=None)}, stores=SN_STORES)
+    assert p.monitor_updates["s1"]["state"] == "Online"
+    assert p.run["unmatched"] == []

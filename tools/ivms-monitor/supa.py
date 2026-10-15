@@ -75,10 +75,29 @@ class Supa:
             rows = self.select("stores", select=base + ",overall_status,camera_issue")
         except SupabaseError:
             rows = self.select("stores", select=base)
+        serials = self.load_serials()
         return [Store(id=r["id"], code=str(r["store_code"]).strip(), name=r.get("store_name") or "",
                       region=r.get("region") or "", zone=r.get("zone") or "",
-                      overall_status=r.get("overall_status"), camera_issue=r.get("camera_issue"))
+                      overall_status=r.get("overall_status"), camera_issue=r.get("camera_issue"),
+                      serials=tuple(serials.get(r["id"], ())))
                 for r in rows if r.get("is_active", True) is not False]
+
+    def load_serials(self) -> dict:
+        """store_id -> [serial] จาก cctv_assets (nvr_serial + hik_uid) ใช้จับคู่เครื่องที่ชื่อใน iVMS ไม่มีรหัสสาขา
+        hik_uid อาจยังไม่มี (migration 010) -> ลองแบบไม่มีคอลัมน์นั้น"""
+        for cols in ("store_id,nvr_serial,hik_uid", "store_id,nvr_serial"):
+            try:
+                rows = self.select("cctv_assets", select=cols)
+                break
+            except SupabaseError:
+                rows = []
+        out = {}
+        for r in rows:
+            for k in ("nvr_serial", "hik_uid"):
+                v = (r.get(k) or "").strip()
+                if v:
+                    out.setdefault(r["store_id"], []).append(v)
+        return out
 
     def load_monitors(self) -> dict:
         return {r["store_id"]: Monitor.from_row(r) for r in self.select("store_monitor")}

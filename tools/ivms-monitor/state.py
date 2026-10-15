@@ -15,6 +15,8 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta, timezone
 from typing import Callable, Optional
 
+from serials import SerialIndex, display as serial_display, is_serial_key
+
 # ประเทศไทยไม่มี daylight saving — ใช้ offset คงที่ ไม่ต้องพึ่ง tzdata บน Windows
 BKK = timezone(timedelta(hours=7))
 EMAIL_RETRY_MINUTES = 60          # ส่งเมลไม่สำเร็จ จะลองใหม่ในรอบถัดๆ ไปภายในเวลานี้
@@ -156,6 +158,8 @@ class Store:
     # camera_issue=None = ยังไม่ได้รัน 024 -> สคริปต์ไม่เขียน overall_status
     overall_status: Optional[str] = None
     camera_issue: Optional[bool] = None
+    # 15 ต.ค.: serial ของ DVR ใน DB (cctv_assets.nvr_serial, hik_uid) ใช้จับคู่เครื่องที่ชื่อใน iVMS ไม่มีรหัสสาขา
+    serials: tuple = ()
 
     @property
     def region_short(self) -> str:
@@ -329,20 +333,33 @@ def plan_cycle(
     # full = ตัวอ่านเห็นทุกแถวของบัญชี iVMS ที่เปิดอยู่ (Online + Offline)
     # กติกา 10 ต.ค. (HQ มี 2 บัญชี): เห็นสาขาไหนอัปเดตตามที่เห็น, ไม่เห็น = ไม่แตะ
     full = read.online is not None
+    serial_index = SerialIndex((st.id, sn) for st in stores for sn in st.serials)
+
+    def resolve(key: str):
+        """key = รหัสสาขา 5 หลัก (จากชื่อเครื่อง) หรือ SN:... (จาก Serial) -> (Store | None, ข้อความ unmatched)"""
+        if not is_serial_key(key):
+            st = by_code.get(key)
+            return st, None if st else f"{key} - {{name}}"
+        sid, how = serial_index.resolve_key(key)
+        if sid:
+            return by_id[sid], None
+        why = "Serial ตรงกับหลายสาขา" if how == "ambiguous" else "ไม่มี Serial นี้ในสาขาใด"
+        return None, f"Serial {serial_display(key)} ({why}) - {{name}}"
+
     matched, unmatched = [], []
     matched_online = []
-    for code, name in (read.offline if status != "failed" else []):
-        st = by_code.get(code)
-        if st:
-            matched.append((st, name))
-        else:
-            unmatched.append(f"{code} - {name}".strip(" -"))
-    for code, name in ((read.online or []) if status != "failed" else []):
-        st = by_code.get(code)
-        if st:
-            matched_online.append((st, name))
-        else:
-            unmatched.append(f"{code} - {name}".strip(" -"))
+    for bucket, rows in ((matched, read.offline if status != "failed" else []),
+                         (matched_online, (read.online or []) if status != "failed" else [])):
+        for code, name in rows:
+            st, miss = resolve(code)
+            if st:
+                bucket.append((st, name))
+            else:
+                unmatched.append(miss.format(name=name).strip(" -"))
+
+    # หลายเครื่องชี้ไปสาขาเดียวกัน (เช่นจับคู่จากชื่อ 1 เครื่อง + serial 1 เครื่อง) -> ถ้ามีตัวไหน Offline ถือว่า Offline
+    offline_ids = {st.id for st, _ in matched}
+    matched_online = [(st, n) for st, n in matched_online if st.id not in offline_ids]
 
     plan.run = {
         "status": status,

@@ -179,7 +179,7 @@ export function exportExecutiveSummaryToExcel(
 ) {
   const c = countLiveStatuses(rows);
   const summaryRows = [
-    { Metric: "Last iVMS sync (Bangkok time)", Value: formatDateTime(lastSyncIso) || "never" },
+    { Metric: "Last status sync (Bangkok time)", Value: formatDateTime(lastSyncIso) || "never" },
     { Metric: "Total Stores", Value: rows.length },
     { Metric: "Online", Value: c.Online },
     { Metric: "Partial - camera repair", Value: c.CameraIssue },

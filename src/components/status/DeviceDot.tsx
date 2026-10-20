@@ -50,7 +50,7 @@ export function DeviceDot({ store, withText = false }: { store: StoreWithAssets;
   const m = monitorByStore.get(storeId);
   const status = withCameraIssue(displayStatus(m, stale, now), store);
   const d = DOT[status];
-  if (!d) return withText ? <span className="text-xs text-ink-faint">DVR ยังไม่อยู่ใน iVMS</span> : slot;
+  if (!d) return withText ? <span className="text-xs text-ink-faint">DVR ยังไม่อยู่ใน Hik-Partner Pro</span> : slot;
 
   let extra = "";
   if ((status === "Offline" || status === "Muted") && m) extra = ` · หลุดมา ${formatDuration(minutesBetween(m.last_seen_at ?? m.state_since, now))}`;

@@ -144,7 +144,7 @@ export function LiveStatusTab() {
                 <th className="px-2 py-2.5 font-semibold">สาขา</th>
                 <th className="px-2 py-2.5 font-semibold w-[60px]">เขต</th>
                 <th className="px-2 py-2.5 font-semibold w-[170px]">สถานะ</th>
-                <th className="px-2 py-2.5 font-semibold w-[120px]" title="รอบล่าสุดที่สคริปต์เห็นสาขานี้ใน iVMS (บัญชีไหนก็ได้)">อัปเดตล่าสุด</th>
+                <th className="px-2 py-2.5 font-semibold w-[120px]" title="รอบล่าสุดที่สคริปต์เห็นสาขานี้ใน Hik-Partner Pro">อัปเดตล่าสุด</th>
                 <th className="px-2 py-2.5 font-semibold w-[120px]">หลุดมานาน</th>
                 <th className="px-2 py-2.5 font-semibold w-[110px]">เวลาทำการ</th>
                 <th className="px-4 py-2.5 w-[140px]">
@@ -160,7 +160,7 @@ export function LiveStatusTab() {
                   : r.status === "Confirming"
                   ? `กำลังยืนยัน (เห็น Offline ${m?.offline_streak} จาก ${settings.confirm_cycles} รอบ)`
                   : r.status === "NotMonitored"
-                  ? "ยังไม่อยู่ใน iVMS"
+                  ? "ยังไม่อยู่ใน Hik-Partner Pro"
                   : r.status === "CameraIssue"
                   ? CAMERA_ISSUE_REMARK
                   : `กล้อง: ${getStatusLabel(r.store.overall_status)}`;

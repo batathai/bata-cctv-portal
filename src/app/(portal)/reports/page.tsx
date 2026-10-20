@@ -92,7 +92,7 @@ export default function ReportsPage() {
         <Card className="p-5 flex flex-col">
           <SectionTitle icon={FileBarChart}>Executive Report</SectionTitle>
           <p className="text-xs text-ink-faint mb-3">
-            DVR status of every store from the iVMS sync (same as Device Status): Online, Partial (camera repair),
+            DVR status of every store from the Hik-Partner Pro sync (same as Device Status): Online, Partial (camera repair),
             Offline with how long, and when each store was last updated. Excel also includes Work Order status, Cause
             and Remark.
           </p>
@@ -103,7 +103,7 @@ export default function ReportsPage() {
               <span className="text-status-offline font-medium">Offline {liveCounts.Offline}</span>
               <span className="text-ink-faint">Not monitored {liveCounts.NotMonitored}</span>
             </div>
-            <div className="text-[11px] text-ink-faint">iVMS sync ล่าสุด: {formatDateTime(lastSyncIso) || "ยังไม่เคย sync"}</div>
+            <div className="text-[11px] text-ink-faint">sync ล่าสุด: {formatDateTime(lastSyncIso) || "ยังไม่เคย sync"}</div>
           </div>
           <div className="flex gap-2">
             <button onClick={() => exportExecutivePdf(liveRows, lastSyncIso)} className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium border border-black/10 dark:border-white/10 rounded-md py-2 hover:bg-surface-muted dark:hover:bg-white/5">

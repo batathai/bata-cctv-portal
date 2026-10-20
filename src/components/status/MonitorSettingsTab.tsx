@@ -12,7 +12,7 @@ import type { MonitorSettings } from "@/types/database";
 type NumKey = "check_interval_minutes" | "confirm_cycles" | "late_open_grace_minutes" | "mass_alert_threshold" | "stale_after_minutes";
 
 const NUMS: { key: NumKey; label: string; hint: string; unit: string; min: number; max: number }[] = [
-  { key: "check_interval_minutes", label: "ตรวจทุก", hint: "รอบอ่าน iVMS", unit: "นาที", min: 1, max: 60 },
+  { key: "check_interval_minutes", label: "ตรวจทุก", hint: "รอบอ่าน Hik-Partner Pro", unit: "นาที", min: 1, max: 60 },
   { key: "confirm_cycles", label: "ยืนยัน Offline เมื่อเห็นติดกัน", hint: "กันหน้าจอยังไม่นิ่ง / หลุดแวบเดียว", unit: "รอบ", min: 1, max: 10 },
   { key: "late_open_grace_minutes", label: "เปิดร้านแล้วยังไม่ Online", hint: "ผ่อนผันหลังเวลาเปิด", unit: "นาที", min: 0, max: 240 },
   { key: "mass_alert_threshold", label: "หลุดพร้อมกันกี่สาขา → เมลรวมฉบับเดียว", hint: "และเตือนว่าอาจเป็นปัญหาฝั่งกลาง", unit: "สาขา", min: 2, max: 500 },

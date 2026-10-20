@@ -62,13 +62,13 @@ export function StoreMonitorCard({ store, canEdit }: { store: StoreWithAssets; c
   return (
     <Card className="p-5 space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
-        <SectionTitle icon={Wifi}>Device Status (iVMS)</SectionTitle>
+        <SectionTitle icon={Wifi}>Device Status (Hik-Partner Pro)</SectionTitle>
         <span className="text-xs text-ink-faint">ตรวจล่าสุด {latestRun ? formatSeen(latestRun.ran_at) : "—"}</span>
       </div>
 
       {!m?.monitored ? (
         <p className="text-sm text-ink-soft dark:text-white/60">
-          สาขานี้ยังไม่อยู่ใน iVMS-4200 ที่ HQ จึงยังไม่ได้เฝ้าสถานะ — เพิ่มเครื่องเข้า iVMS แล้วติ๊กในหน้า{" "}
+          สาขานี้ยังไม่อยู่ใน Hik-Partner Pro จึงยังไม่ได้เฝ้าสถานะ — เพิ่มเครื่องเข้า Hik-Connect แล้วกด Synchronize ใน Hik-Partner Pro หรือติ๊กในหน้า{" "}
           <Link href="/status?tab=rollout" className="text-brand hover:underline">
             Device Status › Rollout
           </Link>
@@ -86,11 +86,11 @@ export function StoreMonitorCard({ store, canEdit }: { store: StoreWithAssets; c
           </div>
           <dl className="grid gap-x-6 gap-y-2 text-sm [grid-template-columns:repeat(auto-fit,minmax(200px,1fr))]">
             <div>
-              <dt className="text-ink-faint text-xs">ชื่อเครื่องใน iVMS</dt>
+              <dt className="text-ink-faint text-xs">ชื่อเครื่องใน Hik-Partner Pro</dt>
               <dd className="font-mono text-xs mt-0.5">{m.ivms_device_name ?? "— (จะรู้เมื่อสคริปต์เห็นเครื่องนี้)"}</dd>
             </div>
             <div>
-              <dt className="text-ink-faint text-xs">อยู่ใน iVMS ตั้งแต่</dt>
+              <dt className="text-ink-faint text-xs">อยู่ใน Hik-Partner Pro ตั้งแต่</dt>
               <dd className="mt-0.5">{m.first_seen_at ? formatSeen(m.first_seen_at) : "—"}</dd>
             </div>
             {current && (

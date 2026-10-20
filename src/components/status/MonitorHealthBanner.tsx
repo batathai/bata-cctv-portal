@@ -43,11 +43,11 @@ export function MonitorHealthBanner({ onGoRollout }: { onGoRollout?: () => void 
   switch (health.kind) {
     case "ok":
       title = "ตัวตรวจทำงานปกติ";
-      detail = `ตรวจล่าสุด ${lastRun} น. · ทุก ${settings.check_interval_minutes} นาที · iVMS ${health.ivmsTotal ?? "—"} เครื่อง · portal ติ๊กไว้ ${health.monitoredCount} ตรงกัน`;
+      detail = `ตรวจล่าสุด ${lastRun} น. · ทุก ${settings.check_interval_minutes} นาที · Hik-Partner Pro ${health.ivmsTotal ?? "—"} เครื่อง · portal ติ๊กไว้ ${health.monitoredCount} ตรงกัน`;
       break;
     case "stale":
       title = "ระบบตรวจหยุดทำงาน";
-      detail = `ไม่มีรายงานจากคอม HQ มา ${formatDuration(health.minutesSinceRun)} (ล่าสุด ${lastRun}) — ตัวเลขด้านล่างเป็นผล sync ล่าสุดเมื่อ ${lastRun} น. · เช็ก: คอม HQ เปิดอยู่ไหม, iVMS เปิดค้างหน้า Cloud P2P, จอไม่ล็อก`;
+      detail = `ไม่มีรายงานจากคอม HQ มา ${formatDuration(health.minutesSinceRun)} (ล่าสุด ${lastRun}) — ตัวเลขด้านล่างเป็นผล sync ล่าสุดเมื่อ ${lastRun} น. · เช็ก: คอม HQ เปิดอยู่ไหม, monitor.log, session Hik-Partner Pro หมดอายุไหม (รัน hpp_auto_export.py --setup)`;
       break;
     case "never":
       title = "ยังไม่มีรายงานจากตัวตรวจ";
@@ -58,7 +58,7 @@ export function MonitorHealthBanner({ onGoRollout }: { onGoRollout?: () => void 
       detail = "รัน supabase/migrations/022_device_monitoring.sql ใน Supabase SQL Editor ก่อน";
       break;
     case "failed":
-      title = "รอบตรวจล่าสุดอ่าน iVMS ไม่ได้";
+      title = "รอบตรวจล่าสุดอ่าน Hik-Partner Pro ไม่ได้";
       detail = `${lastRun} น. · ${latestRun?.error ?? "ไม่ทราบสาเหตุ"} — สถานะยังเป็นของรอบก่อนหน้า`;
       break;
     case "suspect":
@@ -73,7 +73,7 @@ export function MonitorHealthBanner({ onGoRollout }: { onGoRollout?: () => void 
       title = "จำนวนเครื่องไม่ตรงกัน";
       detail = (
         <>
-          iVMS มี {health.ivmsTotal} เครื่อง แต่ portal ติ๊ก monitored ไว้ {health.monitoredCount} สาขา
+          Hik-Partner Pro มี {health.ivmsTotal} เครื่อง แต่ portal ติ๊ก monitored ไว้ {health.monitoredCount} สาขา
           {onGoRollout && (
             <>
               {" "}

@@ -76,7 +76,7 @@ export function exportExecutivePdf(rows: LiveRow[], lastSyncIso: string | null) 
   doc.setFontSize(11);
   doc.text(`Total stores: ${rows.length}`, 14, 30);
   doc.setFontSize(9);
-  doc.text(`Last iVMS sync: ${formatDateTime(lastSyncIso) || "never"} (Bangkok time)`, 14, 36);
+  doc.text(`Last status sync: ${formatDateTime(lastSyncIso) || "never"} (Bangkok time)`, 14, 36);
 
   autoTable(doc, {
     startY: 41,

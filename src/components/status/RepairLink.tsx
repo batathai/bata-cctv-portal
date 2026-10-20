@@ -28,7 +28,7 @@ export function repairReason(
     return {
       kind: "dvr",
       issue: "NVR Offline",
-      note: `DVR Offline จาก iVMS ตั้งแต่ ${formatSeen(monitor?.last_seen_at ?? monitor?.state_since)} (${formatDuration(offlineMinutes)})`,
+      note: `DVR Offline จาก Hik-Partner Pro ตั้งแต่ ${formatSeen(monitor?.last_seen_at ?? monitor?.state_since)} (${formatDuration(offlineMinutes)})`,
     };
   }
   if ((status === "Online" || status === "Confirming" || status === "CameraIssue") && store.overall_status === "Partial") {

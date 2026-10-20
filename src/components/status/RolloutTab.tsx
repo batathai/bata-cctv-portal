@@ -79,10 +79,10 @@ export function RolloutTab() {
           <div className="h-2.5 bg-black/5 dark:bg-white/10 rounded-full overflow-hidden">
             <div className="h-full bg-brand rounded-full" style={{ width: `${Math.min(100, pct)}%` }} />
           </div>
-          <p className="text-xs text-ink-faint">{pct}% · เพิ่มสาขาโดยเพิ่มเครื่องเข้า iVMS-4200 ที่ HQ แล้วสคริปต์จะเห็นเองในรอบถัดไป</p>
+          <p className="text-xs text-ink-faint">{pct}% · เพิ่มสาขาโดยเพิ่มเครื่องเข้า Hik-Connect แล้วกด Synchronize Devices ใน Hik-Partner Pro สคริปต์จะเห็นเองในรอบถัดไป</p>
           <dl className="grid grid-cols-2 gap-2 text-sm">
             <div>
-              <dt className="text-ink-faint text-xs">iVMS Total (รอบล่าสุด)</dt>
+              <dt className="text-ink-faint text-xs">Hik-Partner Pro Total (รอบล่าสุด)</dt>
               <dd className="font-semibold">{latestRun?.ivms_total ?? "—"}</dd>
             </div>
             <div>
@@ -123,18 +123,18 @@ export function RolloutTab() {
           <h2 className="font-display font-semibold text-sm text-ink dark:text-white">ต้องตรวจ</h2>
           {health.kind === "mismatch" && (
             <div className="rounded-md bg-status-partial/10 px-3 py-2.5 text-sm text-[#6E4700] dark:text-status-partial">
-              iVMS มี {latestRun?.ivms_total} เครื่อง แต่ติ๊กไว้ {monitoredCount} สาขา — สาขาที่อยู่ใน iVMS แต่ยังไม่เคยหลุด สคริปต์มองไม่เห็นชื่อ ต้องติ๊กเอง
+              Hik-Partner Pro มี {latestRun?.ivms_total} เครื่อง แต่ติ๊กไว้ {monitoredCount} สาขา — ดูรายการ “ต้องตรวจ” ด้านล่าง หรือสาขาที่ติ๊กไว้แต่ไม่มีเครื่องใน Hik-Partner Pro
             </div>
           )}
           {unmatched.length > 0 ? (
             <div className="rounded-md bg-status-partial/10 px-3 py-2.5 space-y-1">
-              <div className="text-sm font-semibold text-[#6E4700] dark:text-status-partial">อ่านได้จาก iVMS แต่ไม่ตรงกับสาขาใด</div>
+              <div className="text-sm font-semibold text-[#6E4700] dark:text-status-partial">อ่านได้จาก Hik-Partner Pro แต่ไม่ตรงกับสาขาใด</div>
               {unmatched.map((u) => (
                 <div key={u} className="font-mono text-xs">
                   {u}
                 </div>
               ))}
-              <div className="text-xs text-ink-soft dark:text-white/60">รายการ Serial: กรอก Serial ของ DVR ในหน้า Asset Register ของสาขานั้น (ช่อง NVR Serial) · รายการรหัสสาขา: แก้ชื่อเครื่องใน iVMS หรือรหัสสาขาใน portal</div>
+              <div className="text-xs text-ink-soft dark:text-white/60">รายการ Serial: กรอก Serial ของ DVR ในหน้า Asset Register ของสาขานั้น (ช่อง NVR Serial) · รายการรหัสสาขา: แก้ชื่อเครื่องใน Hik-Partner Pro หรือรหัสสาขาใน portal</div>
             </div>
           ) : (
             health.kind !== "mismatch" && <p className="text-sm text-ink-faint">ไม่มีรายการที่ต้องตรวจ</p>
@@ -186,8 +186,8 @@ export function RolloutTab() {
                   <span className="text-xs text-ink-faint truncate">
                     {view === "monitored"
                       ? m?.first_seen_at
-                        ? `เห็นใน iVMS ตั้งแต่ ${formatSeen(m.first_seen_at)}`
-                        : "ติ๊กเอง ยังไม่เคยเห็นใน iVMS"
+                        ? `เห็นใน Hik-Partner Pro ตั้งแต่ ${formatSeen(m.first_seen_at)}`
+                        : "ติ๊กเอง ยังไม่เคยเห็นใน Hik-Partner Pro"
                       : s.hikconnect?.ivms_account
                       ? "มี iVMS account แล้ว"
                       : ""}

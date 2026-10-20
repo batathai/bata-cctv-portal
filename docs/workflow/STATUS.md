@@ -2,7 +2,15 @@
 Feature: Device Offline Monitoring (iVMS reader)
 Phase: /test in progress (HQ script verified end-to-end on 2026-10-08)
 Design approved: yes — 2026-10-08 — DESIGN-device-offline-monitoring.md as written (iVMS reader, migration 022, 4-tab /status, Store Detail card, confirm Offline after 2 cycles, 10:00–22:00 default hours, R11 dropped from phase 1)
-Updated: 2026-10-12
+Updated: 2026-10-20
+
+## Change 2026-10-20 — status source: iVMS → Hik-Partner Pro (ivms-monitor 2.0.0, user)
+- Why: see `claude/MOVE-ivms-to-hik-partner-pro.md` (project) + DESIGN §9. HPP export of 19 Oct: 122 devices, 16 Offline; portal (iVMS) showed 12, 5 of them stale since 14 Oct
+- New `tools/ivms-monitor/hpp_auto_export.py` (Playwright + Edge, persistent profile, `--setup` / `--show` / `--probe`, debug screenshots) and `hpp_reader.py` (export → `ReadResult`). `monitor.py` picks the reader by `MONITOR_SOURCE` (default `hpp`, `ivms` = rollback). `state.py` rules unchanged; email wording follows the source
+- Portal: user-facing "iVMS" wording in Device Status / Store card / Reports → "Hik-Partner Pro"
+- Tests: `test_state.py` 37 + `test_hpp_reader.py` 13 pass · exporter tested against a local mock site (login → menu → Export → confirm dialog → download; expired-session path). **Not yet run against the real HPP site**
+- Next: user runs `--setup` + `python hpp_auto_export.py` on the HQ PC → fix selectors if needed → `--once --dry-run` → overnight `/test` → approve DESIGN §9
+- Open: 51438 Central Pinklao + 54044 Robinson Chachoengsao not in HPP (Synchronize from Hik-Connect) · 4 stores Offline in HPP but Online in iVMS (51434, 52031, 52098, 53006)
 
 ## Change 2026-10-12 14:40 — red wrench after 1 day offline (user)
 - `REPAIR_SUGGEST_MINUTES` 120 → 1440 (`src/lib/monitoring.ts`), new `REPAIR_SUGGEST_LABEL` "1 วัน" used in the Device Status and Dashboard footnotes. Affects the red wrench everywhere (Device Status, Asset Register, Dashboard) and the Dashboard Repair card's DVR count. Amber wrench (camera issue) unchanged

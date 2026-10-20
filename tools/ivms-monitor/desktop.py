@@ -15,7 +15,7 @@ from xml.sax.saxutils import escape
 
 # Toast ของโปรแกรมที่ไม่ได้ติดตั้งแบบ app ต้องอ้าง AppUserModelID ที่มีอยู่แล้วในเครื่อง -> ใช้ของ PowerShell
 _APP_ID = "{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\\WindowsPowerShell\\v1.0\\powershell.exe"
-_BASE_TITLE = "iVMS monitor"
+_BASE_TITLE = "CCTV monitor"
 
 
 def set_title(text: str, log=print) -> None:
@@ -41,8 +41,11 @@ def toast(title: str, body: str, log=print) -> None:
         log(f"warn: แสดงแจ้งเตือน Windows ไม่ได้ ({e!r})")
 
 
-def syncing(log=print) -> None:
-    set_title("🔄 iVMS กำลัง sync… อย่าใช้เมาส์", log)
+def syncing(log=print, source: str = "ivms") -> None:
+    if source == "hpp":
+        set_title("🔄 Hik-Partner Pro กำลัง sync…", log)  # ทำงานเบื้องหลัง ใช้เมาส์ได้ตามปกติ
+    else:
+        set_title("🔄 iVMS กำลัง sync… อย่าใช้เมาส์", log)
 
 
 def finished(*, at: str, status: str, total, offline: int, online: int, next_at: str, error: str | None, log=print) -> None:

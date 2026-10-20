@@ -1,8 +1,12 @@
 """
-monitor.py — ตัวเฝ้า DVR สาขาจาก iVMS-4200 (Device Offline Monitoring)
+monitor.py — ตัวเฝ้า DVR สาขา (Device Offline Monitoring)
+
+แหล่งข้อมูล (MONITOR_SOURCE ใน .env):
+  hpp  (ค่าเริ่มต้นตั้งแต่ 2.0.0) Export "Site Details" จาก Hik-Partner Pro (hpp_auto_export + hpp_reader)
+  ivms (แบบเดิม) อ่านหน้าจอ iVMS-4200 ด้วย OCR (ivms_reader) — เก็บไว้เผื่อต้องย้อนกลับ
 
 ทุก N นาที (ตั้งในหน้า Device Status › ตั้งค่า):
-  1) กด Refresh ใน iVMS แล้วอ่านรายการ Offline + Total (ivms_reader)
+  1) อ่านรายการเครื่อง Online/Offline + Total จากแหล่งข้อมูล
   2) โหลดสถานะเดิมจาก Supabase
   3) ตัดสินสถานะ + เลือกเมล (state.plan_cycle)
   4) เขียนขึ้น Supabase, ส่งเมล, บันทึกว่าส่งแล้ว
@@ -11,7 +15,7 @@ monitor.py — ตัวเฝ้า DVR สาขาจาก iVMS-4200 (Device
 วิธีรัน (Command Prompt แบบ administrator) — ดู README.md
   python monitor.py              ทำงานต่อเนื่อง
   python monitor.py --once       รอบเดียวแล้วจบ
-  python monitor.py --dry-run    อ่าน iVMS + แสดงแผน แต่ไม่เขียน Supabase และไม่ส่งเมล
+  python monitor.py --dry-run    อ่านสถานะ + แสดงแผน แต่ไม่เขียน Supabase และไม่ส่งเมล
 """
 from __future__ import annotations
 
@@ -26,10 +30,10 @@ from logging.handlers import RotatingFileHandler
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
-from state import ReadResult, plan_cycle  # noqa: E402
+from state import ReadResult, plan_cycle, set_source  # noqa: E402
 import desktop  # noqa: E402
 
-SCRIPT_VERSION = "1.4.3"  # 1.4.3: แถวที่มีรหัสในชื่อ + Serial เทียบกัน ไม่ตรงใช้ Serial (กัน OCR อ่านรหัสเพี้ยนไปสาขาอื่น)
+SCRIPT_VERSION = "2.0.0"  # 2.0.0: อ่านสถานะจาก Hik-Partner Pro (Export) แทนหน้าจอ iVMS · MONITOR_SOURCE=ivms ย้อนกลับได้
 log = logging.getLogger("ivms-monitor")
 
 
@@ -66,10 +70,10 @@ def failed_streak(runs: list) -> int:
     return n
 
 
-def run_cycle(supa, mailer, reader, dry_run: bool, portal_url: str) -> int:
+def run_cycle(supa, mailer, reader, dry_run: bool, portal_url: str, source: str = "ivms") -> int:
     """คืนค่า check_interval_minutes ล่าสุด (ใช้ตั้งเวลารอบถัดไป)"""
     t0 = time.monotonic()
-    desktop.syncing(log.warning)
+    desktop.syncing(log.warning, source=source)
     read: ReadResult = reader()
     now = datetime.now(timezone.utc)
     log.info("read: ok=%s total=%s offline=%s page_full=%s err=%s", read.ok, read.total,
@@ -133,20 +137,28 @@ def main() -> None:
 
     from supa import Supa
     from notify import Mailer
-    from ivms_reader import read_ivms
 
     supa = Supa(os.environ.get("SUPABASE_URL", ""), os.environ.get("SUPABASE_SERVICE_ROLE_KEY", ""))
     mailer = Mailer(os.environ.get("GMAIL_USER", ""), os.environ.get("GMAIL_APP_PASSWORD", ""))
     portal_url = os.environ.get("PORTAL_URL", "").rstrip("/")
-    reader = lambda: read_ivms(log=log.warning)  # noqa: E731
+    source = os.environ.get("MONITOR_SOURCE", "hpp").strip().lower() or "hpp"
+    if source not in ("hpp", "ivms"):
+        sys.exit(f"MONITOR_SOURCE ต้องเป็น hpp หรือ ivms (ตอนนี้: {source})")
+    set_source(source)
+    if source == "hpp":
+        from hpp_reader import read_hpp
+        reader = lambda: read_hpp(log=log.warning)  # noqa: E731
+    else:
+        from ivms_reader import read_ivms
+        reader = lambda: read_ivms(log=log.warning)  # noqa: E731
 
-    log.info("ivms-monitor %s start (dry_run=%s)", SCRIPT_VERSION, args.dry_run)
+    log.info("ivms-monitor %s start (source=%s, dry_run=%s)", SCRIPT_VERSION, source, args.dry_run)
     last_prune = None
     while True:
         started = time.monotonic()
         interval = 5
         try:
-            interval = run_cycle(supa, mailer, reader, args.dry_run, portal_url)
+            interval = run_cycle(supa, mailer, reader, args.dry_run, portal_url, source)
             today = datetime.now(timezone.utc).date()
             if not args.dry_run and last_prune != today:
                 supa.prune_runs(datetime.now(timezone.utc))

@@ -22,6 +22,22 @@ BKK = timezone(timedelta(hours=7))
 EMAIL_RETRY_MINUTES = 60          # ส่งเมลไม่สำเร็จ จะลองใหม่ในรอบถัดๆ ไปภายในเวลานี้
 FAILED_RUNS_BEFORE_ADMIN_EMAIL = 3
 
+# แหล่งข้อมูลสถานะ DVR (2.0.0): ใช้ในข้อความเมลเท่านั้น กติกาตัดสินสถานะเหมือนกันทุกแหล่ง
+SOURCES = {
+    "ivms": {"name": "iVMS", "checks": [
+        "iVMS-4200 เปิดค้างหน้า Cloud P2P Device และเรียง Offline ไว้บนสุด", "หน้าต่างไม่ถูกย่อ / จอไม่ล็อก",
+        "สคริปต์รันแบบ administrator"]},
+    "hpp": {"name": "Hik-Partner Pro", "checks": [
+        "session ล็อกอินหมดอายุ? รัน python hpp_auto_export.py --setup บนคอม HQ",
+        "เปิด isgp.hik-partner.com ได้ไหม / เน็ต HQ", "ภาพหน้าจอตอนพังในโฟลเดอร์ debug\\ ของสคริปต์"]},
+}
+SOURCE = dict(SOURCES["ivms"])
+
+
+def set_source(kind: str) -> None:
+    SOURCE.clear()
+    SOURCE.update(SOURCES[kind])
+
 
 # ---------------------------------------------------------------- เวลา
 def parse_ts(v) -> Optional[datetime]:
@@ -591,7 +607,7 @@ def _html(color: str, title: str, intro: str, table_head: list, rows: list, foot
         f'<p style="margin:0 0 12px">{esc(intro)}</p>'
         f'<table style="border-collapse:collapse;font-size:13px;width:100%"><thead><tr>{head}</tr></thead><tbody>{body}</tbody></table>'
         f'<p style="color:#5c5c5c;font-size:13px;margin-top:12px">{esc(footer)}</p>{link}'
-        f'<p style="color:#8a8a8a;font-size:11px">BATA CCTV Command Center · ส่งอัตโนมัติจากตัวตรวจ iVMS ที่ HQ</p></div>'
+        f'<p style="color:#8a8a8a;font-size:11px">BATA CCTV Command Center · ส่งอัตโนมัติจากตัวตรวจ {SOURCE["name"]} ที่ HQ</p></div>'
     )
 
 
@@ -626,7 +642,7 @@ def _html_sections(color, title, intro, sections, footer, portal_url):
             f'<h2 style="margin:16px 0 8px;color:{color}">{esc(title)}</h2>'
             f'<p style="margin:0 0 4px">{esc(intro)}</p>{"".join(parts)}'
             f'<p style="color:#5c5c5c;font-size:13px;margin-top:14px">{esc(footer)}</p>{link}'
-            f'<p style="color:#8a8a8a;font-size:11px">BATA CCTV Command Center · ส่งอัตโนมัติจากตัวตรวจ iVMS ที่ HQ</p></div>')
+            f'<p style="color:#8a8a8a;font-size:11px">BATA CCTV Command Center · ส่งอัตโนมัติจากตัวตรวจ {SOURCE["name"]} ที่ HQ</p></div>')
 
 
 def _text_sections(title, intro, sections, footer, portal_url):
@@ -665,7 +681,7 @@ def email_cycle(to, now, due, back, late, still, by_id, s, mass, page_full, port
 
     if mass:
         intro = (f"หลุดพร้อมกัน {len(due)} สาขาในรอบเดียว{' (หน้าจอ iVMS เต็ม อาจมีมากกว่านี้)' if page_full else ''} — "
-                 "มักเป็นปัญหาฝั่งกลาง เช็กก่อน: เน็ต HQ, คอมที่เปิด iVMS, สถานะ Hik-Connect")
+                 "มักเป็นปัญหาฝั่งกลาง เช็กก่อน: เน็ต HQ, คอม HQ ที่รันตัวตรวจ, สถานะ Hik-Connect")
     else:
         intro = f"รอบตรวจ {fmt_hm(now)} น. · Offline ตอนนี้ {total_off} สาขา (ไม่นับที่ Mute)"
     color = AMBER if mass else (RED if (due or late) else GREEN)
@@ -692,12 +708,11 @@ def email_central(to, now, read, portal_url):
     rows = [[f"{c} - {n}"] for c, n in read.offline[:30]]
     return _mk("central", to, f"[CCTV Monitor] Offline {len(read.offline)} จาก {read.total} เครื่อง — สงสัยปัญหาฝั่งกลาง",
                AMBER, "สงสัยปัญหาฝั่งกลาง (ไม่เปลี่ยนสถานะสาขา)",
-               f"รอบ {fmt_hm(now)} น. iVMS แสดง Offline {len(read.offline)} จาก {read.total} เครื่อง — มักเป็นเน็ต HQ หรือ Hik-Connect มีปัญหา",
+               f"รอบ {fmt_hm(now)} น. {SOURCE['name']} แสดง Offline {len(read.offline)} จาก {read.total} เครื่อง — มักเป็นเน็ต HQ หรือ Hik-Connect มีปัญหา",
                ["ที่เห็นบนหน้าจอ"], rows, "ระบบจะกลับมาตัดสินสถานะเองเมื่อจำนวน Offline ลดลง", portal_url, [])
 
 
 def email_monitor_failed(to, now, err, n):
-    return _mk("monitor_failed", to, f"[CCTV Monitor] ระบบตรวจอ่าน iVMS ไม่ได้ {n} รอบติดกัน", AMBER,
-               f"อ่าน iVMS ไม่ได้ {n} รอบติดกัน", f"รอบล่าสุด {fmt_hm(now)} น.: {err}", ["เช็ก"],
-               [["iVMS-4200 เปิดค้างหน้า Cloud P2P Device และเรียง Offline ไว้บนสุด"], ["หน้าต่างไม่ถูกย่อ / จอไม่ล็อก"],
-                ["สคริปต์รันแบบ administrator"]], "สถานะสาขาใน portal ยังเป็นของรอบที่อ่านได้ล่าสุด", "", [])
+    return _mk("monitor_failed", to, f"[CCTV Monitor] ระบบตรวจอ่าน {SOURCE['name']} ไม่ได้ {n} รอบติดกัน", AMBER,
+               f"อ่าน {SOURCE['name']} ไม่ได้ {n} รอบติดกัน", f"รอบล่าสุด {fmt_hm(now)} น.: {err}", ["เช็ก"],
+               [[c] for c in SOURCE["checks"]], "สถานะสาขาใน portal ยังเป็นของรอบที่อ่านได้ล่าสุด", "", [])

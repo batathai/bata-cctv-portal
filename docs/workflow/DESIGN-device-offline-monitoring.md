@@ -269,3 +269,34 @@ client-side `xlsx` (`json_to_sheet`) แบบเดียวกับ `exportEx
 2. iVMS export รายชื่อเครื่องเป็นไฟล์ได้ไหม (ถ้าได้ ใช้ตั้งต้นรายชื่อ monitored แทนการติ๊กมือ)
 3. หน้า Cloud P2P มีคอลัมน์ serial ไหม (สำหรับ R1 เต็มรูปแบบ)
 4. ใครเฝ้าเมื่อคอม HQ ดับตอนกลางคืน — ตอนนี้รู้จากแบนเนอร์ใน portal เท่านั้น; ทางเลือกฟรีภายหลัง: GitHub Actions ตามเวลา เช็ก `monitor_runs` แล้วส่งเมล
+
+## 9. แหล่งข้อมูล Hik-Partner Pro (2.0.0 — 20 ต.ค. 2026)
+
+> แทนการอ่านหน้าจอ iVMS (หัวข้อ 3) · ที่มา: `claude/MOVE-ivms-to-hik-partner-pro.md` ในโปรเจกต์ · **รออนุมัติ** (ผู้ใช้สั่งให้เขียนโค้ดไปก่อน 20 ต.ค.)
+
+**ทำไม:** iVMS ต้องเปิดจอค้าง ห้ามแตะเมาส์ OCR อ่านรหัสผิด และเห็นทีละบัญชี — 19 ต.ค. portal โชว์ Offline 12 ขณะที่ Hik-Partner Pro (HPP) บอก 16 · 5 ใน 12 เป็นข้อมูลค้างตั้งแต่ 14 ต.ค. (บัญชี BKK ไม่ได้เปิด) · 4 สาขา (51434, 52031, 52098, 53006) iVMS บอก Online แต่ HPP บอก Offline
+
+**การไหล (ทุกรอบตรวจ):**
+1. `hpp_auto_export.py` เปิด Edge แบบ headless ด้วยโปรไฟล์ `hpp_profile\` (session จาก `--setup`) → `HPP_SITE_URL` หรือคลิก "Site & Device" › Site → กด **Export** (กดยืนยันในกล่องที่เด้งขึ้นให้) → ได้ .xlsx ใน `exports\`
+2. `hpp_reader.py` อ่านชีต `site`: หาแถวหัวตารางจากชื่อคอลัมน์ (ไม่ fix ตำแหน่ง) · Device Name → รหัส 5 หลัก (`^\d{5}`) · Device Serial No. → key `รหัส@SN:serial` · Device Network Status → Online/Offline
+3. คืน `ReadResult(ok, total, offline, online, complete)` แบบเดียวกับ ivms_reader → `state.plan_cycle` **ไม่แก้กติกา** (ยืนยัน 2 รอบ, เวลาทำการ, mute, เมล, suspect ≥ 80%)
+
+**กติกาเพิ่มเติมของตัวอ่าน:**
+| กรณี | ผล |
+|---|---|
+| ไฟล์ Exported At เก่ากว่า 15 นาที | รอบ failed (กันอ่านไฟล์ค้าง) |
+| ไม่เจอหัวตาราง / ไฟล์เสีย / ไม่มีเครื่องเลย | รอบ failed |
+| สถานะไม่ใช่ Online/Offline หรือแถวไม่มีทั้งรหัสและ Serial | ข้ามแถว + `complete=False` → รอบ partial |
+| จำนวนแถว ≠ Total Number of Devices | `complete=False` → รอบ partial |
+| สาขาเดียวหลายเครื่อง | มีตัวไหน Offline = Offline |
+| รหัสในชื่อกับ Serial ชี้คนละสาขา | เชื่อ Serial (กติกา 1.4.3 เดิม) + บันทึกใน unmatched |
+| สาขา monitored ที่ไม่อยู่ใน HPP (เช่น 51438, 54044) | คงค่าเดิม (กติกาเดิมของ 2 บัญชี) → ต้องเพิ่มเข้า HPP |
+| session หมด | ลองล็อกอินเองถ้ามี `HPP_USER/HPP_PASSWORD` · ไม่ได้ = failed ข้อความบอกให้ `--setup` · 3 รอบ = เมลผู้ดูแล |
+
+**ไม่เปลี่ยน:** ตาราง/migration, `supa.py`, `notify.py`, `serials.py`, หน้าเว็บ (เปลี่ยนแค่ข้อความ "iVMS" → "Hik-Partner Pro" ที่ผู้ใช้เห็น) · คอลัมน์ `monitor_runs.ivms_total` / `store_monitor.ivms_device_name` ใช้ชื่อเดิม (เก็บค่าจาก HPP)
+
+**ย้อนกลับ:** `MONITOR_SOURCE=ivms` ใน `.env`
+
+**ความเสี่ยง:** เป็นการคุมหน้าเว็บ ไม่ใช่ API ทางการ — HPP เปลี่ยนหน้าเว็บ/ภาษาแล้วต้องแก้ selector (ภาพหน้าจอตอนพังอยู่ใน `debug\`) · ถ้าต้องการพังยากกว่านี้ `--probe` จด request ของหน้าเว็บไว้ เพื่อเปลี่ยนไปเรียก JSON ที่หน้า Site ใช้ตรงๆ ในอนาคต · ไฟล์ Export และ `hpp_profile\` มี Serial ทุกเครื่อง/ session ล็อกอิน — อยู่ใน `.gitignore` (repo เป็น public)
+
+**ยังต้องยืนยันบนเครื่องจริง:** ปุ่ม Export ดาวน์โหลดทันทีหรือมีขั้นเพิ่ม · ใช้เวลากี่วินาที · session อยู่ได้นานแค่ไหน · headless ใช้ได้หรือต้อง `HPP_HEADLESS=0`

@@ -1,24 +1,59 @@
-# ivms-monitor — ตัวเฝ้า DVR สาขาจาก iVMS-4200
+# ivms-monitor — ตัวเฝ้า DVR สาขา
 
-สคริปต์บนคอม HQ ที่เปิด iVMS-4200 ค้างไว้ 24 ชม. ทุก 5 นาทีจะกด Refresh ในหน้า **Cloud P2P Device**
-อ่านรายการเครื่องที่ Offline จากภาพหน้าจอ แล้วส่งผลขึ้น Supabase ให้หน้า **Device Status** ใน portal
-และส่งเมลแจ้งเตือนผ่าน Gmail
+สคริปต์บนคอม HQ ทุก 5 นาทีจะอ่านสถานะ Online/Offline ของ DVR ทุกสาขา แล้วส่งผลขึ้น Supabase
+ให้หน้า **Device Status** ใน portal และส่งเมลแจ้งเตือนผ่าน Gmail
 
-ดีไซน์ทั้งหมด: `docs/workflow/DESIGN-device-offline-monitoring.md`
+**ตั้งแต่ 2.0.0 (20 ต.ค. 2026) อ่านจาก Hik-Partner Pro** — สคริปต์เปิดเว็บแบบไม่มีหน้าต่าง กด Export
+"Site Details" (ทุก Site / ทุกเครื่องในไฟล์เดียว) แล้วอ่านไฟล์ ไม่ต้องเปิด iVMS ค้าง ไม่ต้องห้ามแตะเมาส์
+แบบเดิม (อ่านหน้าจอ iVMS-4200 ด้วย OCR) ยังอยู่ ใช้ย้อนกลับได้ด้วย `MONITOR_SOURCE=ivms` ใน `.env`
+
+ดีไซน์ทั้งหมด: `docs/workflow/DESIGN-device-offline-monitoring.md` (หัวข้อ 9 = แหล่งข้อมูล Hik-Partner Pro)
 
 ## ไฟล์
 
 | ไฟล์ | หน้าที่ |
 |---|---|
 | `monitor.py` | ตัวหลัก รันต่อเนื่อง |
-| `ivms_reader.py` | กด Refresh + อ่านหน้าจอ iVMS (Windows OCR + สีไอคอน) อ่าน 2 ครั้งต้องตรงกัน |
-| `state.py` | กติกาตัดสิน Online/Offline และเลือกเมล (ไม่แตะ Windows/เน็ต) |
-| `test_state.py` | ชุดทดสอบกติกา |
+| `hpp_auto_export.py` | เปิด Hik-Partner Pro (Edge แบบไม่มีหน้าต่าง) กด Export ได้ไฟล์ .xlsx · `--setup` ล็อกอินครั้งแรก |
+| `hpp_reader.py` | อ่านไฟล์ Export → รายการ Online/Offline ต่อสาขา |
+| `ivms_reader.py` | (แบบเดิม) กด Refresh + อ่านหน้าจอ iVMS (Windows OCR + สีไอคอน) |
+| `state.py` | กติกาตัดสิน Online/Offline และเลือกเมล (ไม่แตะ Windows/เน็ต) — ใช้ร่วมทั้งสองแหล่ง |
+| `test_state.py`, `test_hpp_reader.py` | ชุดทดสอบ |
 | `supa.py` | อ่าน/เขียน Supabase ด้วย service_role |
 | `notify.py` | ส่งเมล Gmail 587/STARTTLS |
 | `probe_*.py` | สคริปต์ทดสอบความเป็นไปได้เมื่อ 7 ต.ค. (เก็บไว้อ้างอิง) |
 
-## ติดตั้งครั้งแรก (คอม HQ)
+## ย้ายจาก iVMS มา Hik-Partner Pro (2.0.0)
+
+ทำบนคอม HQ เครื่องเดิม (หรือเครื่องไหนก็ได้ที่มี Windows + Edge) **ระหว่างนี้ปล่อยตัวเดิมรันต่อไปก่อน**
+
+1. อัปเดตโค้ด แล้วติดตั้งไลบรารีเพิ่ม (ไม่ต้องดาวน์โหลดเบราว์เซอร์ ใช้ Edge ที่มีในเครื่อง)
+   ```
+   cd <โฟลเดอร์ repo>\tools\ivms-monitor
+   pip install -r requirements.txt
+   ```
+2. ตั้งภาษาบัญชี Hik-Partner Pro เป็น **English** (สคริปต์หาปุ่มจากคำว่า "Site & Device" / "Export")
+3. ล็อกอินครั้งแรก: `python hpp_auto_export.py --setup` → หน้าต่าง Edge เปิดขึ้น ล็อกอินเอง (รหัส/OTP, ติ๊ก Remember me)
+   เห็นข้อความ "✅ บันทึก session แล้ว" = เสร็จ (session เก็บในโฟลเดอร์ `hpp_profile\` ห้ามส่งต่อ ห้าม commit)
+4. ทดสอบ Export: `python hpp_auto_export.py` → ควรเห็น `✅ Export สำเร็จ ... total=122 ... Offline: ...`
+   - ไม่สำเร็จ: ดูข้อความ + ภาพหน้าจอในโฟลเดอร์ `debug\` · ดูทีละขั้นด้วย `python hpp_auto_export.py --show`
+   - สำเร็จแล้วจะบอกลิงก์หน้า Site — ใส่เป็น `HPP_SITE_URL` ใน `.env` จะเร็วขึ้น
+5. เพิ่มใน `.env`: `MONITOR_SOURCE=hpp` (ดูตัวอย่างใน `.env.example`)
+6. ทดสอบทั้งรอบโดยไม่เขียนข้อมูล: `python monitor.py --once --dry-run`
+7. หยุดตัวเดิม (Task Scheduler) แล้วเริ่ม `python monitor.py` — Task เดิมใช้ต่อได้เลย ค่าใน `.env` เป็นตัวเลือกแหล่งข้อมูล
+8. เฝ้าข้ามคืน 1 คืน (เมลสรุปเช้า 10:00, เมลเปิดร้าน 10:30) ผ่านแล้วค่อยปิด iVMS
+9. ย้อนกลับ: แก้ `.env` เป็น `MONITOR_SOURCE=ivms` แล้วรีสตาร์ต (ต้องเปิด iVMS ตามเงื่อนไขเดิม)
+
+**session หมดอายุ:** รอบตรวจจะ failed ด้วยข้อความ "ยังไม่ได้ล็อกอิน ... รัน --setup" → portal ขึ้นแบนเนอร์
+และครบ 3 รอบจะมีเมลถึงผู้ดูแล → รัน `python hpp_auto_export.py --setup` ล็อกอินใหม่
+(ถ้าใส่ `HPP_USER`/`HPP_PASSWORD` ใน `.env` สคริปต์จะลองล็อกอินเองก่อน — ใช้ไม่ได้ถ้าเว็บถาม captcha/OTP)
+
+**สาขาที่ไม่อยู่ใน Hik-Partner Pro** คงสถานะ/เวลาอัปเดตเดิม (กติกาเดียวกับ 2 บัญชี iVMS) — เพิ่มเครื่องเข้า Hik-Connect
+แล้วกด **Synchronize Devices from Hik-Connect** ใน Site ของเขตนั้น รอบถัดไปจะเห็นเอง
+
+## แบบเดิม: iVMS-4200 (`MONITOR_SOURCE=ivms`)
+
+### ติดตั้งครั้งแรก (คอม HQ)
 
 1. ต้องรัน `supabase/migrations/022_device_monitoring.sql` ใน Supabase SQL Editor ก่อน
 2. ติดตั้ง Python 3.10 ขึ้นไป แล้วเปิด **Command Prompt แบบ Run as administrator**
@@ -90,6 +125,7 @@
 ## ทดสอบกติกา (เครื่องไหนก็ได้)
 
 ```
-pip install pytest
-python -m pytest test_state.py -q
+pip install pytest openpyxl
+python -m pytest test_state.py test_hpp_reader.py -q
 ```
+ห้ามใส่ไฟล์ Export จริงไว้ใน repo (repo เป็น public และไฟล์มี Serial ทุกเครื่อง) — test ใช้ข้อมูลสมมติ

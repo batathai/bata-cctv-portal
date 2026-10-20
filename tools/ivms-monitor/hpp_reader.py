@@ -153,11 +153,11 @@ def read_export_file(path: str, now: Optional[datetime] = None, log=print) -> Re
         return ReadResult(ok=False, error=f"อ่านไฟล์ Export ไม่ได้: {type(e).__name__}: {e}")
 
 
-def read_hpp(log=print, headless: bool = True) -> ReadResult:
+def read_hpp(log=print) -> ReadResult:
     """ใช้ใน monitor.py: สั่ง Export จาก Hik-Partner Pro แล้วอ่านไฟล์ที่ได้"""
     from hpp_auto_export import ExportError, export_site_details
     try:
-        path = export_site_details(log=log, headless=headless)
+        path = export_site_details(log=log)
     except ExportError as e:
         return ReadResult(ok=False, error=str(e))
     except Exception as e:  # ไม่ให้ loop หลักตาย

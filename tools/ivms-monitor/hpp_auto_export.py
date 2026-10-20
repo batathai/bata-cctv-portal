@@ -3,7 +3,8 @@ hpp_auto_export.py — เปิดเว็บ Hik-Partner Pro แล้วก�
 
 ใช้ Playwright คุมเบราว์เซอร์ Microsoft Edge ที่มีอยู่แล้วใน Windows (ไม่ต้องดาวน์โหลดเบราว์เซอร์เพิ่ม)
 ล็อกอินครั้งแรกด้วยมือครั้งเดียว (--setup) แล้วเก็บ session ไว้ในโฟลเดอร์ hpp_profile\\
-รอบต่อๆ ไปรันแบบไม่มีหน้าต่าง (headless) ใช้ session เดิม ไม่ต้องเปิดจอค้าง ไม่แตะเมาส์
+รอบต่อๆ ไปเปิด Edge ไว้นอกจอ (มองไม่เห็น ไม่บังงาน) ใช้ session เดิม ไม่ต้องเปิดจอค้าง ไม่แตะเมาส์
+(2.0.2: Hik-Partner Pro ไม่รับเบราว์เซอร์แบบ headless — ทดสอบ 20 ต.ค. — จึงใช้หน้าต่างจริงที่วางไว้นอกจอแทน)
 
 วิธีใช้
   python hpp_auto_export.py --setup     เปิดหน้าต่างให้ล็อกอิน (ใส่รหัส/OTP เอง) — ทำครั้งแรก และเมื่อ session หมดอายุ
@@ -16,7 +17,7 @@ hpp_auto_export.py — เปิดเว็บ Hik-Partner Pro แล้วก�
   HPP_SITE_URL      ลิงก์หน้า Site & Device › Site (คัดลอกจากแถบที่อยู่) — ใส่แล้วไม่ต้องคลิกเมนู เร็วกว่าและพังยากกว่า
   HPP_USER / HPP_PASSWORD   ใส่ไว้ให้สคริปต์ล็อกอินใหม่เองเมื่อ session หมด (ถ้าเว็บถาม captcha/OTP จะทำไม่ได้ ต้อง --setup)
   HPP_BROWSER       msedge (ค่าเริ่มต้น) | chrome | chromium
-  HPP_HEADLESS      1 (ค่าเริ่มต้น) | 0 = เปิดหน้าต่างทุกรอบ (ถ้าเว็บไม่ยอมทำงานแบบ headless)
+  HPP_WINDOW        offscreen (ค่าเริ่มต้น: หน้าต่างจริงแต่อยู่นอกจอ) | show = เห็นหน้าต่าง | headless = ไม่มีหน้าต่างเลย
 
 เมื่อไม่สำเร็จ: ภาพหน้าจอ + HTML ของหน้าเว็บ ณ ตอนนั้นอยู่ในโฟลเดอร์ debug\\ (เก็บ 20 ชุดล่าสุด)
 ไฟล์ที่ Export ได้อยู่ในโฟลเดอร์ exports\\ (เก็บ 50 ไฟล์ล่าสุด)
@@ -51,6 +52,8 @@ EXPORT_WAIT_S = 90                # กด Export แล้วรอไฟล์
 LOGGED_IN_MARK = "Site & Device"
 EXPORT_RE = re.compile(r"^\s*Export\s*$", re.I)
 CONFIRM_RE = re.compile(r"^\s*(Export|Export All|OK|Confirm|Download|Yes)\s*$", re.I)
+# หน้าแนะนำ /lp/index.html ที่เว็บพาไปทุกครั้งที่เปิดเบราว์เซอร์ใหม่ (ภาพ 20 ต.ค.) — กดแล้วเข้าระบบด้วย OneHikID ที่จำไว้
+SSO_RE = re.compile(r"Log ?In by OneHik ?ID", re.I)
 LOGIN_BTN_RE = re.compile(r"^\s*(Log ?in|Sign ?in)\s*$", re.I)
 DIALOG_SEL = ("[role=dialog]:visible, .el-dialog:visible, .el-message-box:visible, .ant-modal:visible, "
               ".modal:visible, .el-dropdown-menu:visible, .ant-dropdown:visible")
@@ -125,12 +128,24 @@ def _restore_session(context, sess: dict) -> None:
             for (const [k, v] of Object.entries(d.items)) sessionStorage.setItem(k, v); }} catch (e) {{}} }})();""")
 
 
-def _launch(pw, headless: bool):
-    """เปิดเบราว์เซอร์พร้อมโปรไฟล์ที่เก็บ session ไว้"""
+def _window_mode(show: bool = False) -> str:
+    if show:
+        return "show"
+    mode = _env("HPP_WINDOW").lower()
+    if not mode:  # ชื่อเดิมใน 2.0.0–2.0.1
+        mode = {"1": "headless", "0": "show"}.get(_env("HPP_HEADLESS"), "offscreen")
+    return mode if mode in ("offscreen", "show", "headless") else "offscreen"
+
+
+def _launch(pw, mode: str):
+    """เปิดเบราว์เซอร์พร้อมโปรไฟล์ที่เก็บ session ไว้ · mode = offscreen | show | headless"""
     os.makedirs(PROFILE_DIR, exist_ok=True)
     channel = _env("HPP_BROWSER", "msedge")
+    headless = mode == "headless"
     opts = dict(user_data_dir=PROFILE_DIR, headless=headless, accept_downloads=True, locale="en-US",
                 viewport={"width": 1600, "height": 1000})
+    if mode == "offscreen":
+        opts["args"] = ["--window-position=-32000,-32000"]
     sess = _load_session()
     if headless and sess.get("ua"):
         # Edge แบบไม่มีหน้าต่างบอกเว็บว่าเป็น "HeadlessEdg" -> บางเว็บไม่รับ session ใช้ UA ของ Edge ตัวจริงจาก --setup
@@ -192,22 +207,47 @@ def _auto_login(page, log=print) -> bool:
     return False
 
 
+def _try_enter(page, log=print, wait_s: int = 60, auto_password: bool = True) -> bool:
+    """รอจนเข้าระบบได้: กด 'Log In by OneHikID Account' ถ้าเจอหน้าแนะนำ · เจอช่องรหัสผ่าน -> ลองล็อกอินด้วย .env"""
+    deadline = time.monotonic() + wait_s
+    sso_clicks, tried_pw = 0, False
+    while time.monotonic() < deadline:
+        if _is_logged_in(page):
+            return True
+        sso = page.get_by_text(SSO_RE).locator("visible=true")
+        if sso_clicks < 2 and _visible(sso):
+            log("info: กด 'Log In by OneHikID Account' (เข้าระบบด้วยบัญชีที่จำไว้)")
+            sso.first.click()
+            sso_clicks += 1
+            page.wait_for_timeout(5000)
+            continue
+        if auto_password and not tried_pw and _on_login_page(page):
+            tried_pw = True
+            if _auto_login(page, log):
+                return True
+        page.wait_for_timeout(1000)
+    return _is_logged_in(page)
+
+
 def _ensure_logged_in(page, log=print) -> None:
-    # เข้าหน้าที่เห็นหลังล็อกอินตอน --setup (หน้าแรกของเว็บอาจเป็นหน้าแนะนำที่ไม่พาเข้าระบบเอง)
+    # เข้าหน้าที่เห็นหลังล็อกอินตอน --setup · ถ้าเว็บพาไปหน้าแนะนำ จะกดปุ่ม OneHikID ให้
     start = _load_session().get("url") or _env("HPP_URL", "https://isgp.hik-partner.com")
     page.goto(start, wait_until="domcontentloaded", timeout=NAV_TIMEOUT_MS)
-    if _is_logged_in(page, 45_000):
-        return
-    if _on_login_page(page) and _auto_login(page, log):
+    if _try_enter(page, log):
         return
     base = _save_debug(page, "not-logged-in", log)
     raise ExportError("ยังไม่ได้ล็อกอิน Hik-Partner Pro หรือ session หมดอายุ — รัน `python hpp_auto_export.py --setup` "
                       f"แล้วล็อกอินใหม่ (ภาพหน้าจอ: {os.path.basename(base)}.png)")
 
 
+def _export_control(page):
+    """ปุ่ม Export — บนเว็บจริงเป็นข้อความ + ไอคอนในแถบเครื่องมือ ไม่ใช่ <button> (ภาพ 20 ต.ค.)"""
+    return page.get_by_role("button", name=EXPORT_RE).or_(page.get_by_text(EXPORT_RE)).locator("visible=true")
+
+
 def _goto_site_list(page, log=print) -> None:
     """ไปหน้า Site & Device › Site ที่มีปุ่ม Export"""
-    export_btn = page.get_by_role("button", name=EXPORT_RE)
+    export_btn = _export_control(page)
     site_url = _env("HPP_SITE_URL")
     if site_url:
         page.goto(site_url, wait_until="domcontentloaded", timeout=NAV_TIMEOUT_MS)
@@ -243,19 +283,25 @@ def _click_export_and_wait(page, context, log=print) -> str:
         hook(p)
     context.on("page", hook)
 
-    page.get_by_role("button", name=EXPORT_RE).first.click()
+    _export_control(page).first.click()
     clicked = set()
     deadline = time.monotonic() + EXPORT_WAIT_S
     while time.monotonic() < deadline and not got:
         page.wait_for_timeout(1500)
         try:
             for box in page.locator(DIALOG_SEL).all():
-                for b in box.get_by_role("button", name=CONFIRM_RE).all() + box.get_by_role("menuitem", name=CONFIRM_RE).all():
+                cands = (box.get_by_role("button", name=CONFIRM_RE).all() + box.get_by_role("menuitem", name=CONFIRM_RE).all()
+                         + box.get_by_text(CONFIRM_RE).all())
+                for b in cands:
+                    if not b.is_visible():
+                        continue
                     label = (b.inner_text() or "").strip()
-                    if label and label not in clicked and b.is_visible():
+                    bb = b.bounding_box() or {}
+                    key = (label, round(bb.get("x", 0)), round(bb.get("y", 0)))
+                    if label and key not in clicked:
                         log(f"info: กด '{label}' ในกล่องที่เด้งขึ้น")
                         b.click()
-                        clicked.add(label)
+                        clicked.add(key)
         except Exception:
             pass  # กล่องปิดไปแล้วระหว่างวน
     if not got:
@@ -277,16 +323,14 @@ def _click_export_and_wait(page, context, log=print) -> str:
     return path
 
 
-def export_site_details(log=print, headless=None) -> str:
+def export_site_details(log=print, show: bool = False) -> str:
     """Export 1 ครั้ง คืน path ไฟล์ .xlsx · ไม่สำเร็จโยน ExportError (ข้อความภาษาไทยพร้อมวิธีแก้)"""
     try:
         from playwright.sync_api import sync_playwright
     except ImportError:
         raise ExportError("ยังไม่ได้ติดตั้ง Playwright — รัน `pip install -r requirements.txt`")
-    if headless is None:
-        headless = _env("HPP_HEADLESS", "1") != "0"
     with sync_playwright() as pw:
-        context = _launch(pw, headless)
+        context = _launch(pw, _window_mode(show))
         try:
             context.set_default_timeout(NAV_TIMEOUT_MS)
             page = context.pages[0] if context.pages else context.new_page()
@@ -310,13 +354,13 @@ def setup(log=print) -> None:
     """เปิดหน้าต่างให้ล็อกอินเอง แล้วเก็บ session"""
     from playwright.sync_api import sync_playwright
     with sync_playwright() as pw:
-        context = _launch(pw, headless=False)
+        context = _launch(pw, "show")
         try:
             page = context.pages[0] if context.pages else context.new_page()
             page.goto(_env("HPP_URL", "https://isgp.hik-partner.com"), wait_until="domcontentloaded", timeout=NAV_TIMEOUT_MS)
-            if _is_logged_in(page, 10_000):
+            if _try_enter(page, log, wait_s=30, auto_password=False):
                 _save_session(page, log)
-                log("ล็อกอินอยู่แล้ว — บันทึกข้อมูล session แล้ว ปิดได้เลย")
+                log("✅ เข้าระบบได้เอง (กดปุ่ม OneHikID ให้แล้ว) — บันทึกข้อมูล session แล้ว ปิดได้เลย")
                 return
             log(f"ล็อกอินในหน้าต่างที่เปิดขึ้น (ติ๊ก Remember me ถ้ามี) — รอได้ {LOGIN_WAIT_SETUP_S // 60} นาที")
             if not _is_logged_in(page, LOGIN_WAIT_SETUP_S * 1000):
@@ -339,7 +383,7 @@ def probe(log=print) -> None:
             out.write(json.dumps({"method": r.request.method, "url": r.url.split("?")[0], "status": r.status}) + "\n")
 
     with sync_playwright() as pw:
-        context = _launch(pw, headless=False)
+        context = _launch(pw, "show")
         try:
             page = context.pages[0] if context.pages else context.new_page()
             page.on("response", on_response)
@@ -368,7 +412,7 @@ def main() -> None:
             probe()
             return
         t0 = time.monotonic()
-        path = export_site_details(headless=False if args.show else None)
+        path = export_site_details(show=args.show)
         print(f"✅ Export สำเร็จใน {time.monotonic() - t0:.0f} วินาที: {path}")
         from hpp_reader import read_export_file
         r = read_export_file(path)

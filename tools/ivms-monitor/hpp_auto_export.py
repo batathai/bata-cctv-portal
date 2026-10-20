@@ -35,6 +35,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
 PROFILE_DIR = os.path.join(HERE, "hpp_profile")
+# 2.0.1: ข้อมูลที่เก็บตอน --setup (หน้าแรกหลังล็อกอิน, User-Agent ของ Edge ตัวจริง, sessionStorage)
+# อยู่ในโฟลเดอร์โปรไฟล์ (gitignore) — มี token ล็อกอิน ห้ามส่งต่อ
+SESSION_FILE = os.path.join(PROFILE_DIR, "bata_session.json")
 EXPORT_DIR = os.path.join(HERE, "exports")
 DEBUG_DIR = os.path.join(HERE, "debug")
 KEEP_EXPORTS = 50
@@ -93,16 +96,52 @@ def _save_debug(page, tag: str, log=print) -> str:
     return base
 
 
+def _load_session() -> dict:
+    try:
+        with open(SESSION_FILE, encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return {}
+
+
+def _save_session(page, log=print) -> None:
+    try:
+        data = page.evaluate("""() => ({url: location.href, origin: location.origin, ua: navigator.userAgent,
+                                        session: Object.assign({}, sessionStorage)})""")
+        with open(SESSION_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False)
+        log(f"info: หน้าหลังล็อกอิน {data['url']} · sessionStorage {len(data['session'])} ค่า")
+    except Exception as e:
+        log(f"warn: เก็บข้อมูล session เพิ่มไม่ได้ ({e!r})")
+
+
+def _restore_session(context, sess: dict) -> None:
+    """เว็บบางแบบเก็บ token ใน sessionStorage ซึ่งหายทุกครั้งที่ปิดเบราว์เซอร์ -> ใส่คืนก่อนหน้าเว็บโหลด"""
+    if not sess.get("session") or not sess.get("origin"):
+        return
+    payload = json.dumps({"origin": sess["origin"], "items": sess["session"]})
+    context.add_init_script(f"""(() => {{ const d = {payload};
+        try {{ if (location.origin === d.origin && sessionStorage.length === 0)
+            for (const [k, v] of Object.entries(d.items)) sessionStorage.setItem(k, v); }} catch (e) {{}} }})();""")
+
+
 def _launch(pw, headless: bool):
     """เปิดเบราว์เซอร์พร้อมโปรไฟล์ที่เก็บ session ไว้"""
     os.makedirs(PROFILE_DIR, exist_ok=True)
     channel = _env("HPP_BROWSER", "msedge")
     opts = dict(user_data_dir=PROFILE_DIR, headless=headless, accept_downloads=True, locale="en-US",
                 viewport={"width": 1600, "height": 1000})
+    sess = _load_session()
+    if headless and sess.get("ua"):
+        # Edge แบบไม่มีหน้าต่างบอกเว็บว่าเป็น "HeadlessEdg" -> บางเว็บไม่รับ session ใช้ UA ของ Edge ตัวจริงจาก --setup
+        opts["user_agent"] = sess["ua"].replace("HeadlessChrome", "Chrome").replace("HeadlessEdg", "Edg")
     try:
         if channel in ("", "chromium"):
-            return pw.chromium.launch_persistent_context(**opts)
-        return pw.chromium.launch_persistent_context(channel=channel, **opts)
+            ctx = pw.chromium.launch_persistent_context(**opts)
+        else:
+            ctx = pw.chromium.launch_persistent_context(channel=channel, **opts)
+        _restore_session(ctx, sess)
+        return ctx
     except Exception as e:
         msg = str(e)
         if "ProcessSingleton" in msg or "user data directory is already in use" in msg.lower():
@@ -146,12 +185,18 @@ def _auto_login(page, log=print) -> bool:
     except Exception as e:
         log(f"warn: กรอกหน้าล็อกอินไม่ได้ ({e!r})")
         return False
-    return _is_logged_in(page, 30_000)
+    if _is_logged_in(page, 30_000):
+        page.wait_for_timeout(2000)
+        _save_session(page, log)
+        return True
+    return False
 
 
 def _ensure_logged_in(page, log=print) -> None:
-    page.goto(_env("HPP_URL", "https://isgp.hik-partner.com"), wait_until="domcontentloaded", timeout=NAV_TIMEOUT_MS)
-    if _is_logged_in(page, 20_000):
+    # เข้าหน้าที่เห็นหลังล็อกอินตอน --setup (หน้าแรกของเว็บอาจเป็นหน้าแนะนำที่ไม่พาเข้าระบบเอง)
+    start = _load_session().get("url") or _env("HPP_URL", "https://isgp.hik-partner.com")
+    page.goto(start, wait_until="domcontentloaded", timeout=NAV_TIMEOUT_MS)
+    if _is_logged_in(page, 45_000):
         return
     if _on_login_page(page) and _auto_login(page, log):
         return
@@ -270,12 +315,14 @@ def setup(log=print) -> None:
             page = context.pages[0] if context.pages else context.new_page()
             page.goto(_env("HPP_URL", "https://isgp.hik-partner.com"), wait_until="domcontentloaded", timeout=NAV_TIMEOUT_MS)
             if _is_logged_in(page, 10_000):
-                log("ล็อกอินอยู่แล้ว — session ใช้ได้ ปิดได้เลย")
+                _save_session(page, log)
+                log("ล็อกอินอยู่แล้ว — บันทึกข้อมูล session แล้ว ปิดได้เลย")
                 return
             log(f"ล็อกอินในหน้าต่างที่เปิดขึ้น (ติ๊ก Remember me ถ้ามี) — รอได้ {LOGIN_WAIT_SETUP_S // 60} นาที")
             if not _is_logged_in(page, LOGIN_WAIT_SETUP_S * 1000):
                 raise ExportError("หมดเวลารอล็อกอิน")
             page.wait_for_timeout(3000)   # ให้เว็บเขียน cookie/storage ให้เสร็จ
+            _save_session(page, log)
             log("✅ บันทึก session แล้ว — ต่อไปรัน `python hpp_auto_export.py` ได้โดยไม่ต้องล็อกอิน")
         finally:
             context.close()

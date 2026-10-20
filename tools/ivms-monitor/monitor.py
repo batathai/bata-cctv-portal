@@ -33,7 +33,7 @@ sys.path.insert(0, HERE)
 from state import ReadResult, plan_cycle, set_source  # noqa: E402
 import desktop  # noqa: E402
 
-SCRIPT_VERSION = "2.0.0"  # 2.0.0: อ่านสถานะจาก Hik-Partner Pro (Export) แทนหน้าจอ iVMS · MONITOR_SOURCE=ivms ย้อนกลับได้
+SCRIPT_VERSION = "2.0.1"  # 2.0.1: headless ใช้ session จาก --setup ได้ (UA จริง + sessionStorage + หน้าหลังล็อกอิน) · 2.0.0: อ่านสถานะจาก Hik-Partner Pro (Export) แทนหน้าจอ iVMS · MONITOR_SOURCE=ivms ย้อนกลับได้
 log = logging.getLogger("ivms-monitor")
 
 

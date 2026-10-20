@@ -145,7 +145,11 @@ def _launch(pw, mode: str):
     opts = dict(user_data_dir=PROFILE_DIR, headless=headless, accept_downloads=True, locale="en-US",
                 viewport={"width": 1600, "height": 1000})
     # ไม่ให้เว็บเด้งถามสิทธิ์ (เช่น "wants to Show notifications") ทับหน้าจอ
-    opts["args"] = ["--deny-permission-prompts"]
+    opts["args"] = ["--deny-permission-prompts",
+                    # คอม HQ join domain ล็อกจอเอง: ไม่ให้ Edge มองว่าหน้าต่างถูกบัง/ซ่อนแล้วชะลอหน้าเว็บจนหมดเวลา
+                    "--disable-features=CalculateNativeWinOcclusion",
+                    "--disable-backgrounding-occluded-windows", "--disable-renderer-backgrounding",
+                    "--disable-background-timer-throttling"]
     if mode == "offscreen":
         opts["args"].append("--window-position=-32000,-32000")
     sess = _load_session()

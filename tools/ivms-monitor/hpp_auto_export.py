@@ -55,7 +55,7 @@ CONFIRM_RE = re.compile(r"^\s*(Export|Export All|OK|Confirm|Download|Yes)\s*$", 
 # หน้าแนะนำ /lp/index.html ที่เว็บพาไปทุกครั้งที่เปิดเบราว์เซอร์ใหม่ (ภาพ 20 ต.ค.) — กดแล้วเข้าระบบด้วย OneHikID ที่จำไว้
 SSO_RE = re.compile(r"Log ?In by OneHik ?ID", re.I)
 LOGIN_BTN_RE = re.compile(r"^\s*(Log ?in|Sign ?in)\s*$", re.I)
-DIALOG_SEL = ("[role=dialog]:visible, .el-dialog:visible, .el-message-box:visible, .ant-modal:visible, "
+DIALOG_SEL = ("[role=dialog]:visible, .el-dialog:visible, .el-notification:visible, .el-message-box:visible, .ant-modal:visible, "
               ".modal:visible, .el-dropdown-menu:visible, .ant-dropdown:visible")
 
 
@@ -144,8 +144,10 @@ def _launch(pw, mode: str):
     headless = mode == "headless"
     opts = dict(user_data_dir=PROFILE_DIR, headless=headless, accept_downloads=True, locale="en-US",
                 viewport={"width": 1600, "height": 1000})
+    # ไม่ให้เว็บเด้งถามสิทธิ์ (เช่น "wants to Show notifications") ทับหน้าจอ
+    opts["args"] = ["--deny-permission-prompts"]
     if mode == "offscreen":
-        opts["args"] = ["--window-position=-32000,-32000"]
+        opts["args"].append("--window-position=-32000,-32000")
     sess = _load_session()
     if headless and sess.get("ua"):
         # Edge แบบไม่มีหน้าต่างบอกเว็บว่าเป็น "HeadlessEdg" -> บางเว็บไม่รับ session ใช้ UA ของ Edge ตัวจริงจาก --setup
@@ -269,6 +271,40 @@ def _goto_site_list(page, log=print) -> None:
         log(f"info: หน้า Site อยู่ที่ {page.url} — ใส่เป็น HPP_SITE_URL ใน .env ได้ จะเร็วขึ้น")
 
 
+CLICK_HERE_RE = re.compile(r"^\s*click here\s*$", re.I)
+_JS_CLICK_HERE = """() => {
+  const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  let n;
+  while ((n = w.nextNode())) {
+    if (/click here/i.test(n.textContent)) {
+      const el = n.parentElement;
+      if (el && el.getClientRects().length) { el.click(); return el.tagName + ': ' + el.textContent.trim().slice(0, 80); }
+    }
+  }
+  return null;
+}"""
+
+
+def _click_download_link(page, log=print) -> bool:
+    """กดลิงก์ 'click here' ในกล่องแจ้งว่า Export เสร็จ · คืน True ถ้ากดได้"""
+    exact = page.get_by_text(CLICK_HERE_RE).locator("visible=true")
+    try:
+        if exact.count():
+            log("info: กด 'click here' เพื่อดาวน์โหลดไฟล์ Export")
+            try:
+                exact.first.click(timeout=5000)
+            except Exception:
+                exact.first.evaluate("el => el.click()")   # กล่องล้นขอบจอขวา (เห็นในภาพ 20 ต.ค.) คลิกด้วยเมาส์ไม่ถึง
+            return True
+        hit = page.evaluate(_JS_CLICK_HERE)
+        if hit:
+            log(f"info: กด 'click here' เพื่อดาวน์โหลดไฟล์ Export ({hit})")
+            return True
+    except Exception as e:
+        log(f"warn: กด 'click here' ไม่ได้ ({e!r})")
+    return False
+
+
 def _click_export_and_wait(page, context, log=print) -> str:
     """กด Export แล้วรอไฟล์ ถ้ามีกล่องถาม/เมนูเลือก (Export All / OK / Confirm) จะกดให้"""
     got = []
@@ -285,9 +321,16 @@ def _click_export_and_wait(page, context, log=print) -> str:
 
     _export_control(page).first.click()
     clicked = set()
+    link_clicks, next_link_try = 0, 0.0
     deadline = time.monotonic() + EXPORT_WAIT_S
     while time.monotonic() < deadline and not got:
         page.wait_for_timeout(1500)
+        # เว็บจริง (20 ต.ค.): กด Export แล้วขึ้นกล่อง "Export Sites — ... Please click here to download ..."
+        # มุมขวาบน ต้องกด "click here" อีกครั้งถึงจะได้ไฟล์ (ลองซ้ำทุก 10 วิ ไม่เกิน 3 ครั้ง)
+        if link_clicks < 3 and time.monotonic() >= next_link_try and _click_download_link(page, log):
+            link_clicks += 1
+            next_link_try = time.monotonic() + 10
+            continue
         try:
             for box in page.locator(DIALOG_SEL).all():
                 cands = (box.get_by_role("button", name=CONFIRM_RE).all() + box.get_by_role("menuitem", name=CONFIRM_RE).all()

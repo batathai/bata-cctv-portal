@@ -33,7 +33,7 @@ sys.path.insert(0, HERE)
 from state import ReadResult, plan_cycle, set_source  # noqa: E402
 import desktop  # noqa: E402
 
-SCRIPT_VERSION = "2.0.4"  # 2.0.4: ไม่ชะลอหน้าเว็บตอนล็อกจอ · 2.0.3: กด "click here" ในกล่อง Export Sites · 2.0.2: กดปุ่ม OneHikID ในหน้าแนะนำให้เอง + Export เป็นข้อความไม่ใช่ปุ่ม + หน้าต่างนอกจอ · 2.0.1: headless ใช้ session จาก --setup ได้ (UA จริง + sessionStorage + หน้าหลังล็อกอิน) · 2.0.0: อ่านสถานะจาก Hik-Partner Pro (Export) แทนหน้าจอ iVMS · MONITOR_SOURCE=ivms ย้อนกลับได้
+SCRIPT_VERSION = "2.0.5"  # 2.0.5: เปิด Edge ค้างไว้ข้ามรอบ (session OneHikID หลุดเมื่อปิดเบราว์เซอร์) · 2.0.4: ไม่ชะลอหน้าเว็บตอนล็อกจอ · 2.0.3: กด "click here" ในกล่อง Export Sites · 2.0.2: กดปุ่ม OneHikID ในหน้าแนะนำให้เอง + Export เป็นข้อความไม่ใช่ปุ่ม + หน้าต่างนอกจอ · 2.0.1: headless ใช้ session จาก --setup ได้ (UA จริง + sessionStorage + หน้าหลังล็อกอิน) · 2.0.0: อ่านสถานะจาก Hik-Partner Pro (Export) แทนหน้าจอ iVMS · MONITOR_SOURCE=ivms ย้อนกลับได้
 log = logging.getLogger("ivms-monitor")
 
 
@@ -147,7 +147,7 @@ def main() -> None:
     set_source(source)
     if source == "hpp":
         from hpp_reader import read_hpp
-        reader = lambda: read_hpp(log=log.warning)  # noqa: E731
+        reader = lambda: read_hpp(log=log.warning, keep_open=True)  # noqa: E731  เปิด Edge ค้างข้ามรอบ (2.0.5)
     else:
         from ivms_reader import read_ivms
         reader = lambda: read_ivms(log=log.warning)  # noqa: E731

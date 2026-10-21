@@ -44,7 +44,12 @@
 8. เฝ้าข้ามคืน 1 คืน (เมลสรุปเช้า 10:00, เมลเปิดร้าน 10:30) ผ่านแล้วค่อยปิด iVMS
 9. ย้อนกลับ: แก้ `.env` เป็น `MONITOR_SOURCE=ivms` แล้วรีสตาร์ต (ต้องเปิด iVMS ตามเงื่อนไขเดิม)
 
-**session หมดอายุ:** รอบตรวจจะ failed ด้วยข้อความ "ยังไม่ได้ล็อกอิน ... รัน --setup" → portal ขึ้นแบนเนอร์
+**Edge เปิดค้าง (2.0.5):** `monitor.py` เปิด Edge ไว้นอกจอตลอด แล้วรีโหลดหน้า + กด Export ในแท็บเดิมทุกรอบ
+(ถ้าปิด-เปิดเบราว์เซอร์ทุกรอบ session OneHikID อยู่ได้แค่ ~2 ชม. — 21 ต.ค.) · ระหว่าง monitor รัน
+รัน `hpp_auto_export.py` ตัวอื่นไม่ได้ (โฟลเดอร์ `hpp_profile` ถูกใช้อยู่) ต้องหยุด monitor ก่อน
+· ใช้ผ่าน Remote Desktop: ออกด้วยปุ่ม X (disconnect) ห้าม Sign out
+
+**session หมดอายุ:** (ขั้นตอน: หยุด monitor ด้วย Ctrl+C หรือ End Task → `python hpp_auto_export.py --setup` → เริ่ม monitor ใหม่) รอบตรวจจะ failed ด้วยข้อความ "ยังไม่ได้ล็อกอิน ... รัน --setup" → portal ขึ้นแบนเนอร์
 และครบ 3 รอบจะมีเมลถึงผู้ดูแล → รัน `python hpp_auto_export.py --setup` ล็อกอินใหม่
 (ถ้าใส่ `HPP_USER`/`HPP_PASSWORD` ใน `.env` สคริปต์จะลองล็อกอินเองก่อน — ใช้ไม่ได้ถ้าเว็บถาม captcha/OTP)
 

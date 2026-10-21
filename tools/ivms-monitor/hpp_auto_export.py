@@ -25,6 +25,7 @@ hpp_auto_export.py — เปิดเว็บ Hik-Partner Pro แล้วก�
 from __future__ import annotations
 
 import argparse
+import atexit
 import json
 import os
 import re
@@ -166,7 +167,8 @@ def _launch(pw, mode: str):
     except Exception as e:
         msg = str(e)
         if "ProcessSingleton" in msg or "user data directory is already in use" in msg.lower():
-            raise ExportError("โฟลเดอร์ hpp_profile ถูกใช้อยู่ — มีหน้าต่าง --setup หรือสคริปต์อีกตัวเปิดค้าง ปิดก่อนแล้วลองใหม่")
+            raise ExportError("โฟลเดอร์ hpp_profile ถูกใช้อยู่ — monitor.py (เปิด Edge ค้างไว้) หรือหน้าต่าง --setup ยังเปิดอยู่ "
+                              "ปิดตัวนั้นก่อน (Ctrl+C / End Task) แล้วลองใหม่")
         raise ExportError(f"เปิดเบราว์เซอร์ {channel or 'chromium'} ไม่ได้: {msg.splitlines()[0][:200]}")
 
 
@@ -322,7 +324,21 @@ def _click_export_and_wait(page, context, log=print) -> str:
     for p in context.pages:
         hook(p)
     context.on("page", hook)
+    try:
+        return _export_and_save(page, got, log)
+    finally:  # 2.0.5: เบราว์เซอร์เปิดค้างข้ามรอบ — ถอด listener ไม่ให้ซ้อนกันทุกรอบ
+        for p in context.pages:
+            try:
+                p.remove_listener("download", on_download)
+            except Exception:
+                pass
+        try:
+            context.remove_listener("page", hook)
+        except Exception:
+            pass
 
+
+def _export_and_save(page, got, log=print) -> str:
     _export_control(page).first.click()
     clicked = set()
     link_clicks, next_link_try = 0, 0.0
@@ -370,12 +386,85 @@ def _click_export_and_wait(page, context, log=print) -> str:
     return path
 
 
-def export_site_details(log=print, show: bool = False) -> str:
-    """Export 1 ครั้ง คืน path ไฟล์ .xlsx · ไม่สำเร็จโยน ExportError (ข้อความภาษาไทยพร้อมวิธีแก้)"""
+class BrowserSession:
+    """2.0.5: เบราว์เซอร์ที่เปิดค้างข้ามรอบตรวจ (ใช้ใน monitor.py)
+
+    ที่มา 21 ต.ค.: ปิด-เปิดเบราว์เซอร์ทุกรอบ แล้ว session OneHikID อยู่ได้แค่ ~2 ชม. (ล็อกอิน 14:30 หลุด 16:17)
+    เปิดค้างไว้แท็บเดียว รีโหลดหน้าแล้วกด Export ทุกรอบ -> ไม่ต้องเข้าระบบใหม่ทุกรอบ
+    ถ้าแท็บหลุด จะปิดแล้วเปิดใหม่ 1 ครั้งในรอบเดียวกัน (ลองปุ่ม OneHikID / รหัสใน .env) ก่อนแจ้งว่าไม่สำเร็จ"""
+
+    def __init__(self):
+        self.pw = self.context = self.page = None
+
+    def alive(self) -> bool:
+        try:
+            return bool(self.page and not self.page.is_closed() and self.context.pages)
+        except Exception:
+            return False
+
+    def close(self) -> None:
+        for fn in (lambda: self.context.close(), lambda: self.pw.stop()):
+            try:
+                fn()
+            except Exception:
+                pass
+        self.pw = self.context = self.page = None
+
+    def _open(self, log, show: bool) -> None:
+        from playwright.sync_api import sync_playwright
+        self.close()
+        self.pw = sync_playwright().start()
+        self.context = _launch(self.pw, _window_mode(show))
+        self.context.set_default_timeout(NAV_TIMEOUT_MS)
+        self.page = self.context.pages[0] if self.context.pages else self.context.new_page()
+        _ensure_logged_in(self.page, log)
+
+    def _refresh(self, log) -> bool:
+        """รีโหลดหน้าในแท็บเดิม (ล้างกล่อง Export Sites เก่า; แท็บเดิมยังเก็บ session) คืน True ถ้ายังอยู่ในระบบ"""
+        try:
+            self.page.goto(_env("HPP_SITE_URL") or _env("HPP_URL", "https://isgp.hik-partner.com"),
+                           wait_until="domcontentloaded", timeout=NAV_TIMEOUT_MS)
+            self.page.reload(wait_until="domcontentloaded", timeout=NAV_TIMEOUT_MS)
+            return _try_enter(self.page, log, wait_s=45)
+        except Exception as e:
+            log(f"warn: รีโหลดหน้าเดิมไม่ได้ ({type(e).__name__})")
+            return False
+
+    def export(self, log=print, show: bool = False) -> str:
+        if not (self.alive() and self._refresh(log)):
+            if self.page is not None:
+                log("info: เบราว์เซอร์ที่เปิดค้างหลุดจากระบบ — เปิดใหม่")
+            self._open(log, show)
+        _goto_site_list(self.page, log)
+        return _click_export_and_wait(self.page, self.context, log)
+
+
+_SESSION = BrowserSession()
+atexit.register(_SESSION.close)
+
+
+def export_site_details(log=print, show: bool = False, keep_open: bool = False) -> str:
+    """Export 1 ครั้ง คืน path ไฟล์ .xlsx · ไม่สำเร็จโยน ExportError (ข้อความภาษาไทยพร้อมวิธีแก้)
+    keep_open=True: ใช้เบราว์เซอร์ที่เปิดค้างไว้ข้ามรอบ (monitor.py) ไม่ปิดหลัง Export"""
     try:
         from playwright.sync_api import sync_playwright
     except ImportError:
         raise ExportError("ยังไม่ได้ติดตั้ง Playwright — รัน `pip install -r requirements.txt`")
+    if keep_open:
+        try:
+            return _SESSION.export(log, show)
+        except Exception as e:
+            page = _SESSION.page
+            _SESSION.close()   # รอบหน้าเริ่มใหม่หมด
+            if isinstance(e, ExportError):
+                raise
+            hint = ""
+            try:
+                if page is not None:
+                    hint = f" (ภาพหน้าจอ: {os.path.basename(_save_debug(page, 'error', log))}.png)"
+            except Exception:
+                pass
+            raise ExportError(f"{type(e).__name__}: {str(e).splitlines()[0][:200]}{hint}")
     with sync_playwright() as pw:
         context = _launch(pw, _window_mode(show))
         try:

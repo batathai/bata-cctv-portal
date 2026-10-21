@@ -7,12 +7,15 @@ export function StatCard({
   colorClass,
   active,
   onClick,
+  hint,
 }: {
   label: string;
   value: string | number;
   colorClass?: string;
   active?: boolean;
   onClick?: () => void;
+  /** Optional one-line explanation under the number. */
+  hint?: string;
 }) {
   return (
     <Card
@@ -25,6 +28,7 @@ export function StatCard({
     >
       <div className="text-xs uppercase tracking-wide text-ink-faint mb-2">{label}</div>
       <div className={clsx("font-display text-2xl font-bold", colorClass ?? "text-ink dark:text-white")}>{value}</div>
+      {hint && <div className="mt-1 text-[11px] leading-snug text-ink-faint">{hint}</div>}
     </Card>
   );
 }

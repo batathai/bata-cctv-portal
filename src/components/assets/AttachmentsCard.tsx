@@ -17,6 +17,11 @@ const FOLDERS: AttachmentFolder[] = [
   "Manual",
   "Audit Reports",
   "Repair Reports",
+  // Installation Project (migration 020)
+  "Site Survey Photos",
+  "Permit Documents",
+  "Camera Install Photos",
+  "Verify Photos",
 ];
 const DOCUMENT_FOLDERS: AttachmentFolder[] = ["Invoice", "Warranty", "Manual", "Audit Reports", "Repair Reports"];
 

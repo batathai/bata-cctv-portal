@@ -12,7 +12,14 @@ import type {
   Attachment,
   RecoveryStageHistoryEntry,
   WorkOrderBatch,
+  StoreMonitor,
+  DeviceOutage,
+  MonitorRun,
+  InstallationProject,
+  InstallationStage,
+  InstallationStageHistoryEntry,
 } from "@/types/database";
+import { INSTALLATION_STAGES, VERIFY_CHECKLIST } from "@/lib/installation";
 
 // Deterministic PRNG so demo data is stable across reloads.
 function mulberry32(seed: number) {
@@ -184,7 +191,6 @@ export function generateMockData() {
 
   stores.forEach((s, idx) => {
     const status = distribution[idx] ?? "Normal";
-    s.is_recovery50 = true;
     s.recovery_status = status;
     s.cause = RECOVERY_CAUSE[status];
     s.required_action = RECOVERY_ACTION[status];
@@ -357,5 +363,237 @@ export function generateMockData() {
     s.batch_id = WORK_ORDER_BATCH_ID;
   });
 
-  return { stores, records, audits, vendorQuotations, tickets, attachments, recoveryStageHistory: stageHistory, workOrderBatches };
+  // --- Installation Project: Wave 1 "Top 20" — first 20 mock stores, spread
+  // across the 6-stage pipeline so /installation isn't empty or all-one-
+  // stage in demo mode. "Floor Plan"/"Layout" were dropped (migration 021)
+  // — that work happens before a store enters this tracker. Separate from
+  // the recovery/repair mock data above (own vendor_quotations rows, own
+  // stage history) even though it shares the same underlying tables, per
+  // the design's "same table, different rows, explicit
+  // approved_quotation_id link" approach. ---
+  const WAVE_1 = "Wave 1: Top 20";
+  // Skewed toward the earlier stages, since this wave "just started":
+  // Quotation 6, Permit 4, Scheduled 4, Installing 3, Verify 2, Completed 1
+  const INSTALL_DISTRIBUTION: InstallationStage[] = [
+    ...Array(6).fill("Quotation"),
+    ...Array(4).fill("Permit"),
+    ...Array(4).fill("Scheduled"),
+    ...Array(3).fill("Installing"),
+    ...Array(2).fill("Verify"),
+    ...Array(1).fill("Completed"),
+  ] as InstallationStage[];
+  for (let i = INSTALL_DISTRIBUTION.length - 1; i > 0; i--) {
+    const j = Math.floor(rnd() * (i + 1));
+    [INSTALL_DISTRIBUTION[i], INSTALL_DISTRIBUTION[j]] = [INSTALL_DISTRIBUTION[j], INSTALL_DISTRIBUTION[i]];
+  }
+
+  const installationProjects: InstallationProject[] = [];
+  const installationStageHistory: InstallationStageHistoryEntry[] = [];
+  let ipHid = 1;
+  let ipQid = 1;
+  const installVendorQuotations: VendorQuotation[] = [];
+
+  stores.slice(0, 20).forEach((s, idx) => {
+    const targetStage = INSTALL_DISTRIBUTION[idx] ?? "Quotation";
+    const targetIdx = INSTALLATION_STAGES.indexOf(targetStage);
+    let cursor = new Date(2026, 6, 1 + Math.floor(rnd() * 10)); // start early July 2026
+
+    let approvedQuotationId: string | null = null;
+    for (let i = 0; i <= targetIdx; i++) {
+      cursor = new Date(cursor.getTime() + (2 + Math.floor(rnd() * 5)) * 86400000);
+      installationStageHistory.push({
+        id: `ish_${pad(ipHid++, 4)}`,
+        store_id: s.id,
+        from_stage: i === 0 ? null : INSTALLATION_STAGES[i - 1],
+        to_stage: INSTALLATION_STAGES[i],
+        note: null,
+        changed_by: null,
+        changed_at: cursor.toISOString(),
+      });
+      // Approve a quotation right as the project leaves "Quotation" (own
+      // row, separate from any recovery-flow quotation for the same store).
+      if (INSTALLATION_STAGES[i] === "Quotation" && targetIdx > i) {
+        const qid = `vq_install_${pad(ipQid++, 4)}`;
+        installVendorQuotations.push({
+          id: qid,
+          store_id: s.id,
+          vendor_name: s.supplierName,
+          quotation_number: `QT-INST-${s.store_code}`,
+          estimated_cost: 45000 + Math.floor(rnd() * 15000),
+          quotation_date: cursor.toISOString().slice(0, 10),
+          approval_status: "Approved",
+          created_at: cursor.toISOString(),
+          updated_at: cursor.toISOString(),
+        });
+        approvedQuotationId = qid;
+      }
+    }
+
+    const permitSubmittedAt = targetIdx >= INSTALLATION_STAGES.indexOf("Permit") ? cursor.toISOString().slice(0, 10) : null;
+    const d1Date = targetIdx >= INSTALLATION_STAGES.indexOf("Scheduled") ? cursor.toISOString().slice(0, 10) : null;
+    const d2Date = targetIdx >= INSTALLATION_STAGES.indexOf("Installing") ? cursor.toISOString().slice(0, 10) : null;
+
+    let verifyChecked: string[] = [];
+    let completedAt: string | null = null;
+    if (targetStage === "Verify") {
+      // Partially through the checklist — group A mostly done, B/C not yet.
+      verifyChecked = VERIFY_CHECKLIST.filter((item) => item.group === "A" || rnd() < 0.3).map((item) => item.key);
+    } else if (targetStage === "Completed") {
+      verifyChecked = VERIFY_CHECKLIST.map((item) => item.key);
+      completedAt = cursor.toISOString().slice(0, 10);
+    }
+
+    installationProjects.push({
+      id: `ip_${pad(idx + 1, 4)}`,
+      store_id: s.id,
+      wave: WAVE_1,
+      current_stage: targetStage,
+      approved_quotation_id: approvedQuotationId,
+      permit_submitted_at: permitSubmittedAt,
+      d1_date: d1Date,
+      d2_date: d2Date,
+      verify_checked: verifyChecked,
+      verify_total: verifyChecked.length,
+      completed_at: completedAt,
+      created_at: "2026-07-01T00:00:00.000Z",
+      updated_at: cursor.toISOString(),
+    });
+  });
+
+  vendorQuotations.push(...installVendorQuotations);
+
+  return {
+    stores,
+    records,
+    audits,
+    vendorQuotations,
+    tickets,
+    attachments,
+    recoveryStageHistory: stageHistory,
+    workOrderBatches,
+    installationProjects,
+    installationStageHistory,
+  };
+}
+
+// --- Device Offline Monitoring demo data (migration 022) ---
+// Times are relative to "now" so the demo always looks live. Roughly 60% of
+// stores are monitored, a few are offline (one in business hours, the rest
+// after-hours shutdowns), one is muted.
+export function generateMockMonitoring(stores: StoreWithAssets[], now: Date = new Date()) {
+  const rnd = mulberry32(20261008);
+  const minsAgo = (m: number) => new Date(now.getTime() - m * 60000).toISOString();
+  // Minutes from "N days ago at HH:MM Bangkok time" until now.
+  const minsSinceBkk = (daysAgo: number, hour: number, minute: number) => {
+    const bkkNow = new Date(now.getTime() + 7 * 3600000);
+    const target = Date.UTC(bkkNow.getUTCFullYear(), bkkNow.getUTCMonth(), bkkNow.getUTCDate() - daysAgo, hour, minute) - 7 * 3600000;
+    return Math.max(1, Math.round((now.getTime() - target) / 60000));
+  };
+  const lastRunAt = minsAgo(2);
+
+  const monitors: StoreMonitor[] = [];
+  const outages: DeviceOutage[] = [];
+  let outageSeq = 0;
+  const addOutage = (storeId: string, startMinsAgo: number, durationMins: number | null, inHours: boolean, muted = false): DeviceOutage => {
+    outageSeq += 1;
+    const started = minsAgo(startMinsAgo);
+    const o: DeviceOutage = {
+      id: `outage_${outageSeq}`,
+      store_id: storeId,
+      started_at: started,
+      detected_at: minsAgo(startMinsAgo - 10),
+      ended_at: durationMins == null ? null : minsAgo(startMinsAgo - durationMins),
+      duration_minutes: durationMins,
+      during_business_hours: inHours,
+      muted,
+      central_suspect: false,
+      alert_sent_at: inHours && !muted ? minsAgo(startMinsAgo - 10) : null,
+      recovery_alert_sent_at: inHours && !muted && durationMins != null ? minsAgo(startMinsAgo - durationMins) : null,
+      late_open_alert_sent_at: null,
+      summary_sent_at: inHours ? null : minsAgo(Math.max(0, startMinsAgo - 600)),
+      note: null,
+      created_at: started,
+    };
+    outages.push(o);
+    return o;
+  };
+
+  stores.forEach((s) => {
+    const monitored = rnd() < 0.6;
+    const base: StoreMonitor = {
+      store_id: s.id,
+      monitored,
+      state: monitored ? "Online" : "Unknown",
+      state_since: monitored ? minsAgo(60 * 24 * (1 + Math.floor(rnd() * 5))) : null,
+      last_seen_at: monitored ? lastRunAt : null,
+      offline_streak: 0,
+      current_outage_id: null,
+      ivms_device_name: monitored ? `${s.store_code} - ${s.store_name}` : null,
+      first_seen_at: monitored ? minsAgo(60 * 24 * (2 + Math.floor(rnd() * 20))) : null,
+      open_time: null,
+      close_time: null,
+      muted_until: null,
+      mute_reason: null,
+      muted_by: null,
+      note: null,
+      updated_at: lastRunAt,
+    };
+    if (monitored) {
+      // Past week: some stores switch DVRs off at closing (after-hours outages).
+      const nights = rnd() < 0.3 ? 1 + Math.floor(rnd() * 6) : 0;
+      for (let n = 1; n <= nights; n++) addOutage(s.id, minsSinceBkk(n, 22, 2 + Math.floor(rnd() * 20)), 690 + Math.floor(rnd() * 60), false);
+      if (rnd() < 0.15) addOutage(s.id, minsSinceBkk(2, 15, Math.floor(rnd() * 50)), 15 + Math.floor(rnd() * 40), true);
+    }
+    monitors.push(base);
+  });
+
+  // Current problems on the first few monitored stores.
+  const monitoredIdx = monitors.map((m, i) => (m.monitored ? i : -1)).filter((i) => i >= 0);
+  const setOffline = (idx: number, startMinsAgo: number, inHours: boolean, muted = false) => {
+    const m = monitors[idx];
+    if (!m) return;
+    // Drop demo history that would overlap the current outage.
+    const cutoff = new Date(now.getTime() - startMinsAgo * 60000).toISOString();
+    for (let k = outages.length - 1; k >= 0; k--) {
+      if (outages[k].store_id === m.store_id && (outages[k].ended_at ?? "") > cutoff) outages.splice(k, 1);
+    }
+    const o = addOutage(m.store_id, startMinsAgo, null, inHours, muted);
+    m.state = "Offline";
+    m.state_since = o.detected_at;
+    m.last_seen_at = o.started_at;
+    m.offline_streak = 2;
+    m.current_outage_id = o.id;
+  };
+  setOffline(monitoredIdx[0], 22, true);
+  setOffline(monitoredIdx[1], 15, true);
+  setOffline(monitoredIdx[2], 900, false);
+  setOffline(monitoredIdx[3], 2520, false, true);
+  if (monitors[monitoredIdx[3]]) {
+    monitors[monitoredIdx[3]].muted_until = new Date(now.getTime() + 7 * 86400000).toISOString();
+    monitors[monitoredIdx[3]].mute_reason = "ห้าง/สาขาปิดปรับปรุง — ปิดซ่อมระบบไฟ";
+  }
+  if (monitors[monitoredIdx[4]]) monitors[monitoredIdx[4]].offline_streak = 1; // being confirmed
+  if (monitors[monitoredIdx[5]]) {
+    monitors[monitoredIdx[5]].open_time = "09:00:00";
+    monitors[monitoredIdx[5]].close_time = "21:00:00";
+  }
+
+  const monitoredCount = monitors.filter((m) => m.monitored).length;
+  const offlineCount = monitors.filter((m) => m.monitored && m.state === "Offline").length;
+  const latestRun: MonitorRun = {
+    id: "run_demo",
+    ran_at: lastRunAt,
+    status: "ok",
+    ivms_total: monitoredCount,
+    offline_count: offlineCount,
+    page_full: false,
+    monitored_count: monitoredCount,
+    unmatched: [],
+    error: null,
+    duration_ms: 31000,
+    script_version: "demo",
+  };
+
+  outages.sort((a, b) => (a.started_at < b.started_at ? 1 : -1));
+  return { monitors, outages, latestRun };
 }

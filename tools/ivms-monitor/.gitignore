@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+ivms_*.txt
+ivms_capture.png
+.env
+queue.jsonl
+*.log
+*.log.*
+.pytest_cache/
+# Hik-Partner Pro (2.0.0): session ล็อกอิน + ไฟล์ Export (มี Serial ทุกเครื่อง) — ห้าม commit
+hpp_profile/
+exports/
+debug/

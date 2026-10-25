@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Plus, Loader2, AlertCircle, Clock, UserCheck, Wrench, PackageSearch, CheckCircle2, Lock } from "lucide-react";
 import { useAppData } from "@/components/providers/AppDataProvider";
 import { Select } from "@/components/ui/Select";
@@ -35,6 +36,19 @@ export function TicketsCard({ store, canEdit }: { store: StoreWithAssets; canEdi
   const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Device Status's wrench links here with ?newTicket=<issue type>&note=<text>:
+  // open the form pre-filled. Nothing is saved until the user presses Create.
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    const preset = searchParams.get("newTicket");
+    if (!canEdit || !preset || !TICKET_ISSUE_TYPES.includes(preset as TicketIssueType)) return;
+    setIssueType(preset as TicketIssueType);
+    setDescription(searchParams.get("note") ?? "");
+    setShowForm(true);
+    // The #tickets jump happens before this card renders, so scroll here.
+    window.setTimeout(() => document.getElementById("tickets")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+  }, [searchParams, canEdit]);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();

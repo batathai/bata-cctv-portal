@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { FileBarChart, FileText, FileSpreadsheet, UploadCloud, WifiOff, ClipboardList, ClipboardCheck, RefreshCw } from "lucide-react";
 import { useAppData } from "@/components/providers/AppDataProvider";
@@ -11,6 +11,8 @@ import { exportExecutiveSummaryToExcel, exportStoresToExcel, exportWorkOrdersToE
 import { canManageMasterData } from "@/lib/rbac";
 import { zoneCode } from "@/lib/recovery";
 import { ZONES } from "@/lib/mockData";
+import { useMonitoring } from "@/components/providers/MonitoringProvider";
+import { buildLiveRows, countLiveStatuses, formatDateTime } from "@/lib/monitoring";
 
 export default function ReportsPage() {
   const { stores, audits, tickets, maintenance, workOrderBatches, recoveryStageHistory, role, loading, refreshAllData } = useAppData();
@@ -23,6 +25,11 @@ export default function ReportsPage() {
   const [selectedBatchName, setSelectedBatchName] = useState("Job 1: 50-Store Pilot");
   const [refreshing, setRefreshing] = useState(false);
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
+  // Executive Report uses the same iVMS sync status as Device Status.
+  const { monitors, settings, stale, latestRun, refresh: refreshMonitoring } = useMonitoring();
+  const liveRows = useMemo(() => buildLiveRows(stores, monitors, settings, stale), [stores, monitors, settings, stale]);
+  const liveCounts = useMemo(() => countLiveStatuses(liveRows), [liveRows]);
+  const lastSyncIso = latestRun?.ran_at ?? null;
 
   // AppDataProvider fetches once per browser session (see its comment) — a
   // report is meant to be a point-in-time accurate snapshot, so force a
@@ -31,7 +38,7 @@ export default function ReportsPage() {
   // the same be done again without leaving the page or reloading the tab.
   useEffect(() => {
     setRefreshing(true);
-    refreshAllData().finally(() => {
+    Promise.all([refreshAllData(), refreshMonitoring()]).finally(() => {
       setRefreshing(false);
       setLastRefreshed(new Date());
     });
@@ -40,7 +47,7 @@ export default function ReportsPage() {
 
   async function handleManualRefresh() {
     setRefreshing(true);
-    await refreshAllData();
+    await Promise.all([refreshAllData(), refreshMonitoring()]);
     setRefreshing(false);
     setLastRefreshed(new Date());
   }
@@ -84,15 +91,25 @@ export default function ReportsPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="p-5 flex flex-col">
           <SectionTitle icon={FileBarChart}>Executive Report</SectionTitle>
-          <p className="text-xs text-ink-faint flex-1 mb-4">
-            Fleet-wide status breakdown and full store list — for leadership review. Excel also includes each Work
-            Order&apos;s Status, Online Status, Camera Status, Cause and Remark, matched in by store code.
+          <p className="text-xs text-ink-faint mb-3">
+            DVR status of every store from the Hik-Partner Pro sync (same as Device Status): Online, Partial (camera repair),
+            Offline with how long, and when each store was last updated. Excel also includes Work Order status, Cause
+            and Remark.
           </p>
+          <div className="text-xs text-ink-soft dark:text-white/70 flex-1 mb-4 space-y-1">
+            <div className="flex flex-wrap gap-x-3 gap-y-1">
+              <span className="text-status-healthy font-medium">Online {liveCounts.Online}</span>
+              <span className="text-[#8A5A00] dark:text-status-partial font-medium">Partial {liveCounts.CameraIssue}</span>
+              <span className="text-status-offline font-medium">Offline {liveCounts.Offline}</span>
+              <span className="text-ink-faint">Not monitored {liveCounts.NotMonitored}</span>
+            </div>
+            <div className="text-[11px] text-ink-faint">sync ล่าสุด: {formatDateTime(lastSyncIso) || "ยังไม่เคย sync"}</div>
+          </div>
           <div className="flex gap-2">
-            <button onClick={() => exportExecutivePdf(stores)} className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium border border-black/10 dark:border-white/10 rounded-md py-2 hover:bg-surface-muted dark:hover:bg-white/5">
+            <button onClick={() => exportExecutivePdf(liveRows, lastSyncIso)} className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium border border-black/10 dark:border-white/10 rounded-md py-2 hover:bg-surface-muted dark:hover:bg-white/5">
               <FileText size={13} className="text-brand" /> PDF
             </button>
-            <button onClick={() => exportExecutiveSummaryToExcel(stores, tickets, recoveryStageHistory)} className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium border border-black/10 dark:border-white/10 rounded-md py-2 hover:bg-surface-muted dark:hover:bg-white/5">
+            <button onClick={() => exportExecutiveSummaryToExcel(liveRows, lastSyncIso, tickets, recoveryStageHistory)} className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium border border-black/10 dark:border-white/10 rounded-md py-2 hover:bg-surface-muted dark:hover:bg-white/5">
               <FileSpreadsheet size={13} className="text-status-healthy" /> Excel
             </button>
           </div>

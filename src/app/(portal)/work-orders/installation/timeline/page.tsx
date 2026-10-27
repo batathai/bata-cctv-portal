@@ -88,9 +88,23 @@ export default function InstallationTimelinePage() {
     return Math.min(100, Math.max(0, ((t - minDay) / (maxDay - minDay)) * 100));
   }
 
-  // Axis ticks roughly every 2 days (e.g. 1-3-5-7-9-11…) instead of a fixed
-  // 6-tick spread, so the date reference is granular across the whole range.
-  const tickCount = Math.max(2, Math.min(30, Math.round(totalDays / 2) + 1));
+  // Axis ticks on real calendar days so labels never pile up: every 2 days
+  // for a short range, every Monday once the range is longer than a month
+  // (Wave 1 + Wave 2 together span ~3 months). Keeps the axis readable when
+  // the whole timeline is squeezed onto one laptop/projector screen.
+  const ticks = useMemo(() => {
+    const out: number[] = [];
+    const d = new Date(minDay);
+    d.setHours(0, 0, 0, 0);
+    const weekly = totalDays > 31;
+    while (d.getTime() <= maxDay) {
+      if (d.getTime() >= minDay && (weekly ? d.getDay() === 1 : Math.round((d.getTime() - minDay) / 86400000) % 2 === 0)) {
+        out.push(d.getTime());
+      }
+      d.setDate(d.getDate() + 1);
+    }
+    return out;
+  }, [minDay, maxDay, totalDays]);
   const todayPct = pct(new Date().toISOString().slice(0, 10));
 
   if (loading) return <div className="text-sm text-ink-faint">Loading…</div>;
@@ -114,9 +128,9 @@ export default function InstallationTimelinePage() {
         </select>
       </div>
 
-      <Card className="p-4 overflow-x-auto">
+      <Card className="p-3 overflow-x-auto lg:overflow-x-visible">
         <SectionTitle icon={GitBranch}>แถบเวลา — ยื่นขออนุญาต / นัด-ติดตั้ง / Verify→Completed</SectionTitle>
-        <div className="min-w-[640px] relative pt-4">
+        <div className="min-w-[560px] lg:min-w-0 relative pt-4">
           {/* Vertical "today" marker — spans the axis + every row so opening the
               page shows at a glance what's happening right now. Positioned with
               calc() against the same w-32/gap-3/w-28 column widths used below,
@@ -127,7 +141,7 @@ export default function InstallationTimelinePage() {
           {todayPct != null && (
             <div
               className="absolute top-0 bottom-0 w-0 border-l-2 border-dashed border-brand/70 z-10 pointer-events-none"
-              style={{ left: `calc(8.75rem + (100% - 16.5rem) * ${todayPct / 100})` }}
+              style={{ left: `calc(7.75rem + (100% - 14.5rem) * ${todayPct / 100})` }}
             >
               <span className="absolute top-0 left-1 leading-none text-[10px] font-medium text-brand whitespace-nowrap">
                 วันนี้
@@ -136,22 +150,19 @@ export default function InstallationTimelinePage() {
           )}
           {/* Date axis — ticks roughly every 2 days across the min/max day range so the bars below have a date reference. */}
           <div className="flex items-center gap-3 pb-1.5 mb-1 border-b border-black/10 dark:border-white/10">
-            <div className="w-32 shrink-0" />
-            <div className="relative flex-1 h-4">
-              {Array.from({ length: tickCount }, (_, i) => {
-                const t = minDay + (i / (tickCount - 1)) * (maxDay - minDay);
-                return (
-                  <span
-                    key={i}
-                    className="absolute text-[10px] text-ink-faint -translate-x-1/2"
-                    style={{ left: `${(i / (tickCount - 1)) * 100}%` }}
-                  >
-                    {new Date(t).toLocaleDateString("th-TH", { day: "2-digit", month: "2-digit" })}
-                  </span>
-                );
-              })}
-            </div>
             <div className="w-28 shrink-0" />
+            <div className="relative flex-1 h-4">
+              {ticks.map((t) => (
+                <span
+                  key={t}
+                  className="absolute text-[10px] text-ink-faint -translate-x-1/2 whitespace-nowrap"
+                  style={{ left: `${((t - minDay) / (maxDay - minDay)) * 100}%` }}
+                >
+                  {new Date(t).toLocaleDateString("th-TH", { day: "2-digit", month: "2-digit" })}
+                </span>
+              ))}
+            </div>
+            <div className="w-24 shrink-0" />
           </div>
           {projects.map((p) => {
             const store = storeById.get(p.store_id);
@@ -161,19 +172,19 @@ export default function InstallationTimelinePage() {
             const d2Pct = pct(p.d2_date);
             const completedPct = pct(p.completed_at);
             return (
-              <div key={p.id} className="flex items-center gap-3 py-2 border-b border-black/5 dark:border-white/5 last:border-0">
-                {/* Code on top, store name small underneath — the label column
-                    keeps its w-32 width so the "today" marker's calc() offset
-                    stays aligned; long names truncate, full name on hover. */}
+              <div key={p.id} className="flex items-center gap-3 py-0.5 border-b border-black/5 dark:border-white/5 last:border-0">
+                {/* Code and name on one line so 50 rows stay compact — the label
+                    column keeps its w-28 width so the "today" marker's calc()
+                    offset stays aligned; long names truncate, full name on hover. */}
                 <Link
                   href={`/work-orders/installation/${store.store_code}`}
                   title={`${store.store_code} ${store.store_name}`}
-                  className="group w-32 shrink-0 min-w-0 leading-tight"
+                  className="group w-28 shrink-0 min-w-0 flex items-baseline gap-1 leading-tight"
                 >
-                  <span className="block text-xs font-medium text-ink dark:text-white group-hover:text-brand">{store.store_code}</span>
-                  <span className="block text-[10px] text-ink-faint truncate">{store.store_name}</span>
+                  <span className="shrink-0 text-[11px] font-medium text-ink dark:text-white group-hover:text-brand">{store.store_code}</span>
+                  <span className="text-[10px] text-ink-faint truncate">{store.store_name}</span>
                 </Link>
-                <div className="relative flex-1 h-5 bg-surface-muted dark:bg-white/5 rounded">
+                <div className="relative flex-1 h-3.5 bg-surface-muted dark:bg-white/5 rounded">
                   {permitPct != null && d1Pct != null && (
                     <div
                       className="absolute h-full bg-status-partial/60 rounded-l"
@@ -225,12 +236,12 @@ export default function InstallationTimelinePage() {
                     </button>
                   </div>
                 ) : (
-                  <div className="w-28 shrink-0 flex items-center justify-end gap-1 text-[10px] text-ink-faint group">
+                  <div className="w-24 shrink-0 flex items-center justify-end gap-1 text-[10px] text-ink-faint group leading-tight">
                     <span className="text-right">
                       {(p.d1_date || p.d2_date) && (
                         <>
-                          {p.d1_date && <>นัด {formatShortDate(p.d1_date)}</>}
-                          {p.d1_date && p.d2_date && " · "}
+                          {p.d1_date && <>{formatShortDate(p.d1_date)}</>}
+                          {p.d1_date && p.d2_date && "–"}
                           {p.d2_date && <>{formatShortDate(p.d2_date)}</>}
                         </>
                       )}

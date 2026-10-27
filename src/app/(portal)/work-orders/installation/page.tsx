@@ -18,6 +18,11 @@ function formatShortDate(iso: string | null): string | null {
   return new Date(iso + "T00:00:00").toLocaleDateString("th-TH", { day: "2-digit", month: "2-digit" });
 }
 
+function cardTitle(code: string, name: string, area: string, d1: string | null, d2: string | null): string {
+  const dates = [d1 && `นัด ${formatShortDate(d1)}`, d2 && `ติดตั้ง ${formatShortDate(d2)}`].filter(Boolean).join(" · ");
+  return [`${code} ${name}`, area, dates].filter(Boolean).join("\n");
+}
+
 /**
  * Installation Project — Kanban board. 8 stages, one column each, cards
  * move between columns via native HTML5 drag & drop (mirrors the approved
@@ -121,12 +126,15 @@ export default function InstallationBoardPage() {
         </div>
       )}
 
-      <Card className="p-4">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+      {/* KPIs and filters share one compact row on laptop screens, so the
+          whole board fits on one projector-sized page. Order follows the
+          pipeline: waiting on quotation first, then in progress, then done. */}
+      <Card className="px-4 py-3 flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-2">
           <Kpi label="Total" value={kpi.total} />
+          <Kpi label="รอใบเสนอราคา Approved" value={kpi.blockedOnQuote} warn />
           <Kpi label="In Progress" value={kpi.inProgress} />
           <Kpi label="Completed" value={kpi.completed} accent />
-          <Kpi label="รอใบเสนอราคา Approved" value={kpi.blockedOnQuote} warn />
         </div>
         <div className="flex flex-wrap gap-2">
           <select value={wave} onChange={(e) => setWave(e.target.value)} className="text-xs border border-black/10 dark:border-white/10 rounded-md px-2 py-1.5 bg-white dark:bg-white/5">
@@ -149,8 +157,11 @@ export default function InstallationBoardPage() {
         </div>
       </Card>
 
-      <div className="overflow-x-auto">
-        <div className="flex gap-3 min-w-max pb-2">
+      {/* All 6 stages share the width equally (no left-right scrolling on a
+          laptop/projector). Below lg the board keeps a minimum width and
+          scrolls sideways, since 6 columns don't fit on a phone. */}
+      <div className="overflow-x-auto lg:overflow-x-visible">
+        <div className="grid grid-cols-6 gap-2 min-w-[840px] lg:min-w-0 pb-2">
           {INSTALLATION_STAGES.map((stage) => {
             const cards = byStage.get(stage) ?? [];
             return (
@@ -163,13 +174,13 @@ export default function InstallationBoardPage() {
                   if (p) handleDrop(p, stage);
                   setDragProjectId(null);
                 }}
-                className="w-64 shrink-0 bg-surface-muted dark:bg-white/[0.02] rounded-lg p-2.5"
+                className="min-w-0 bg-surface-muted dark:bg-white/[0.02] rounded-lg p-1.5"
               >
-                <div className="flex items-center justify-between mb-2 px-1">
-                  <span className="text-xs font-semibold text-ink dark:text-white">{getStageLabel(stage)}</span>
-                  <span className="text-[11px] text-ink-faint bg-white dark:bg-white/10 rounded-full px-1.5 py-0.5">{cards.length}</span>
+                <div className="flex items-start justify-between gap-1 mb-1.5 px-1">
+                  <span className="text-[11px] font-semibold text-ink dark:text-white leading-tight">{getStageLabel(stage)}</span>
+                  <span className="shrink-0 text-[10px] text-ink-faint bg-white dark:bg-white/10 rounded-full px-1.5 py-0.5">{cards.length}</span>
                 </div>
-                <div className="space-y-2 min-h-[40px]">
+                <div className="space-y-1 min-h-[32px]">
                   {cards.map((p) => {
                     const store = storeById.get(p.store_id);
                     if (!store) return null;
@@ -179,21 +190,20 @@ export default function InstallationBoardPage() {
                         href={`/work-orders/installation/${store.store_code}`}
                         draggable={canManage}
                         onDragStart={() => setDragProjectId(p.id)}
-                        className="block bg-white dark:bg-surface-dark border border-black/10 dark:border-white/10 rounded-md p-3 hover:border-brand hover:shadow-sm transition cursor-grab"
+                        title={cardTitle(store.store_code, store.store_name, getAreaLabel(store.zone), p.d1_date, p.d2_date)}
+                        className="block bg-white dark:bg-surface-dark border border-black/10 dark:border-white/10 rounded px-2 py-1 hover:border-brand hover:shadow-sm transition cursor-grab leading-tight"
                       >
-                        <div className="text-xs font-semibold text-ink dark:text-white">{store.store_code}</div>
-                        <div className="text-[11px] text-ink-faint truncate">{store.store_name}</div>
-                        {(p.d1_date || p.d2_date) && (
-                          <div className="text-[10px] text-ink-faint mt-1">
-                            {p.d1_date && <>นัด {formatShortDate(p.d1_date)}</>}
-                            {p.d1_date && p.d2_date && " · "}
-                            {p.d2_date && <>ติดตั้ง {formatShortDate(p.d2_date)}</>}
-                          </div>
-                        )}
-                        <div className="flex items-center justify-between mt-2">
-                          <span className="text-[10px] text-ink-faint">{getAreaLabel(store.zone)}</span>
-                          {stage === "Verify" && <span className="text-[10px] font-medium text-brand">{p.verify_total}/12</span>}
+                        {/* Compact 2-line card: code + install date, then name.
+                            Full name, area and both dates are in the tooltip. */}
+                        <div className="flex items-baseline justify-between gap-1">
+                          <span className="text-[11px] font-semibold text-ink dark:text-white">{store.store_code}</span>
+                          {stage === "Verify" ? (
+                            <span className="text-[10px] font-medium text-brand shrink-0">{p.verify_total}/12</span>
+                          ) : (
+                            p.d1_date && <span className="text-[10px] text-ink-faint shrink-0">{formatShortDate(p.d1_date)}</span>
+                          )}
                         </div>
+                        <div className="text-[10px] text-ink-faint truncate">{store.store_name}</div>
                       </Link>
                     );
                   })}
@@ -217,7 +227,7 @@ export default function InstallationBoardPage() {
 function Kpi({ label, value, accent, warn }: { label: string; value: number; accent?: boolean; warn?: boolean }) {
   return (
     <div>
-      <div className={`font-display text-xl font-bold ${warn ? "text-status-partial" : accent ? "text-status-healthy" : "text-ink dark:text-white"}`}>{value}</div>
+      <div className={`font-display text-lg font-bold leading-tight ${warn ? "text-status-partial" : accent ? "text-status-healthy" : "text-ink dark:text-white"}`}>{value}</div>
       <div className="text-[11px] text-ink-faint uppercase tracking-wide">{label}</div>
     </div>
   );

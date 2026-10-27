@@ -129,14 +129,16 @@ export default function InstallationBoardPage() {
       {/* KPIs and filters share one compact row on laptop screens, so the
           whole board fits on one projector-sized page. Order follows the
           pipeline: waiting on quotation first, then in progress, then done. */}
-      <Card className="px-4 py-3 flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-2">
+      <Card className="px-5 py-4 flex flex-wrap items-center gap-x-6 gap-y-4">
+        {/* The 4 KPIs share the free width evenly (divider between each) so
+            they don't bunch up on the left; filters sit on the right. */}
+        <div className="flex-1 min-w-[300px] grid grid-cols-2 sm:grid-cols-4 gap-y-3">
           <Kpi label="Total" value={kpi.total} />
           <Kpi label="รอใบเสนอราคา Approved" value={kpi.blockedOnQuote} warn />
           <Kpi label="In Progress" value={kpi.inProgress} />
           <Kpi label="Completed" value={kpi.completed} accent />
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 lg:pl-6 lg:border-l border-black/10 dark:border-white/10">
           <select value={wave} onChange={(e) => setWave(e.target.value)} className="text-xs border border-black/10 dark:border-white/10 rounded-md px-2 py-1.5 bg-white dark:bg-white/5">
             <option value="">ทุก Wave</option>
             {waves.map((w) => (
@@ -226,9 +228,9 @@ export default function InstallationBoardPage() {
 
 function Kpi({ label, value, accent, warn }: { label: string; value: number; accent?: boolean; warn?: boolean }) {
   return (
-    <div>
-      <div className={`font-display text-lg font-bold leading-tight ${warn ? "text-status-partial" : accent ? "text-status-healthy" : "text-ink dark:text-white"}`}>{value}</div>
-      <div className="text-[11px] text-ink-faint uppercase tracking-wide">{label}</div>
+    <div className="px-4 sm:border-l first:border-l-0 first:pl-0 border-black/10 dark:border-white/10">
+      <div className={`font-display text-2xl font-bold leading-tight ${warn ? "text-status-partial" : accent ? "text-status-healthy" : "text-ink dark:text-white"}`}>{value}</div>
+      <div className="text-[11px] text-ink-faint uppercase tracking-wide mt-0.5">{label}</div>
     </div>
   );
 }

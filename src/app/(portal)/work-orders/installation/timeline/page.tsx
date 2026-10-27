@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, GitBranch, Pencil, Check, X } from "lucide-react";
 import { useAppData } from "@/components/providers/AppDataProvider";
@@ -88,23 +88,40 @@ export default function InstallationTimelinePage() {
     return Math.min(100, Math.max(0, ((t - minDay) / (maxDay - minDay)) * 100));
   }
 
-  // Axis ticks on real calendar days so labels never pile up: every 2 days
-  // for a short range, every Monday once the range is longer than a month
-  // (Wave 1 + Wave 2 together span ~3 months). Keeps the axis readable when
-  // the whole timeline is squeezed onto one laptop/projector screen.
+  // Axis ticks on real calendar days. The step is the smallest of 2 / 3 / 7 /
+  // 14 days that still leaves ~36px per label at the axis's current width,
+  // so a wide screen or projector gets a label every 3 days (Wave 1 + 2 span
+  // ~80 days) while a narrow laptop falls back to weekly instead of
+  // overlapping labels. Width is measured live, so resizing re-picks.
+  const axisRef = useRef<HTMLDivElement>(null);
+  const [axisWidth, setAxisWidth] = useState(0);
+  useEffect(() => {
+    const el = axisRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => setAxisWidth(entry.contentRect.width));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [loading]);
+  const tickStep = useMemo(() => {
+    const MIN_PX_PER_LABEL = 36;
+    for (const step of [2, 3, 7, 14]) {
+      if (axisWidth === 0 || (axisWidth / totalDays) * step >= MIN_PX_PER_LABEL) return step;
+    }
+    return 30;
+  }, [axisWidth, totalDays]);
   const ticks = useMemo(() => {
     const out: number[] = [];
     const d = new Date(minDay);
     d.setHours(0, 0, 0, 0);
-    const weekly = totalDays > 31;
+    if (d.getTime() < minDay) d.setDate(d.getDate() + 1);
+    // Weekly steps start on a Monday so the labels read as calendar weeks.
+    if (tickStep === 7 || tickStep === 14) while (d.getDay() !== 1) d.setDate(d.getDate() + 1);
     while (d.getTime() <= maxDay) {
-      if (d.getTime() >= minDay && (weekly ? d.getDay() === 1 : Math.round((d.getTime() - minDay) / 86400000) % 2 === 0)) {
-        out.push(d.getTime());
-      }
-      d.setDate(d.getDate() + 1);
+      out.push(d.getTime());
+      d.setDate(d.getDate() + tickStep);
     }
     return out;
-  }, [minDay, maxDay, totalDays]);
+  }, [minDay, maxDay, tickStep]);
   const todayPct = pct(new Date().toISOString().slice(0, 10));
 
   if (loading) return <div className="text-sm text-ink-faint">Loading…</div>;
@@ -138,6 +155,16 @@ export default function InstallationTimelinePage() {
               trailing date column of its own (a matching spacer is added there).
               The container's pt-4 reserves a band above the axis for the "วันนี้"
               label, so it no longer overlaps the section title above. */}
+          {/* Faint vertical guide lines under each axis label, running down
+              through every row, so a bar's date can be read off by eye. Same
+              calc() offsets as the "today" marker below. */}
+          {ticks.map((t) => (
+            <div
+              key={`grid-${t}`}
+              className="absolute top-5 bottom-0 w-0 border-l border-black/[0.08] dark:border-white/[0.08] pointer-events-none"
+              style={{ left: `calc(8.75rem + (100% - 15.5rem) * ${(t - minDay) / (maxDay - minDay)})` }}
+            />
+          ))}
           {todayPct != null && (
             <div
               className="absolute top-0 bottom-0 w-0 border-l-2 border-dashed border-brand/70 z-10 pointer-events-none"
@@ -151,7 +178,7 @@ export default function InstallationTimelinePage() {
           {/* Date axis — ticks roughly every 2 days across the min/max day range so the bars below have a date reference. */}
           <div className="flex items-center gap-3 pb-1.5 mb-1 border-b border-black/10 dark:border-white/10">
             <div className="w-32 shrink-0" />
-            <div className="relative flex-1 h-4">
+            <div ref={axisRef} className="relative flex-1 h-4">
               {ticks.map((t) => (
                 <span
                   key={t}

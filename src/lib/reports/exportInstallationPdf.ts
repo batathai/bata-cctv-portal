@@ -2,7 +2,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { StoreWithAssets, InstallationProject } from "@/types/database";
 import { zoneCode, getAreaLabel } from "@/lib/recovery";
-import { INSTALLATION_STAGES, getStageLabel } from "@/lib/installation";
+import { INSTALLATION_STAGES, getStageLabel, verifiedCount, VERIFY_CHECKLIST_TOTAL } from "@/lib/installation";
 
 const BRAND_RED = "#D71920";
 
@@ -86,7 +86,7 @@ export function exportInstallationHandoverPdf(project: InstallationProject, stor
       ["ยื่นขออนุญาต", project.permit_submitted_at ?? "-"],
       ["นัดติดตั้ง (D1)", project.d1_date ?? "-"],
       ["ติดตั้งจริง (D2)", project.d2_date ?? "-"],
-      ["Verify Checklist", `${project.verify_total}/12`],
+      ["Verify Checklist", `${verifiedCount(project.verify_checked)}/${VERIFY_CHECKLIST_TOTAL}`],
       ["ปิดงาน (Completed)", project.completed_at ?? "-"],
     ],
     headStyles: { fillColor: [215, 25, 32] },

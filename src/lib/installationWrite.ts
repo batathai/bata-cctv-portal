@@ -1,5 +1,5 @@
 import type { InstallationStage } from "@/types/database";
-import { POST_COMPLETION_KEYS, VERIFY_CHECKLIST_TOTAL } from "@/lib/installation";
+import { POST_COMPLETION_KEYS, VERIFY_CHECKLIST_TOTAL, validVerifyKeys } from "@/lib/installation";
 
 // See src/lib/importWrite.ts for why this is `any`.
 type SupabaseClient = any;
@@ -89,7 +89,8 @@ export async function toggleVerifyChecklistItemDb(
   itemKey: string,
   checked: boolean
 ): Promise<{ nowComplete: boolean; checked: string[] }> {
-  const nextChecked = checked ? Array.from(new Set([...currentChecked, itemKey])) : currentChecked.filter((k) => k !== itemKey);
+  const toggled = checked ? Array.from(new Set([...currentChecked, itemKey])) : currentChecked.filter((k) => k !== itemKey);
+  const nextChecked = validVerifyKeys(toggled);
   const nowComplete = nextChecked.length >= VERIFY_CHECKLIST_TOTAL;
 
   const update: Record<string, unknown> = { verify_checked: nextChecked, verify_total: nextChecked.length };
@@ -116,7 +117,7 @@ export async function resetPostCompletionChecklistDb(
   currentChecked: string[],
   reason: string
 ) {
-  const nextChecked = currentChecked.filter((k) => !POST_COMPLETION_KEYS.includes(k));
+  const nextChecked = validVerifyKeys(currentChecked).filter((k) => !POST_COMPLETION_KEYS.includes(k));
 
   const { error } = await supabase
     .from("installation_projects")

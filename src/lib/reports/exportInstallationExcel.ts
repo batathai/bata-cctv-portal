@@ -1,7 +1,7 @@
 import * as XLSX from "xlsx";
 import type { StoreWithAssets, InstallationProject, VendorQuotation } from "@/types/database";
 import { regionFromZone, zoneCode } from "@/lib/recovery";
-import { getStageLabel } from "@/lib/installation";
+import { getStageLabel, verifiedCount, VERIFY_CHECKLIST_TOTAL } from "@/lib/installation";
 
 /**
  * Client-side xlsx (json_to_sheet), matching the app's existing
@@ -43,7 +43,7 @@ export function exportInstallationExcel(
       "Quotation Status": quotationStatusFor(p, quotations),
       "D1 (นัดติดตั้ง)": p.d1_date ?? "",
       "D2 (ติดตั้งจริง)": p.d2_date ?? "",
-      "Verify (x/12)": `${p.verify_total}/12`,
+      [`Verify (x/${VERIFY_CHECKLIST_TOTAL})`]: `${verifiedCount(p.verify_checked)}/${VERIFY_CHECKLIST_TOTAL}`,
       "Completed At": p.completed_at ?? "",
     };
   });

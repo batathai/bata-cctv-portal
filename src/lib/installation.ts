@@ -28,7 +28,17 @@ export function getStageLabel(stage: InstallationStage): string {
   return INSTALLATION_STAGE_LABELS[stage] ?? stage;
 }
 
-/** Verify Checklist — 12 items in 3 groups (R6). Group A = on-site (6), B = HQ/central (3), C = post-completion follow-up (3, checked within 72h of Completed). */
+/**
+ * Verify Checklist — 10 items in 3 groups (R6). Group A = on-site (4),
+ * B = HQ/central (3), C = post-completion follow-up (3, checked within 72h
+ * of Completed).
+ *
+ * 2026-10-27, per the project owner: removed A4 (สาย/ปลั๊ก/PoE) and A5
+ * (Serial Sticker + photo), and dropped "iVMS" from B1 (status now comes from
+ * Hik-Partner Pro, not iVMS). Keys are NOT renumbered so ticks already saved
+ * against A1-A3, A6, B1-B3 and C1-C3 keep meaning the same item; any saved A4/A5 tick
+ * is ignored by verifiedCount() and dropped on the project's next toggle.
+ */
 export interface ChecklistItem {
   key: string;
   group: "A" | "B" | "C";
@@ -36,15 +46,13 @@ export interface ChecklistItem {
 }
 
 export const VERIFY_CHECKLIST: ChecklistItem[] = [
-  // Group A — หน้างาน (6)
+  // Group A — หน้างาน (4)
   { key: "A1", group: "A", label: "NVR บันทึกภาพต่อเนื่อง (Playback ตรวจสอบได้)" },
   { key: "A2", group: "A", label: "กล้องทั้ง 3 จุดออนไลน์และภาพชัด" },
   { key: "A3", group: "A", label: "HDD สถานะ Healthy, พื้นที่เพียงพอ" },
-  { key: "A4", group: "A", label: "สาย/ปลั๊ก/PoE เดินเรียบร้อย ไม่มีจุดเสี่ยงหลุด" },
-  { key: "A5", group: "A", label: "ติด Serial Sticker และถ่ายรูปยืนยัน" },
   { key: "A6", group: "A", label: "ทดสอบไฟดับ/ไฟกลับมาแล้ว NVR บูตขึ้นใช้งานได้" },
   // Group B — ส่วนกลาง (3)
-  { key: "B1", group: "B", label: "ลงทะเบียนอุปกรณ์เข้า Hik-Connect / iVMS ส่วนกลางแล้ว" },
+  { key: "B1", group: "B", label: "ลงทะเบียนอุปกรณ์เข้า Hik-Connect ส่วนกลางแล้ว" },
   { key: "B2", group: "B", label: "ตรวจสอบ Online Status จากส่วนกลางตรงกับหน้างาน" },
   { key: "B3", group: "B", label: "บันทึกข้อมูลอุปกรณ์เข้า Asset Register ครบถ้วน" },
   // Group C — ติดตามหลังปิดงาน 72 ชม. (3)
@@ -53,10 +61,22 @@ export const VERIFY_CHECKLIST: ChecklistItem[] = [
   { key: "C3", group: "C", label: "ปิดงานกับ DM/สาขา — ไม่มีข้อร้องเรียนเพิ่ม" },
 ];
 
-export const VERIFY_CHECKLIST_TOTAL = VERIFY_CHECKLIST.length; // 12
+export const VERIFY_CHECKLIST_TOTAL = VERIFY_CHECKLIST.length; // 10
+
+const VERIFY_KEYS = new Set(VERIFY_CHECKLIST.map((i) => i.key));
+
+/** Keeps only keys of items that are still on the checklist (drops retired A4/A5). */
+export function validVerifyKeys(checked: string[]): string[] {
+  return checked.filter((k) => VERIFY_KEYS.has(k));
+}
+
+/** Number of current checklist items ticked — use this for display instead of the stored verify_total. */
+export function verifiedCount(checked: string[]): number {
+  return validVerifyKeys(checked).length;
+}
 
 export function isChecklistComplete(checked: string[]): boolean {
-  return checked.length >= VERIFY_CHECKLIST_TOTAL;
+  return verifiedCount(checked) >= VERIFY_CHECKLIST_TOTAL;
 }
 
 /**

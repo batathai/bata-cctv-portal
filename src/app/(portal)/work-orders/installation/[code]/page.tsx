@@ -2,10 +2,9 @@
 
 import { useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, MapPin, GitBranch, Paperclip, History, CheckSquare, FileText, AlertCircle, Loader2, RotateCcw } from "lucide-react";
+import { ArrowLeft, MapPin, GitBranch, History, CheckSquare, FileText, AlertCircle, Loader2, RotateCcw } from "lucide-react";
 import { useAppData } from "@/components/providers/AppDataProvider";
 import { Card, SectionTitle } from "@/components/ui/Card";
-import { AttachmentsCard } from "@/components/assets/AttachmentsCard";
 import { zoneCode, getAreaLabel, getRecoveryRegion } from "@/lib/recovery";
 import { canLogMaintenance } from "@/lib/rbac";
 import {
@@ -15,6 +14,8 @@ import {
   nextStage as nextStageOf,
   stageIndex,
   VERIFY_CHECKLIST,
+  VERIFY_CHECKLIST_TOTAL,
+  verifiedCount,
   withinPostCompletionWindow,
 } from "@/lib/installation";
 import { exportInstallationHandoverPdf } from "@/lib/reports/exportInstallationPdf";
@@ -106,15 +107,10 @@ export default function InstallationDetailPage() {
 
       {(project.current_stage === "Verify" || project.current_stage === "Completed") && (
         <Card className="p-5">
-          <SectionTitle icon={CheckSquare}>Verify Checklist ({project.verify_total}/12)</SectionTitle>
+          <SectionTitle icon={CheckSquare}>Verify Checklist ({verifiedCount(project.verify_checked)}/{VERIFY_CHECKLIST_TOTAL})</SectionTitle>
           <VerifyChecklistCard canEdit={canEdit} />
         </Card>
       )}
-
-      <Card className="p-5">
-        <SectionTitle icon={Paperclip}>ไฟล์แนบ</SectionTitle>
-        <AttachmentsCard store={store} canEdit={canEdit} />
-      </Card>
 
       <Card className="p-5">
         <SectionTitle icon={History}>Activity Log</SectionTitle>

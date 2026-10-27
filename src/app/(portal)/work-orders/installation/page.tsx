@@ -8,7 +8,7 @@ import { Card, SectionTitle } from "@/components/ui/Card";
 import { WorkOrdersTabs } from "@/components/work-orders/WorkOrdersTabs";
 import { canLogMaintenance } from "@/lib/rbac";
 import { regionFromZone, getAreaLabel } from "@/lib/recovery";
-import { INSTALLATION_STAGES, getStageLabel, canAdvanceStage } from "@/lib/installation";
+import { INSTALLATION_STAGES, getStageLabel, canAdvanceStage, verifiedCount, VERIFY_CHECKLIST_TOTAL } from "@/lib/installation";
 import type { InstallationProject, InstallationStage } from "@/types/database";
 import { exportInstallationExcel } from "@/lib/reports/exportInstallationExcel";
 import { exportInstallationExecSummaryPdf } from "@/lib/reports/exportInstallationPdf";
@@ -200,7 +200,7 @@ export default function InstallationBoardPage() {
                         <div className="flex items-baseline justify-between gap-1 mb-0.5">
                           <span className="text-[13px] font-semibold text-ink dark:text-white">{store.store_code}</span>
                           {stage === "Verify" ? (
-                            <span className="text-[11px] font-medium text-brand shrink-0">{p.verify_total}/12</span>
+                            <span className="text-[11px] font-medium text-brand shrink-0">{verifiedCount(p.verify_checked)}/{VERIFY_CHECKLIST_TOTAL}</span>
                           ) : (
                             p.d1_date && <span className="text-[11px] text-ink-faint shrink-0">{formatShortDate(p.d1_date)}</span>
                           )}

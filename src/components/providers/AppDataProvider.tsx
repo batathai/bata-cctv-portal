@@ -65,6 +65,7 @@ import {
   createInstallationProjectDb,
   updateInstallationDatesDb,
 } from "@/lib/installationWrite";
+import { validVerifyKeys, VERIFY_CHECKLIST_TOTAL } from "@/lib/installation";
 import { zoneCode, regionFromZone } from "@/lib/recovery";
 import { updateStoreDetailsDb, updateAssetDetailsDb, updateHikconnectDetailsDb, relocateAssetDb, uploadQrCodeDb } from "@/lib/assetWrite";
 import { createIncidentTicketDb, updateIncidentTicketStatusDb, type TicketFormInput } from "@/lib/ticketWrite";
@@ -618,15 +619,15 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       );
       if (nowComplete) {
         // Auto-complete (R6): log the transition separately from the checklist write above.
-        await updateInstallationStageDb(supabase, project.id, project.store_id, "Completed", project.current_stage, {}, "Verify Checklist ครบ 12/12 (อัตโนมัติ)");
+        await updateInstallationStageDb(supabase, project.id, project.store_id, "Completed", project.current_stage, {}, `Verify Checklist ครบ ${VERIFY_CHECKLIST_TOTAL}/${VERIFY_CHECKLIST_TOTAL} (อัตโนมัติ)`);
         clearCameraIssueLocal(project.store_id);
       }
       setInstallationProjects(await fetchInstallationProjects());
       setInstallationStageHistory(await fetchInstallationStageHistory());
       return;
     }
-    const nextChecked = checked ? Array.from(new Set([...project.verify_checked, itemKey])) : project.verify_checked.filter((k) => k !== itemKey);
-    const nowComplete = nextChecked.length >= 12;
+    const nextChecked = validVerifyKeys(checked ? Array.from(new Set([...project.verify_checked, itemKey])) : project.verify_checked.filter((k) => k !== itemKey));
+    const nowComplete = nextChecked.length >= VERIFY_CHECKLIST_TOTAL;
     const now = new Date().toISOString();
     setInstallationProjects((prev) =>
       prev.map((p) =>
@@ -644,7 +645,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     );
     if (nowComplete) {
       setInstallationStageHistory((prev) => [
-        { id: `ish_local_${Date.now()}`, store_id: project.store_id, from_stage: project.current_stage, to_stage: "Completed", note: "Verify Checklist ครบ 12/12 (อัตโนมัติ)", changed_by: null, changed_at: now },
+        { id: `ish_local_${Date.now()}`, store_id: project.store_id, from_stage: project.current_stage, to_stage: "Completed", note: `Verify Checklist ครบ ${VERIFY_CHECKLIST_TOTAL}/${VERIFY_CHECKLIST_TOTAL} (อัตโนมัติ)`, changed_by: null, changed_at: now },
         ...prev,
       ]);
     }
@@ -658,7 +659,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       setInstallationStageHistory(await fetchInstallationStageHistory());
       return;
     }
-    const nextChecked = project.verify_checked.filter((k) => k !== "C1" && k !== "C2");
+    const nextChecked = validVerifyKeys(project.verify_checked).filter((k) => k !== "C1" && k !== "C2");
     const now = new Date().toISOString();
     setInstallationProjects((prev) =>
       prev.map((p) =>

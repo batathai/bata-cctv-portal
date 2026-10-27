@@ -141,7 +141,7 @@ export default function InstallationTimelinePage() {
           {todayPct != null && (
             <div
               className="absolute top-0 bottom-0 w-0 border-l-2 border-dashed border-brand/70 z-10 pointer-events-none"
-              style={{ left: `calc(7.75rem + (100% - 14.5rem) * ${todayPct / 100})` }}
+              style={{ left: `calc(8.75rem + (100% - 15.5rem) * ${todayPct / 100})` }}
             >
               <span className="absolute top-0 left-1 leading-none text-[10px] font-medium text-brand whitespace-nowrap">
                 วันนี้
@@ -150,12 +150,12 @@ export default function InstallationTimelinePage() {
           )}
           {/* Date axis — ticks roughly every 2 days across the min/max day range so the bars below have a date reference. */}
           <div className="flex items-center gap-3 pb-1.5 mb-1 border-b border-black/10 dark:border-white/10">
-            <div className="w-28 shrink-0" />
+            <div className="w-32 shrink-0" />
             <div className="relative flex-1 h-4">
               {ticks.map((t) => (
                 <span
                   key={t}
-                  className="absolute text-[10px] text-ink-faint -translate-x-1/2 whitespace-nowrap"
+                  className="absolute text-[11px] text-ink-faint -translate-x-1/2 whitespace-nowrap"
                   style={{ left: `${((t - minDay) / (maxDay - minDay)) * 100}%` }}
                 >
                   {new Date(t).toLocaleDateString("th-TH", { day: "2-digit", month: "2-digit" })}
@@ -172,19 +172,19 @@ export default function InstallationTimelinePage() {
             const d2Pct = pct(p.d2_date);
             const completedPct = pct(p.completed_at);
             return (
-              <div key={p.id} className="flex items-center gap-3 py-0.5 border-b border-black/5 dark:border-white/5 last:border-0">
+              <div key={p.id} className="flex items-center gap-3 py-2 border-b border-black/5 dark:border-white/5 last:border-0">
                 {/* Code and name on one line so 50 rows stay compact — the label
-                    column keeps its w-28 width so the "today" marker's calc()
+                    column keeps its w-32 width so the "today" marker's calc()
                     offset stays aligned; long names truncate, full name on hover. */}
                 <Link
                   href={`/work-orders/installation/${store.store_code}`}
                   title={`${store.store_code} ${store.store_name}`}
-                  className="group w-28 shrink-0 min-w-0 flex items-baseline gap-1 leading-tight"
+                  className="group w-32 shrink-0 min-w-0 flex items-baseline gap-1.5 leading-tight"
                 >
-                  <span className="shrink-0 text-[11px] font-medium text-ink dark:text-white group-hover:text-brand">{store.store_code}</span>
-                  <span className="text-[10px] text-ink-faint truncate">{store.store_name}</span>
+                  <span className="shrink-0 text-[13px] font-semibold text-ink dark:text-white group-hover:text-brand">{store.store_code}</span>
+                  <span className="text-xs text-ink-faint truncate">{store.store_name}</span>
                 </Link>
-                <div className="relative flex-1 h-3.5 bg-surface-muted dark:bg-white/5 rounded">
+                <div className="relative flex-1 h-5 bg-surface-muted dark:bg-white/5 rounded">
                   {permitPct != null && d1Pct != null && (
                     <div
                       className="absolute h-full bg-status-partial/60 rounded-l"
@@ -236,7 +236,7 @@ export default function InstallationTimelinePage() {
                     </button>
                   </div>
                 ) : (
-                  <div className="w-24 shrink-0 flex items-center justify-end gap-1 text-[10px] text-ink-faint group leading-tight">
+                  <div className="w-24 shrink-0 flex items-center justify-end gap-1 text-xs text-ink-faint group leading-tight">
                     <span className="text-right">
                       {(p.d1_date || p.d2_date) && (
                         <>

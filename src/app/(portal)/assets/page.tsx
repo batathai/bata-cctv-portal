@@ -201,7 +201,7 @@ function AssetRegisterContent() {
                             <span className="text-[11px] text-[#8A5A00] dark:text-status-partial">{CAMERA_ISSUE_REMARK}</span>
                           )}
                         </div>
-                        {reason && <RepairLink store={s} reason={reason} tickets={tickets} />}
+                        {canEdit && <RepairLink store={s} reason={reason} tickets={tickets} />}
                       </div>
                     );
                   })()}

@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import clsx from "clsx";
 import { Wrench } from "lucide-react";
+import { OpenRepairModal } from "@/components/work-orders/OpenRepairModal";
 import { formatDuration, formatSeen, REPAIR_SUGGEST_MINUTES, type DisplayStatus } from "@/lib/monitoring";
 import { hasOpenTicket } from "@/lib/tickets";
 import type { IncidentTicket, StoreMonitor, StoreWithAssets, TicketIssueType } from "@/types/database";
@@ -53,32 +55,46 @@ export function pendingRepairKind(
 const iconBtn =
   "inline-flex items-center justify-center w-8 h-8 rounded-md border border-black/10 dark:border-white/10 hover:bg-surface-muted dark:hover:bg-white/5";
 
-/** Red wrench → New Ticket form pre-filled; grey wrench → the store already has an open ticket. */
-export function RepairLink({ store, reason, tickets }: { store: StoreWithAssets; reason: RepairReason; tickets: IncidentTicket[] }) {
+/**
+ * Wrench on a store row (redesign 2026-11-03):
+ *  - red / amber (`reason` set) → opens the "เปิดงานซ่อม" popup pre-filled from the DVR status
+ *  - grey, no `reason` → same popup for any store, nothing pre-filled
+ *  - grey link → the store already has an open ticket, go and see it
+ * The popup creates the ticket and puts the store into a Job in one step.
+ */
+export function RepairLink({ store, reason, tickets }: { store: StoreWithAssets; reason: RepairReason | null; tickets: IncidentTicket[] }) {
+  const [showModal, setShowModal] = useState(false);
   const open = hasOpenTicket(store.id, tickets);
   const label = open
     ? "มีเคสซ่อมเปิดอยู่แล้ว — ดูเคส"
+    : !reason
+    ? "เปิดงานซ่อม"
     : reason.kind === "camera"
-    ? "เปิดเคสซ่อมกล้อง (DVR Online แต่ดูกล้องไม่ได้)"
-    : `เปิดเคสซ่อม (${reason.note})`;
-  const href = open
-    ? `/assets/${store.store_code}#tickets`
-    : `/assets/${store.store_code}?newTicket=${encodeURIComponent(reason.issue)}&note=${encodeURIComponent(reason.note)}#tickets`;
+    ? "เปิดงานซ่อมกล้อง (DVR Online แต่ดูกล้องไม่ได้)"
+    : `เปิดงานซ่อม (${reason.note})`;
+  const tone = clsx(
+    iconBtn,
+    open || !reason
+      ? "text-ink-faint"
+      : reason.kind === "camera"
+      ? "text-[#8A5A00] dark:text-status-partial border-status-partial/50 bg-status-partial/10"
+      : "text-status-offline border-status-offline/40 bg-status-offline/5"
+  );
+  // The modal stays mounted next to the trigger: once the ticket exists the
+  // trigger turns into the grey "view" link, but the popup still has to show
+  // its "done" message.
   return (
-    <Link
-      href={href}
-      title={label}
-      aria-label={label}
-      className={clsx(
-        iconBtn,
-        open
-          ? "text-ink-faint"
-          : reason.kind === "camera"
-          ? "text-[#8A5A00] dark:text-status-partial border-status-partial/50 bg-status-partial/10"
-          : "text-status-offline border-status-offline/40 bg-status-offline/5"
+    <>
+      {open ? (
+        <Link href={`/assets/${store.store_code}#tickets`} title={label} aria-label={label} className={tone}>
+          <Wrench size={15} />
+        </Link>
+      ) : (
+        <button type="button" onClick={() => setShowModal(true)} title={label} aria-label={label} className={tone}>
+          <Wrench size={15} />
+        </button>
       )}
-    >
-      <Wrench size={15} />
-    </Link>
+      {showModal && <OpenRepairModal store={store} reason={reason} onClose={() => setShowModal(false)} />}
+    </>
   );
 }

@@ -120,10 +120,10 @@ function DashboardContent() {
   const rows = useMemo(() => buildLiveRows(stores, monitors, settings, stale), [stores, monitors, settings, stale]);
 
   const counts = useMemo(() => {
-    const checked = stores.filter((s) => isStoreChecked(s, audits)).length;
+    const total = stores.length;
     const repair = rows.filter((r) => hasOpenWorkOrder(r.store, tickets)).length;
-    return { checked, repair, ...countLiveStatuses(rows) };
-  }, [stores, rows, audits, tickets]);
+    return { total, repair, ...countLiveStatuses(rows) };
+  }, [stores, rows, tickets]);
 
   // Mirrors the StatCards above exactly (same counts object) so this chart
   // can never show a different picture than the numbers right above it.
@@ -163,7 +163,13 @@ function DashboardContent() {
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap gap-3">
-        <StatCard label="Stores Checked" value={counts.checked} onClick={() => setBucket("checked")} active={bucket === "checked"} />
+        <StatCard
+          label="Stores Total"
+          value={counts.total}
+          hint="ทุกสาขาในระบบ"
+          onClick={() => setBucket("all")}
+          active={bucket === "all"}
+        />
         <StatCard label="Online" value={counts.Online} colorClass="text-status-healthy" onClick={() => setBucket("Online")} active={bucket === "Online"} />
         <StatCard
           label="Partial"

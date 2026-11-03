@@ -322,7 +322,7 @@ function DashboardContent() {
               <MonitorStatusPill status={r.status} />
               {(() => {
                 const reason = canEdit ? repairReason(s, r.monitor, r.status, r.offlineMinutes) : null;
-                return reason ? <RepairLink store={s} reason={reason} tickets={tickets} /> : null;
+                return canEdit ? <RepairLink store={s} reason={reason} tickets={tickets} /> : null;
               })()}
               <Link
                 href={`/recovery/${s.store_code}`}

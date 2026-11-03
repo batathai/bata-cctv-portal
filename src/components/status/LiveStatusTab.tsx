@@ -188,10 +188,11 @@ export function LiveStatusTab() {
                     <td className="px-4 py-2.5">
                       <div className="flex justify-end gap-1">
                         {(() => {
-                          // Wrench = open a repair ticket: DVR offline REPAIR_SUGGEST_MINUTES+ (red) or DVR online but
-                          // cameras reported unusable (amber). Grey = already has an open ticket.
+                          // Wrench = open a repair work order: DVR offline REPAIR_SUGGEST_MINUTES+ (red) or DVR online but
+                          // cameras reported unusable (amber). Grey = any other store (nothing pre-filled), or one that
+                          // already has an open ticket.
                           const reason = canEdit ? repairReason(r.store, m, r.status, r.offlineMinutes) : null;
-                          return reason ? <RepairLink store={r.store} reason={reason} tickets={tickets} /> : <span className="w-8" aria-hidden="true" />;
+                          return canEdit ? <RepairLink store={r.store} reason={reason} tickets={tickets} /> : <span className="w-8" aria-hidden="true" />;
                         })()}
                         <Link href={`/recovery/${r.store.store_code}`} title="ดูรายละเอียดสาขา" aria-label="ดูรายละเอียดสาขา" className={iconBtn}>
                           <FileText size={15} />

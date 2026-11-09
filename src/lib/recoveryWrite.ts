@@ -33,7 +33,7 @@ export async function updateRecoveryStageDb(
 /**
  * Logs a remark against a given stage — current or a PAST one (e.g. adding
  * a note to "Repairing" after the work order has already moved on to
- * "Verified", because it was forgotten at the time). Unlike
+ * "Completed", because it was forgotten at the time). Unlike
  * updateRecoveryStageDb, this never touches `stores.recovery_stage` — it
  * only appends a history row (from_stage === to_stage === the chosen stage
  * signals "remark, not a transition" to the UI).

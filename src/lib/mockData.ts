@@ -168,7 +168,7 @@ export function generateMockData() {
     "DVR Failure": "Replace DVR/NVR unit",
     "Device Not Registered": "Register device to central Hik-Connect / iVMS account",
   };
-  const STAGES: RecoveryStage[] = ["Waiting Vendor Quote", "Waiting Approval", "Waiting Repair", "Repairing", "Completed", "Verified"];
+  const STAGES: RecoveryStage[] = ["Waiting Vendor Quote", "Waiting Approval", "Waiting Repair", "Repairing", "Completed"];
   const VENDOR_NAMES = ["Flowbridge", "SecureVision Co.", "NetGuard Systems"];
   const APPROVAL_STATUSES: QuotationApprovalStatus[] = ["Pending", "Approved", "Rejected"];
 
@@ -202,11 +202,10 @@ export function generateMockData() {
     s.camera_status = status === "Camera Issue" ? (rnd() < 0.5 ? "Partial" : "Not Work") : s.asset && s.asset.camera_failed === 0 ? "OK" : "Partial";
     s.add_device_status = status === "Device Not Registered" ? "Not Registered" : "Registered";
 
-    const stage: RecoveryStage =
-      status === "Normal" ? "Verified" : pick(STAGES.slice(0, 5).concat(rnd() < 0.2 ? (["Verified"] as RecoveryStage[]) : []));
+    const stage: RecoveryStage = status === "Normal" ? "Completed" : pick(STAGES);
     s.recovery_stage = stage;
     s.repair_date =
-      stage === "Completed" || stage === "Verified" || stage === "Repairing"
+      stage === "Completed" || stage === "Repairing"
         ? `2026-${pad(1 + Math.floor(rnd() * 6))}-${pad(1 + Math.floor(rnd() * 27))}`
         : null;
 
@@ -232,7 +231,7 @@ export function generateMockData() {
     // A quotation exists once a store has moved past "Waiting Vendor Quote".
     if (status !== "Normal" && stage !== "Waiting Vendor Quote") {
       const approvalStatus: QuotationApprovalStatus =
-        stage === "Waiting Approval" ? "Pending" : stage === "Repairing" || stage === "Completed" || stage === "Verified" ? "Approved" : pick(APPROVAL_STATUSES);
+        stage === "Waiting Approval" ? "Pending" : stage === "Repairing" || stage === "Completed" ? "Approved" : pick(APPROVAL_STATUSES);
       vendorQuotations.push({
         id: `vq_${pad(qid++, 4)}`,
         store_id: s.id,
@@ -260,7 +259,6 @@ export function generateMockData() {
     "Waiting Repair": "In Progress",
     Repairing: "In Progress",
     Completed: "Completed",
-    Verified: "Closed",
   };
 
   const tickets: IncidentTicket[] = [];

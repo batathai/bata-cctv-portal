@@ -15,8 +15,7 @@ export type RecoveryStage =
   | "Waiting Approval"
   | "Waiting Repair"
   | "Repairing"
-  | "Completed"
-  | "Verified";
+  | "Completed";
 
 export interface Store {
   id: string;

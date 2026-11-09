@@ -7,8 +7,8 @@ import { RECOVERY_STAGES } from "@/lib/recovery";
 import type { RecoveryStage, RecoveryStageHistoryEntry, StoreWithAssets } from "@/types/database";
 
 /**
- * Sprint 4 - Work Orders: renders the 6-step recovery pipeline as a stepper
- * (Waiting Vendor Quote -> ... -> Verified), a form to advance the store to
+ * Sprint 4 - Work Orders: renders the 5-step recovery pipeline as a stepper
+ * (Waiting Vendor Quote -> ... -> Completed), a form to advance the store to
  * its next stage with an optional note, and the full timestamped history
  * log underneath. Used on the Work Order detail page (/recovery/[code]).
  */
@@ -28,7 +28,7 @@ export function StageTimeline({
   const [note, setNote] = useState("");
   // Which stage the remark is filed against — defaults to the current stage,
   // but any already-reached stage can be picked (e.g. going back to add a
-  // note on "Repairing" after the job has since moved on to "Verified").
+  // note on "Repairing" after the job has since moved on to "Completed").
   const [remarkStage, setRemarkStage] = useState<RecoveryStage>(currentStage);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -64,7 +64,7 @@ export function StageTimeline({
   // Logs a remark against `remarkStage` (current or a past stage) without
   // moving the work order forward or changing its recovery_stage — e.g.
   // "รอ vendor นัดวันเข้างาน" while still "Repairing", or adding a note to
-  // "Repairing" after the job has already moved on to "Verified".
+  // "Repairing" after the job has already moved on to "Completed".
   async function addRemark() {
     if (!note.trim()) return;
     setSaving(true);
@@ -203,7 +203,7 @@ export function StageTimeline({
           </div>
         </div>
       )}
-      {canEdit && !nextStage && <p className="text-xs text-status-healthy font-medium">This work order is fully complete (Verified)</p>}
+      {canEdit && !nextStage && <p className="text-xs text-status-healthy font-medium">This work order is complete</p>}
 
       {/* History log */}
       <div>

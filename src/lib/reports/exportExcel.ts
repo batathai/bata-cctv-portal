@@ -114,7 +114,7 @@ function latestNoteFor(storeId: string, history: RecoveryStageHistoryEntry[]): s
  * Status / Cause), plus a Remark column — every value
  * is computed live from the current store + ticket + stage-history state,
  * not the original import snapshot. That's intentional: a store that's
- * since been fixed and Verified will show "ใช้งานปกติ"/"OK"/"Online" here
+ * since been fixed and Completed will show "ใช้งานปกติ"/"OK"/"Online" here
  * even though the original reference file recorded it as "DVR Failure" —
  * this export reflects the CURRENT Work Order state. `history` should be
  * the full recoveryStageHistory list (unfiltered — this function filters
@@ -132,7 +132,7 @@ export function exportWorkOrdersToExcel(
       Code: s.store_code,
       "Store Name": s.store_name,
       DM: zoneCode(s.zone),
-      Status: stage === "Verified" || stage === "Completed" ? "Closed" : "Open",
+      Status: stage === "Completed" ? "Closed" : "Open",
       "Online Status": onlineStatusLabel(s),
       "Camera Status": cameraStatusLabel(s),
       Cause: causeLabel(s),
@@ -206,7 +206,7 @@ export function exportExecutiveSummaryToExcel(
           "DVR Status": REPORT_STATUS_LABEL[r.status],
           "Offline For": formatDurationEn(r.offlineMinutes),
           "Last Updated": lastUpdated(r),
-          "Work Order Status": stage ? (stage === "Verified" || stage === "Completed" ? "Closed" : "Open") : "",
+          "Work Order Status": stage ? (stage === "Completed" ? "Closed" : "Open") : "",
           Cause: inWorkOrder ? causeLabel(s) : "",
           Remark: inWorkOrder ? latestNoteFor(s.id, history) ?? s.recovery_notes ?? "" : "",
         };

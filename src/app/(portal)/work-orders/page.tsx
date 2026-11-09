@@ -13,6 +13,8 @@ import {
   getEffectiveRecoveryStage,
   getLatestRemark,
   zoneCode,
+  formatRepairDate,
+  summarizeRepairDate,
 } from "@/lib/recovery";
 import { canLogMaintenance } from "@/lib/rbac";
 import type { RecoveryStage, StoreWithAssets, WorkOrderBatch } from "@/types/database";
@@ -29,7 +31,7 @@ import type { RecoveryStage, StoreWithAssets, WorkOrderBatch } from "@/types/dat
  */
 
 // Stages a job can be stuck at, in the order they're worked through.
-const OPEN_STAGES: RecoveryStage[] = RECOVERY_STAGES.filter((s) => s !== "Completed" && s !== "Verified");
+const OPEN_STAGES: RecoveryStage[] = RECOVERY_STAGES.filter((s) => s !== "Completed");
 
 // Same hues as the Dashboard's Work Order Pipeline chart.
 const STAGE_DOT: Record<RecoveryStage, string> = {
@@ -37,15 +39,14 @@ const STAGE_DOT: Record<RecoveryStage, string> = {
   "Waiting Approval": "#F0B429",
   "Waiting Repair": "#F04952",
   Repairing: "#D71920",
-  Completed: "#5CB88B",
-  Verified: "#1E9E5A",
+  Completed: "#1E9E5A",
 };
 
 // A job open this many days or longer is flagged in red.
 const STALE_DAYS = 14;
 
 const GRID =
-  "grid grid-cols-[minmax(220px,1.6fr)_80px_190px_100px_84px_minmax(160px,1.2fr)_20px] gap-x-3 items-center px-4";
+  "grid grid-cols-[minmax(220px,1.6fr)_80px_190px_100px_110px_84px_minmax(160px,1.2fr)_20px] gap-x-3 items-center px-4";
 
 type SortKey = "age" | "name";
 
@@ -56,6 +57,7 @@ interface JobRow {
   worstStage: RecoveryStage | null;
   zones: string[];
   remark: string | null;
+  repairDate: string | null;
   ageDays: number;
   hay: string;
 }
@@ -89,7 +91,7 @@ export default function WorkOrdersBatchListPage() {
       const stageOf = (s: StoreWithAssets) => getEffectiveRecoveryStage(s, tickets);
       const open = work.filter((s) => {
         const st = stageOf(s);
-        return st !== "Completed" && st !== "Verified";
+        return st !== "Completed";
       }).length;
       // The least advanced store is what is holding the whole job up.
       const worstIdx = work.length ? Math.min(...work.map((s) => RECOVERY_STAGES.indexOf(stageOf(s)))) : -1;
@@ -102,6 +104,7 @@ export default function WorkOrdersBatchListPage() {
         worstStage: worstIdx >= 0 ? RECOVERY_STAGES[worstIdx] : null,
         zones,
         remark,
+        repairDate: summarizeRepairDate(members.map((s) => ({ repair_date: s.repair_date, open: stageOf(s) !== "Completed" }))),
         ageDays: daysSince(batch.created_at),
         hay: [batch.name, ...members.map((s) => `${s.store_code} ${s.store_name}`)].join(" ").toLowerCase(),
       };
@@ -225,12 +228,13 @@ export default function WorkOrdersBatchListPage() {
       </div>
 
       <Card className="overflow-x-auto">
-        <div className="min-w-[960px]">
+        <div className="min-w-[1070px]">
           <div className={clsx(GRID, "h-9 bg-surface-muted dark:bg-white/5 border-b border-black/5 dark:border-white/10 text-xs font-semibold text-ink-faint")}>
             <div>Job</div>
             <div>เขต</div>
             <div>ขั้นตอน (Stage)</div>
             <div>เปิดมาแล้ว</div>
+            <div>วันที่เข้าซ่อม</div>
             <div>Open / ทั้งหมด</div>
             <div>หมายเหตุ</div>
             <div />
@@ -276,7 +280,7 @@ function StageChip({ active, onClick, label, count, dot }: { active: boolean; on
 }
 
 function JobTableRow({ job }: { job: JobRow }) {
-  const { batch, total, open, worstStage, zones, remark, ageDays } = job;
+  const { batch, total, open, worstStage, zones, remark, repairDate, ageDays } = job;
   const closed = batch.status === "Closed";
   const stale = !closed && open > 0 && ageDays >= STALE_DAYS;
   return (
@@ -307,6 +311,7 @@ function JobTableRow({ job }: { job: JobRow }) {
       <div className={clsx("text-xs", stale ? "font-semibold text-brand" : "text-ink-soft dark:text-white/60")}>
         {closed && batch.closed_at ? `ปิด ${new Date(batch.closed_at).toLocaleDateString("th-TH", { dateStyle: "medium" })}` : `${ageDays} วัน`}
       </div>
+      <div className="text-xs text-ink-soft dark:text-white/60 truncate">{formatRepairDate(repairDate)}</div>
       <div className="text-ink-soft dark:text-white/60">
         <span className="font-bold text-ink dark:text-white">{open}</span> / {total}
       </div>

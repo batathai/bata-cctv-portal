@@ -1,6 +1,7 @@
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { generateMockData, generateMockMonitoring } from "@/lib/mockData";
 import { DEFAULT_MONITOR_SETTINGS } from "@/lib/monitoring";
+import { normalizeRecoveryStage } from "@/lib/recovery";
 import type { StoreWithAssets, MaintenanceRecord, AuditRecord, VendorQuotation, IncidentTicket, Attachment, RecoveryStageHistoryEntry, WorkOrderBatch, StoreMonitor, MonitorRun, MonitorSettings, DeviceOutage, InstallationProject, InstallationStageHistoryEntry } from "@/types/database";
 
 /**
@@ -28,14 +29,16 @@ export async function fetchStores(): Promise<StoreWithAssets[]> {
     const asset = Array.isArray(s.cctv_assets) ? s.cctv_assets[0] : s.cctv_assets;
     const hikconnect = Array.isArray(s.hikconnect_devices) ? s.hikconnect_devices[0] : s.hikconnect_devices;
     const cameraOk = asset?.camera_status ? asset.camera_status === "OK" : asset?.camera_failed === 0;
-    // A Verified/Completed store is confirmed fixed — treat it as full
-    // marks rather than whatever this formula computes off asset
-    // sub-fields (nvr_online/playback_status/hdd_status/camera_status),
-    // which the Edit Detail form hasn't collected in a long time and so
-    // stay frozen at whatever they were on import. Without this, a store
-    // could show "Healthy" (see overall_status's Verified sync above) next
-    // to a stale, contradictory-looking low Score in the same report row.
-    const isVerifiedDone = s.recovery_stage === "Completed" || s.recovery_stage === "Verified";
+    // A Completed store is confirmed fixed — treat it as full marks rather
+    // than whatever this formula computes off asset sub-fields
+    // (nvr_online/playback_status/hdd_status/camera_status), which the Edit
+    // Detail form hasn't collected in a long time and so stay frozen at
+    // whatever they were on import. Without this, a store could show
+    // "Healthy" (see updateRecoveryStage's overall_status sync) next to a
+    // stale, contradictory-looking low Score in the same report row.
+    // A legacy "Verified" row counts as Completed (see normalizeRecoveryStage).
+    const stage = normalizeRecoveryStage(s.recovery_stage);
+    const isVerifiedDone = stage === "Completed";
     const score = isVerifiedDone
       ? 100
       : (asset?.nvr_online ? 30 : 0) +
@@ -49,7 +52,7 @@ export async function fetchStores(): Promise<StoreWithAssets[]> {
       healthScore: score,
       supplierName: s.suppliers?.name ?? "Unassigned",
       recovery_status: s.recovery_status ?? null,
-      recovery_stage: s.recovery_stage ?? null,
+      recovery_stage: stage,
       cause: s.cause ?? null,
       required_action: s.required_action ?? null,
       online_status: s.online_status ?? null,
@@ -147,7 +150,18 @@ export async function fetchRecoveryStageHistory(): Promise<RecoveryStageHistoryE
     console.error("Supabase fetchRecoveryStageHistory failed, falling back to demo data:", error?.message);
     return generateMockData().recoveryStageHistory;
   }
-  return data as RecoveryStageHistoryEntry[];
+  // A legacy "Verified" row reads as Completed. The Completed -> Verified
+  // transition itself is dropped: once both ends are Completed it would look
+  // like a remark (from_stage === to_stage), which the UI shows as deletable.
+  return (data as any[])
+    .map((h) => ({
+      ...h,
+      from_stage: normalizeRecoveryStage(h.from_stage),
+      to_stage: normalizeRecoveryStage(h.to_stage) as RecoveryStageHistoryEntry["to_stage"],
+      _legacyVerifyStep: h.to_stage === "Verified" && h.from_stage === "Completed",
+    }))
+    .filter((h) => !h._legacyVerifyStep || h.note)
+    .map(({ _legacyVerifyStep, ...h }) => h as RecoveryStageHistoryEntry);
 }
 
 /** Sprint 3 - Asset Register file uploads (photos + documents). */

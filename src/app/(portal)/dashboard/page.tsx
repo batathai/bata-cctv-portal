@@ -33,7 +33,7 @@ import type { IncidentTicket, StoreWithAssets } from "@/types/database";
 function hasOpenWorkOrder(store: StoreWithAssets, tickets: IncidentTicket[]): boolean {
   if (!hasWorkOrder(store, tickets)) return false;
   const stage = getEffectiveRecoveryStage(store, tickets);
-  return stage !== "Completed" && stage !== "Verified";
+  return stage !== "Completed";
 }
 
 // Same DVR status groups and colours as the Device Status cards (decision
@@ -48,14 +48,13 @@ const STATUS_COLORS: Record<string, string> = {
 
 // One color per Work Order stage, in RECOVERY_STAGES order — a warm
 // amber-to-red "still waiting/working" run that resolves to green once
-// Completed/Verified, instead of the old grey/black/mixed set.
+// Completed, instead of the old grey/black/mixed set.
 const STAGE_COLORS: Record<string, string> = {
   "Waiting Vendor Quote": "#E2A400",
   "Waiting Approval": "#F0B429",
   "Waiting Repair": "#F04952",
   Repairing: "#D71920",
-  Completed: "#5CB88B",
-  Verified: "#1E9E5A",
+  Completed: "#1E9E5A",
 };
 
 // Recharts' default Tooltip cursor is a full-width/height grey rectangle

@@ -10,7 +10,7 @@ import { StatCard } from "@/components/ui/StatCard";
 import { StatusBadge } from "@/components/ui/Badge";
 import { RecoveryStageBadge } from "@/components/recovery/RecoveryBadges";
 import { NewTicketModal } from "@/components/work-orders/NewTicketModal";
-import { RECOVERY_STAGES, needsRepair, getEffectiveRecoveryStage, getRecoveryRegion, zoneCode, getLatestRemark } from "@/lib/recovery";
+import { RECOVERY_STAGES, needsRepair, getEffectiveRecoveryStage, getRecoveryRegion, zoneCode, getLatestRemark, formatRepairDate } from "@/lib/recovery";
 import { canLogMaintenance } from "@/lib/rbac";
 import type { RecoveryStage, StoreWithAssets } from "@/types/database";
 
@@ -46,7 +46,6 @@ export default function WorkOrderBatchDetailPage() {
       "Waiting Repair": 0,
       Repairing: 0,
       Completed: 0,
-      Verified: 0,
     };
     workOrderStores.forEach((s) => {
       const stage = getEffectiveRecoveryStage(s, tickets);
@@ -59,13 +58,13 @@ export default function WorkOrderBatchDetailPage() {
   // store(s) tracked in this job" subtitle. Kept separate from openCount
   // below since "tracked" and "still open" are different questions and
   // conflating them (as a single `openCount` used to) is what made the
-  // "Total Open" card read 50 while the list — which hides Completed/
-  // Verified by default — only ever showed the remaining ~29.
+  // "Total Open" card read 50 while the list — which hides Completed
+  // by default — only ever showed the remaining ~29.
   const totalCount = useMemo(() => RECOVERY_STAGES.reduce((sum, stage) => sum + stageCounts[stage], 0), [stageCounts]);
-  // Stores NOT yet Completed/Verified — what "Open" should actually mean,
+  // Stores NOT yet Completed — what "Open" should actually mean,
   // and what matches the list's own default (showDone unchecked) view.
   const openCount = useMemo(
-    () => RECOVERY_STAGES.filter((s) => s !== "Completed" && s !== "Verified").reduce((sum, stage) => sum + stageCounts[stage], 0),
+    () => RECOVERY_STAGES.filter((s) => s !== "Completed").reduce((sum, stage) => sum + stageCounts[stage], 0),
     [stageCounts]
   );
 
@@ -87,7 +86,7 @@ export default function WorkOrderBatchDetailPage() {
   const filtered = useMemo(() => {
     return workOrderStores.filter((s) => {
       const stage = getEffectiveRecoveryStage(s, tickets);
-      if (!showDone && (stage === "Completed" || stage === "Verified")) return false;
+      if (!showDone && stage === "Completed") return false;
       if (stageFilter && stage !== stageFilter) return false;
       if (q && !(s.store_name + s.store_code).toLowerCase().includes(q.toLowerCase())) return false;
       return true;
@@ -244,7 +243,7 @@ export default function WorkOrderBatchDetailPage() {
             value={stageCounts[stage]}
             onClick={() => {
               setStageFilter(stage);
-              setShowDone(stage === "Completed" || stage === "Verified");
+              setShowDone(stage === "Completed");
             }}
             active={stageFilter === stage}
           />
@@ -294,6 +293,9 @@ export default function WorkOrderBatchDetailPage() {
                     ) : null;
                   })()}
                 </div>
+                <span className="text-xs text-ink-soft dark:text-white/60 shrink-0 hidden sm:inline w-28" title="วันที่เข้าซ่อม">
+                  {s.repair_date ? `เข้าซ่อม ${formatRepairDate(s.repair_date)}` : "ยังไม่ระบุวันเข้าซ่อม"}
+                </span>
                 {days != null && <span className="text-xs text-ink-faint shrink-0 hidden sm:inline">{days} days</span>}
                 <StatusBadge status={s.overall_status} />
                 <RecoveryStageBadge stage={getEffectiveRecoveryStage(s, tickets)} />

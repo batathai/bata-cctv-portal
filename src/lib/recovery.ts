@@ -63,8 +63,41 @@ export const RECOVERY_STAGES: RecoveryStage[] = [
   "Waiting Repair",
   "Repairing",
   "Completed",
-  "Verified",
 ];
+
+/**
+ * "Verified" was a 6th work-order stage until 2026-11-09, when the team
+ * decided Completed is the last step (Verified was too much). Migration 026
+ * rewrites old rows, but until it has been run — and for any stale cached
+ * row — a stored "Verified" must still read as Completed rather than fall
+ * outside RECOVERY_STAGES. Every place that reads a stage from the database
+ * goes through this.
+ */
+export function normalizeRecoveryStage(stage: string | null | undefined): RecoveryStage | null {
+  if (!stage) return null;
+  if (stage === "Verified") return "Completed";
+  return stage as RecoveryStage;
+}
+
+/** "วันที่เข้าซ่อม" for display. `repair_date` is a date-only string (YYYY-MM-DD) — parsed as a local date so it can't slip a day. */
+export function formatRepairDate(date: string | null | undefined): string {
+  if (!date) return "—";
+  const [y, m, d] = date.slice(0, 10).split("-").map(Number);
+  if (!y || !m || !d) return "—";
+  return new Date(y, m - 1, d).toLocaleDateString("th-TH", { dateStyle: "medium" });
+}
+
+/**
+ * The repair date to show for a set of stores (one Job): the soonest date
+ * among stores still open, else the most recent one among finished stores,
+ * else null. Date-only strings compare correctly as plain strings.
+ */
+export function summarizeRepairDate(stores: { repair_date?: string | null; open: boolean }[]): string | null {
+  const open = stores.filter((s) => s.open && s.repair_date).map((s) => s.repair_date as string).sort();
+  if (open.length) return open[0];
+  const done = stores.filter((s) => s.repair_date).map((s) => s.repair_date as string).sort();
+  return done.length ? done[done.length - 1] : null;
+}
 
 /**
  * Rough playback-retention reference, at ~15 days per TB — the two known
@@ -114,14 +147,14 @@ export function getLatestQuotation(storeId: string, quotations: VendorQuotation[
  * requiring every store to be manually tagged.
  */
 export function deriveRecoveryStatus(store: StoreWithAssets): RecoveryStatus {
-  // Once a work order has been marked Completed/Verified, treat the store
-  // as fixed for display — `recovery_status` is set once when the issue is
-  // first opened/imported and nothing ever wrote it back to "Normal" on
+  // Once a work order has been marked Completed, treat the store as fixed
+  // for display — `recovery_status` is set once when the issue is first
+  // opened/imported and nothing ever wrote it back to "Normal" on
   // completion, so without this a store's badge kept showing its original
-  // failure type (e.g. "DVR Failure") forever after the repair was done and
-  // verified. needsRepair() below adds its own recovery_stage check so this
-  // doesn't drop finished stores out of the Work Orders list.
-  if (store.recovery_stage === "Completed" || store.recovery_stage === "Verified") return "Normal";
+  // failure type (e.g. "DVR Failure") forever after the repair was done.
+  // needsRepair() below adds its own recovery_stage check so this doesn't
+  // drop finished stores out of the Work Orders list.
+  if (store.recovery_stage === "Completed") return "Normal";
   if (store.recovery_status) return store.recovery_status;
   // A store with no asset record yet hasn't actually been surveyed/imported
   // in full — treat it as "not yet checked" rather than guessing it's
@@ -234,7 +267,7 @@ export function isHealthy(store: StoreWithAssets, tickets: IncidentTicket[]): bo
 
 // A store stays counted as "Need Repair" for as long as it has ever had a
 // work order opened (recovery_stage set) — even after deriveRecoveryStatus
-// reports "Normal" once Completed/Verified — so a finished repair keeps
+// reports "Normal" once Completed — so a finished repair keeps
 // showing up in the Work Orders list/counts instead of silently
 // disappearing the moment it's fixed. See deriveRecoveryStatus's comment.
 /**
@@ -252,7 +285,7 @@ export function needsRepair(store: StoreWithAssets, tickets: IncidentTicket[]): 
 
 export function isRepairCompleted(store: StoreWithAssets, tickets: IncidentTicket[]): boolean {
   if (!needsRepair(store, tickets)) return false;
-  if (store.recovery_stage === "Completed" || store.recovery_stage === "Verified") return true;
+  if (store.recovery_stage === "Completed") return true;
   // Every ticket for this store must be resolved, not just one of them —
   // e.g. Kalasin Plaza (53011) had "NVR Offline" Completed but "Camera
   // Failure" still Open, and recovery_stage was explicitly "Waiting
@@ -272,7 +305,7 @@ export function isRepairPending(store: StoreWithAssets, tickets: IncidentTicket[
 /**
  * The single stage bucket to count and display a work order under, on the
  * Work Orders page. A store's `recovery_stage` field only advances to
- * "Completed"/"Verified" if someone walks it through the Work Order stage
+ * "Completed" if someone walks it through the Work Order stage
  * timeline — but isRepairCompleted() above also treats a Completed/Closed
  * incident ticket as "done", since repairs are sometimes closed out via the
  * ticket instead. Code that bucketed stores by raw `recovery_stage` alone
@@ -283,7 +316,6 @@ export function isRepairPending(store: StoreWithAssets, tickets: IncidentTicket[
  * Routing every count through this one function is what keeps them in sync.
  */
 export function getEffectiveRecoveryStage(store: StoreWithAssets, tickets: IncidentTicket[]): RecoveryStage {
-  if (store.recovery_stage === "Verified") return "Verified";
   if (isRepairCompleted(store, tickets)) return "Completed";
   return store.recovery_stage ?? "Waiting Vendor Quote";
 }

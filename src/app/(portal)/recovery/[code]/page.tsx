@@ -54,7 +54,7 @@ export default function RecoveryStoreDetailPage() {
   }
 
   const status = deriveRecoveryStatus(store);
-  const stage = store.recovery_stage ?? (status === "Normal" ? "Verified" : "Waiting Vendor Quote");
+  const stage = store.recovery_stage ?? (status === "Normal" ? "Completed" : "Waiting Vendor Quote");
 
   return (
     <div className="space-y-4">

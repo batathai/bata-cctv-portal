@@ -2,7 +2,16 @@
 Feature: Device Offline Monitoring (iVMS reader)
 Phase: /test in progress (HQ script verified end-to-end on 2026-10-08)
 Design approved: yes — 2026-10-08 — DESIGN-device-offline-monitoring.md as written (iVMS reader, migration 022, 4-tab /status, Store Detail card, confirm Offline after 2 cycles, 10:00–22:00 default hours, R11 dropped from phase 1)
-Updated: 2026-10-20
+Updated: 2026-11-11
+
+## Changes 2026-11-11 — small requests, pushed straight to `main` (user)
+- Work Orders (repair): removed the "Open / ทั้งหมด" column
+- Installation: **R3 quotation gate removed** — cards leave "Quotation" freely (no screen exists to create/approve quotations). KPI tile 2 now counts stores in the Quotation stage
+- Device Status + Asset Register: **Top 20 / Top 50 badge** next to the store name (`priorityTierByStoreId()` in `src/lib/installation.ts`: Wave 1 = Top 20, Wave 2 = ranks 21–50; no exact rank stored). Asset Register also has a "Top" filter (`?tier=`). Device Status footnote legend removed
+- **Migration 027 `device_serial_history` — run by user 2026-11-11.** New "ประวัติการเปลี่ยน Serial" card on Asset Register › Detail (read-only; rows written by SQL)
+- Data (run by user in SQL Editor): `cctv_assets.camera_total = 3` for all 20 Wave 1 stores (`scripts/sql/2026-11-11-top20-camera-total-3.sql`; `camera_working`/`camera_failed` not changed) · 18 serial-history rows inserted from `backup_cctv_assets_serial_20261015` (`scripts/sql/2026-11-11-top20-serial-history.sql`), `changed_on` = D2
+- Open: 51438 Central Pinklao + 54021 Central Pattaya have no history row (serial unchanged on 15 Oct, still G836…) — check against a fresh Hik-Partner Pro export · Top 20 `nvr_model` / `nvr_install_date` still describe the old DVRs · badge has no exact rank (needs the ranked Top 50 list)
+- Checks: tsc 0 · lint clean on every change · not clicked through in a browser from this session
 
 ## Change 2026-10-20 — status source: iVMS → Hik-Partner Pro (ivms-monitor 2.0.0, user)
 - Why: see `claude/MOVE-ivms-to-hik-partner-pro.md` (project) + DESIGN §9. HPP export of 19 Oct: 122 devices, 16 Offline; portal (iVMS) showed 12, 5 of them stale since 14 Oct

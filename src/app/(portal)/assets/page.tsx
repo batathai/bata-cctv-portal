@@ -14,6 +14,8 @@ import { useMonitoring } from "@/components/providers/MonitoringProvider";
 import { RepairLink, repairReason, CAMERA_ISSUE_REMARK } from "@/components/status/RepairLink";
 import { displayStatus, minutesBetween, withCameraIssue } from "@/lib/monitoring";
 import { canLogMaintenance } from "@/lib/rbac";
+import { priorityTierByStoreId } from "@/lib/installation";
+import { PriorityBadge } from "@/components/ui/PriorityBadge";
 import { ZONES } from "@/lib/mockData";
 import { zoneCode, getAreaLabel, regionFromZone } from "@/lib/recovery";
 import type { StoreWithAssets } from "@/types/database";
@@ -52,7 +54,8 @@ function sortValue(s: StoreWithAssets, key: SortKey): string | number {
 // useSearchParams() below opts this page into client-side rendering, which
 // Next.js requires wrapping in Suspense — see default export at the bottom.
 function AssetRegisterContent() {
-  const { stores, loading, tickets, role } = useAppData();
+  const { stores, loading, tickets, role, installationProjects } = useAppData();
+  const tierByStore = useMemo(() => priorityTierByStoreId(installationProjects), [installationProjects]);
   const { monitorByStore, stale } = useMonitoring();
   const canEdit = canLogMaintenance(role);
   const router = useRouter();
@@ -180,6 +183,7 @@ function AssetRegisterContent() {
                   <span className="inline-flex items-center gap-2">
                     <DeviceDot store={s} />
                     {s.store_name}
+                    <PriorityBadge tier={tierByStore.get(s.id)} />
                   </span>
                 </td>
                 <td className="py-2 pr-3 text-ink-soft dark:text-white/60">{zoneCode(s.zone)}</td>

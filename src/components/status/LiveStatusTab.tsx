@@ -16,6 +16,7 @@ import {
 } from "@/lib/monitoring";
 import { canLogMaintenance } from "@/lib/rbac";
 import { priorityTierByStoreId } from "@/lib/installation";
+import { PriorityBadge } from "@/components/ui/PriorityBadge";
 import { RepairLink, repairReason, CAMERA_ISSUE_REMARK } from "@/components/status/RepairLink";
 import type { StoreWithAssets } from "@/types/database";
 
@@ -174,17 +175,7 @@ export function LiveStatusTab() {
                     <td className="px-2 py-2.5 min-w-0">
                       <div className="flex items-center gap-2 max-w-[280px]">
                         <span className="font-medium text-ink dark:text-white truncate">{r.store.store_name}</span>
-                        {tier && (
-                          <span
-                            title={tier === "Top 20" ? "สาขายอดขาย Top 20 — ดูด่วนก่อน" : "สาขายอดขาย Top 50 (อันดับ 21–50)"}
-                            className={clsx(
-                              "shrink-0 inline-flex items-center h-5 px-2 rounded-full text-[10px] font-bold whitespace-nowrap",
-                              tier === "Top 20" ? "bg-brand text-white" : "border border-brand text-brand"
-                            )}
-                          >
-                            {tier}
-                          </span>
-                        )}
+                        <PriorityBadge tier={tier} />
                       </div>
                       <div className="text-[11px] text-ink-faint truncate max-w-[280px]" title={sub}>
                         {sub}

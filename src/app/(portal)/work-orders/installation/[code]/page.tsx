@@ -10,7 +10,6 @@ import { canLogMaintenance } from "@/lib/rbac";
 import {
   INSTALLATION_STAGES,
   getStageLabel,
-  canAdvanceStage,
   nextStage as nextStageOf,
   stageIndex,
   VERIFY_CHECKLIST,
@@ -152,7 +151,7 @@ function BackButton({ onClick }: { onClick: () => void }) {
 
 function InstallationStepper({ canEdit }: { canEdit: boolean }) {
   const { code } = useParams<{ code: string }>();
-  const { stores, installationProjects, vendorQuotations, advanceInstallationStage } = useAppData();
+  const { stores, installationProjects, advanceInstallationStage } = useAppData();
   const store = stores.find((s) => s.store_code === code)!;
   const project = installationProjects.find((p) => p.store_id === store.id)!;
   const [saving, setSaving] = useState(false);
@@ -161,7 +160,6 @@ function InstallationStepper({ canEdit }: { canEdit: boolean }) {
   const currentIdx = stageIndex(project.current_stage);
   const next = nextStageOf(project.current_stage);
   const prev = currentIdx > 0 ? INSTALLATION_STAGES[currentIdx - 1] : undefined;
-  const canGoNext = next ? canAdvanceStage(project, vendorQuotations) : false;
   const inPostCompletionWindow = withinPostCompletionWindow(project);
 
   async function move(toStage: InstallationStage) {
@@ -220,8 +218,7 @@ function InstallationStepper({ canEdit }: { canEdit: boolean }) {
           {next && (
             <button
               onClick={() => move(next)}
-              disabled={saving || !canGoNext}
-              title={!canGoNext ? "ต้องผูกใบเสนอราคาที่ Approved ก่อน" : undefined}
+              disabled={saving}
               className="flex items-center gap-1.5 text-xs font-medium bg-brand text-white rounded-md px-3 py-1.5 disabled:opacity-60"
             >
               {saving && <Loader2 size={12} className="animate-spin" />} ไปขั้น &quot;{getStageLabel(next)}&quot;
@@ -259,9 +256,9 @@ function QuotationLinkCard({ canEdit }: { canEdit: boolean }) {
 
   return (
     <Card className="p-5">
-      <SectionTitle icon={FileText}>ใบเสนอราคา / อนุมัติงบ (R3)</SectionTitle>
+      <SectionTitle icon={FileText}>ใบเสนอราคา / อนุมัติงบ</SectionTitle>
       {approved.length === 0 ? (
-        <p className="text-sm text-ink-faint">ยังไม่มีใบเสนอราคาที่ Approved สำหรับสาขานี้ — เพิ่ม/อนุมัติได้จากหน้า Vendor Quotation เดิม</p>
+        <p className="text-sm text-ink-faint">ยังไม่มีใบเสนอราคาที่ Approved ในระบบสำหรับสาขานี้ — ไม่บังคับ ย้ายไปขั้นถัดไปได้เลย</p>
       ) : (
         <div className="space-y-2">
           <p className="text-xs text-ink-faint">เลือกใบเสนอราคาที่ Approved แล้วเพื่อผูกกับโปรเจกต์นี้ และย้ายไปขั้น &quot;ขออนุญาตห้าง&quot;</p>

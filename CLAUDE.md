@@ -65,8 +65,9 @@ docs/workflow/                  PLAN / DESIGN / STATUS ของฟีเจอ�
    - ขั้นตอน 6 ขั้น: Quotation → Permit → Scheduled → Installing → Verify → Completed
      (ตัด Floor Plan/Layout ออกถาวรตั้งแต่ migration 021)
    - `d1_date` = วันนัดติดตั้ง, `d2_date` = วันติดตั้งจริง
-   - การผ่านขั้น Quotation ต้องผูก `approved_quotation_id` ไว้ชัดเจน เพราะตาราง `vendor_quotations`
-     ใช้ร่วมกับงานซ่อม จึงห้ามเดาจาก "มีใบเสนอราคา Approved อยู่แล้ว"
+   - การผ่านขั้น Quotation **ไม่บังคับ**ใบเสนอราคาแล้ว (ยกเลิกกฎ R3 เมื่อ 2026-11-11 เพราะระบบไม่มี
+     หน้าจอเพิ่ม/อนุมัติใบเสนอราคา) การผูก `approved_quotation_id` เป็นทางเลือก และถ้าผูกต้องให้ผู้ใช้เลือกเอง
+     เพราะตาราง `vendor_quotations` ใช้ร่วมกับงานซ่อม ห้ามเดาจาก "มีใบเสนอราคา Approved อยู่แล้ว"
    - Wave เก็บเป็นคอลัมน์ข้อความ `wave` ไม่ได้ผูก FK กับ `stores.batch_id` ซึ่งเป็นของงานซ่อม
 5. **รหัสเขต**: BKK = 511/512/513/550, UPC = 520/530/540/560 ให้ใช้ฟังก์ชันใน `src/lib/recovery.ts`
    อย่าเขียน mapping ซ้ำในที่อื่น

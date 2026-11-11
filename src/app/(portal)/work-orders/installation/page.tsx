@@ -2,13 +2,13 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { KanbanSquare, FileDown, FileText, AlertCircle } from "lucide-react";
+import { KanbanSquare, FileDown, FileText } from "lucide-react";
 import { useAppData } from "@/components/providers/AppDataProvider";
 import { Card, SectionTitle } from "@/components/ui/Card";
 import { WorkOrdersTabs } from "@/components/work-orders/WorkOrdersTabs";
 import { canLogMaintenance } from "@/lib/rbac";
 import { regionFromZone, getAreaLabel } from "@/lib/recovery";
-import { INSTALLATION_STAGES, getStageLabel, canAdvanceStage, verifiedCount, VERIFY_CHECKLIST_TOTAL } from "@/lib/installation";
+import { INSTALLATION_STAGES, getStageLabel, verifiedCount, VERIFY_CHECKLIST_TOTAL } from "@/lib/installation";
 import type { InstallationProject, InstallationStage } from "@/types/database";
 import { exportInstallationExcel } from "@/lib/reports/exportInstallationExcel";
 import { exportInstallationExecSummaryPdf } from "@/lib/reports/exportInstallationPdf";
@@ -26,9 +26,8 @@ function cardTitle(code: string, name: string, area: string, d1: string | null, 
 /**
  * Installation Project — Kanban board. 8 stages, one column each, cards
  * move between columns via native HTML5 drag & drop (mirrors the approved
- * Canvas mockup's board). Blocked moves (e.g. leaving "Quotation" without
- * an approved, linked quotation — R3) show an inline message instead of
- * silently allowing the drop.
+ * Canvas mockup's board). Moves are not gated: the R3
+ * quotation requirement was removed 2026-11-11 (see src/lib/installation.ts).
  */
 export default function InstallationBoardPage() {
   const { stores, installationProjects, vendorQuotations, advanceInstallationStage, loading, role } = useAppData();
@@ -37,7 +36,6 @@ export default function InstallationBoardPage() {
   const [wave, setWave] = useState("");
   const [region, setRegion] = useState("");
   const [zone, setZone] = useState("");
-  const [blockedMsg, setBlockedMsg] = useState<string | null>(null);
   const [dragProjectId, setDragProjectId] = useState<string | null>(null);
 
   const storeById = useMemo(() => new Map(stores.map((s) => [s.id, s])), [stores]);
@@ -66,21 +64,12 @@ export default function InstallationBoardPage() {
     const total = filtered.length;
     const completed = filtered.filter((p) => p.current_stage === "Completed").length;
     const inProgress = total - completed;
-    const blockedOnQuote = filtered.filter((p) => p.current_stage === "Quotation" && !canAdvanceStage(p, vendorQuotations)).length;
-    return { total, completed, inProgress, blockedOnQuote };
-  }, [filtered, vendorQuotations]);
+    const inQuotation = filtered.filter((p) => p.current_stage === "Quotation").length;
+    return { total, completed, inProgress, inQuotation };
+  }, [filtered]);
 
   async function handleDrop(project: InstallationProject, toStage: InstallationStage) {
-    setBlockedMsg(null);
     if (toStage === project.current_stage) return;
-    const toIdx = INSTALLATION_STAGES.indexOf(toStage);
-    const fromIdx = INSTALLATION_STAGES.indexOf(project.current_stage);
-    // Only allow moving one step forward or any step back (Kanban card drags
-    // are usually forward; backward correction should always be possible).
-    if (toIdx === fromIdx + 1 && !canAdvanceStage(project, vendorQuotations)) {
-      setBlockedMsg(`ย้ายไม่ได้: ต้องมีใบเสนอราคาที่ Approved และผูกกับโปรเจกต์นี้ก่อน (R3) — สาขา ${storeById.get(project.store_id)?.store_code ?? ""}`);
-      return;
-    }
     const extra: Record<string, unknown> = {};
     if (toStage === "Permit") extra.permit_submitted_at = new Date().toISOString().slice(0, 10);
     if (toStage === "Scheduled" && !project.d1_date) extra.d1_date = new Date().toISOString().slice(0, 10);
@@ -120,12 +109,6 @@ export default function InstallationBoardPage() {
         </div>
       </div>
 
-      {blockedMsg && (
-        <div className="flex items-start gap-2 text-xs text-brand bg-brand-50 dark:bg-brand/10 border border-brand/20 rounded-md px-3 py-2">
-          <AlertCircle size={14} className="shrink-0 mt-0.5" /> {blockedMsg}
-        </div>
-      )}
-
       {/* KPIs and filters share one compact row on laptop screens, so the
           whole board fits on one projector-sized page. Order follows the
           pipeline: waiting on quotation first, then in progress, then done. */}
@@ -134,7 +117,7 @@ export default function InstallationBoardPage() {
             they don't bunch up on the left; filters sit on the right. */}
         <div className="flex-1 min-w-[300px] grid grid-cols-2 sm:grid-cols-4 gap-y-3">
           <Kpi label="Total" value={kpi.total} />
-          <Kpi label="รอใบเสนอราคา Approved" value={kpi.blockedOnQuote} warn />
+          <Kpi label="ขอใบเสนอราคา/อนุมัติงบ" value={kpi.inQuotation} warn />
           <Kpi label="In Progress" value={kpi.inProgress} />
           <Kpi label="Completed" value={kpi.completed} accent />
         </div>

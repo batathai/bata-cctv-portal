@@ -1,4 +1,4 @@
-import type { InstallationProject, InstallationStage, VendorQuotation } from "@/types/database";
+import type { InstallationProject, InstallationStage } from "@/types/database";
 
 /**
  * Installation Project: helpers for the 6-stage install pipeline.
@@ -86,25 +86,10 @@ export function isChecklistComplete(checked: string[]): boolean {
  */
 export const POST_COMPLETION_KEYS = ["C1", "C2"];
 
-/**
- * R3: the card can move out of "Quotation" only once this project has an
- * explicitly-linked, Approved vendor_quotations row. Deliberately checked
- * via `approved_quotation_id` (a value the user picks) rather than "does
- * any Approved quotation exist for this store_id" — a store can also have
- * unrelated quotations from the Recovery/repair flow in the same shared
- * table, and those must never be mistaken for installation budget approval.
- */
-export function canAdvancePastQuotation(project: InstallationProject, quotations: VendorQuotation[]): boolean {
-  if (!project.approved_quotation_id) return false;
-  const q = quotations.find((v) => v.id === project.approved_quotation_id);
-  return q?.approval_status === "Approved" && q.store_id === project.store_id;
-}
-
-/** Whether hq_admin can drag/advance this project past its current stage right now. */
-export function canAdvanceStage(project: InstallationProject, quotations: VendorQuotation[]): boolean {
-  if (project.current_stage === "Quotation") return canAdvancePastQuotation(project, quotations);
-  return true;
-}
+// The R3 gate (a linked, Approved quotation required to leave "Quotation")
+// was removed 2026-11-11 at the owner's request: the portal has no screen to
+// create or approve quotations, so the gate blocked every store. Linking a
+// quotation via `approved_quotation_id` is now optional.
 
 export function nextStage(stage: InstallationStage): InstallationStage | null {
   const idx = INSTALLATION_STAGES.indexOf(stage);

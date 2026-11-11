@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Camera, Pencil, Ticket as TicketIcon, Fingerprint } from "lucide-react";
+import { ArrowLeft, Camera, Pencil, Ticket as TicketIcon, Fingerprint, History } from "lucide-react";
 import { useAppData } from "@/components/providers/AppDataProvider";
 import { Card, SectionTitle } from "@/components/ui/Card";
 import { EditableStatusBadge } from "@/components/ui/EditableStatusBadge";
 import { EditAssetModal } from "@/components/assets/EditAssetModal";
 import { TicketsCard } from "@/components/assets/TicketsCard";
 import { DeviceIdentityCard } from "@/components/assets/DeviceIdentityCard";
+import { SerialHistoryCard } from "@/components/assets/SerialHistoryCard";
 import { DeviceDot } from "@/components/status/DeviceDot";
 import Link from "next/link";
 import { getAreaLabel, getRecoveryRegion } from "@/lib/recovery";
@@ -93,6 +94,11 @@ export default function StoreDetailPage() {
       <Card className="p-5">
         <SectionTitle icon={Fingerprint}>Device Identity</SectionTitle>
         <DeviceIdentityCard store={store} canEdit={canEditMaster} />
+      </Card>
+
+      <Card className="p-5">
+        <SectionTitle icon={History}>ประวัติการเปลี่ยน Serial</SectionTitle>
+        <SerialHistoryCard store={store} />
       </Card>
 
       <Card className="p-5">

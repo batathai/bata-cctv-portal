@@ -2,7 +2,7 @@ import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { generateMockData, generateMockMonitoring } from "@/lib/mockData";
 import { DEFAULT_MONITOR_SETTINGS } from "@/lib/monitoring";
 import { normalizeRecoveryStage } from "@/lib/recovery";
-import type { StoreWithAssets, MaintenanceRecord, AuditRecord, VendorQuotation, IncidentTicket, Attachment, RecoveryStageHistoryEntry, WorkOrderBatch, StoreMonitor, MonitorRun, MonitorSettings, DeviceOutage, InstallationProject, InstallationStageHistoryEntry } from "@/types/database";
+import type { StoreWithAssets, MaintenanceRecord, AuditRecord, VendorQuotation, IncidentTicket, Attachment, RecoveryStageHistoryEntry, WorkOrderBatch, StoreMonitor, MonitorRun, MonitorSettings, DeviceOutage, InstallationProject, InstallationStageHistoryEntry, DeviceSerialChange } from "@/types/database";
 
 /**
  * Data access layer. Tries Supabase first; if the project has not been
@@ -264,6 +264,29 @@ export async function fetchOutages(opts: { from?: Date; to?: Date; storeId?: str
     if (!data || data.length < pageSize || (opts.limit && out.length >= opts.limit)) break;
   }
   return { outages: out, error: null };
+}
+
+/**
+ * Serial change history for one store, newest first (migration 027). Returns
+ * an empty list in demo mode and when the table isn't there yet, so the
+ * Detail page simply shows "no history" instead of failing.
+ */
+export async function fetchSerialHistory(storeId: string): Promise<DeviceSerialChange[]> {
+  if (!isSupabaseConfigured) return [];
+
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("device_serial_history")
+    .select("*")
+    .eq("store_id", storeId)
+    .order("changed_on", { ascending: false })
+    .order("created_at", { ascending: false });
+
+  if (error || !data) {
+    console.error("fetchSerialHistory failed:", error?.message);
+    return [];
+  }
+  return data as DeviceSerialChange[];
 }
 
 /** Installation Project: 1 row per store being installed. */

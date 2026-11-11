@@ -447,3 +447,15 @@ export interface Database {
     };
   };
 }
+
+/** Migration 027: one row per DVR serial change at a store (old -> new). */
+export interface DeviceSerialChange {
+  id: string;
+  store_id: string;
+  old_serial: string | null;
+  new_serial: string;
+  changed_on: string;
+  source: string;
+  note: string | null;
+  created_at: string;
+}

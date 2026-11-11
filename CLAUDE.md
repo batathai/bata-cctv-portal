@@ -46,7 +46,7 @@ src/components/providers/AppDataProvider.tsx   state กลาง + action ท�
 src/components/providers/MonitoringProvider.tsx  สถานะ DVR (poll ทุก 60 วิ) แยกจาก AppDataProvider
 src/lib/monitoring.ts           กติกาสถานะ DVR ที่ทุกหน้าใช้ร่วมกัน (buildLiveRows, countLiveStatuses)
 tools/ivms-monitor/             สคริปต์ Python บนคอม HQ อ่านหน้าจอ iVMS-4200 แล้วเขียนขึ้น Supabase
-supabase/migrations/            migration เรียงเลข (ล่าสุด 024 — งานถัดไปใช้ 025)
+supabase/migrations/            migration เรียงเลข (ล่าสุด 027 — งานถัดไปใช้ 028)
 scripts/                        สคริปต์จัดการข้อมูลจริง (Node .mjs)
 docs/workflow/                  PLAN / DESIGN / STATUS ของฟีเจอร์ที่กำลังทำ
 ```

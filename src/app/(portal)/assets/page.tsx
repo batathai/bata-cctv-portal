@@ -68,11 +68,13 @@ function AssetRegisterContent() {
   // re-mounts this page fresh. Mirrors the same fix on the Dashboard page.
   const regionFilter = searchParams.get("region") ?? "";
   const zoneFilter = searchParams.get("zone") ?? "";
+  // "Top 20" / "Top 50" — matches the badge next to the store name.
+  const tierFilter = searchParams.get("tier") ?? "";
   const [q, setQ] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("store_code");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
-  function setFilters(next: { region?: string; zone?: string }) {
+  function setFilters(next: { region?: string; zone?: string; tier?: string }) {
     const params = new URLSearchParams(searchParams.toString());
     const nextRegion = next.region ?? regionFilter;
     const nextZone = next.zone ?? zoneFilter;
@@ -80,6 +82,9 @@ function AssetRegisterContent() {
     else params.delete("region");
     if (nextZone) params.set("zone", nextZone);
     else params.delete("zone");
+    const nextTier = next.tier ?? tierFilter;
+    if (nextTier) params.set("tier", nextTier);
+    else params.delete("tier");
     const qs = params.toString();
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
   }
@@ -92,6 +97,7 @@ function AssetRegisterContent() {
   const filtered = stores
     .filter((s) => !regionFilter || regionFromZone(s.zone) === regionFilter)
     .filter((s) => !zoneFilter || zoneCode(s.zone) === zoneFilter)
+    .filter((s) => !tierFilter || tierByStore.get(s.id) === tierFilter)
     .filter((s) =>
       (s.store_name + s.store_code + (s.province ?? "") + zoneCode(s.zone) + getAreaLabel(s.zone)).toLowerCase().includes(q.toLowerCase())
     );
@@ -134,6 +140,7 @@ function AssetRegisterContent() {
         <div className="flex flex-wrap items-center gap-2">
           <Select value={regionFilter} onChange={onRegionChange} options={["Bangkok", "Upcountry"]} placeholder="Region" />
           <Select value={zoneFilter} onChange={(v) => setFilters({ zone: v })} options={zoneOptions.map((z) => z.code)} placeholder="Zone" />
+          <Select value={tierFilter} onChange={(v) => setFilters({ tier: v })} options={["Top 20", "Top 50"]} placeholder="Top" />
           <div className="relative">
             <Search size={13} className="absolute left-2.5 top-2.5 text-ink-faint" />
             <input

@@ -91,6 +91,23 @@ export const POST_COMPLETION_KEYS = ["C1", "C2"];
 // create or approve quotations, so the gate blocked every store. Linking a
 // quotation via `approved_quotation_id` is now optional.
 
+export type PriorityTier = "Top 20" | "Top 50";
+
+/**
+ * Sales-rank priority of a store, shown on Device Status so an Offline row
+ * can be triaged at a glance. Derived from the installation wave, which was
+ * built from the Store Rank list: Wave 1 = the Top 20 stores, Wave 2 = ranks
+ * 21-50. No exact rank number is stored anywhere yet.
+ */
+export function priorityTierByStoreId(projects: InstallationProject[]): Map<string, PriorityTier> {
+  const m = new Map<string, PriorityTier>();
+  projects.forEach((p) => {
+    if (p.wave === "Wave 1") m.set(p.store_id, "Top 20");
+    else if (p.wave === "Wave 2") m.set(p.store_id, "Top 50");
+  });
+  return m;
+}
+
 export function nextStage(stage: InstallationStage): InstallationStage | null {
   const idx = INSTALLATION_STAGES.indexOf(stage);
   if (idx === -1 || idx === INSTALLATION_STAGES.length - 1) return null;

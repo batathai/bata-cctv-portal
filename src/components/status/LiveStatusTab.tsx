@@ -15,6 +15,7 @@ import {
   type LiveStatusFilter as StatusFilter, type RegionKey, type LiveRow,
 } from "@/lib/monitoring";
 import { canLogMaintenance } from "@/lib/rbac";
+import { priorityTierByStoreId } from "@/lib/installation";
 import { RepairLink, repairReason, CAMERA_ISSUE_REMARK } from "@/components/status/RepairLink";
 import type { StoreWithAssets } from "@/types/database";
 
@@ -27,7 +28,7 @@ const iconBtn =
 
 /** Tab 1 of /status: live Online/Offline per store from the iVMS monitor (R7). */
 export function LiveStatusTab() {
-  const { stores, role, tickets } = useAppData();
+  const { stores, role, tickets, installationProjects } = useAppData();
   const { monitors, settings, stale, unmuteStore } = useMonitoring();
   const [region, setRegion] = useState<"" | RegionKey>("");
   const [zone, setZone] = useState("");
@@ -38,6 +39,8 @@ export function LiveStatusTab() {
   const canEdit = canLogMaintenance(role);
 
   const rows = useMemo(() => buildLiveRows(stores, monitors, settings, stale), [stores, monitors, settings, stale]);
+
+  const tierByStore = useMemo(() => priorityTierByStoreId(installationProjects), [installationProjects]);
 
   // KPI cards follow the region / zone chosen below (user request 2026-10-11):
   // picking BKK shows only BKK numbers. Search text and the status card itself
@@ -164,11 +167,25 @@ export function LiveStatusTab() {
                   : r.status === "CameraIssue"
                   ? CAMERA_ISSUE_REMARK
                   : `กล้อง: ${getStatusLabel(r.store.overall_status)}`;
+                const tier = tierByStore.get(r.store.id);
                 return (
                   <tr key={r.store.id} className="hover:bg-surface-muted/50 dark:hover:bg-white/[0.02]">
                     <td className="px-4 py-2.5 font-mono text-xs text-ink-soft dark:text-white/60">{r.store.store_code}</td>
                     <td className="px-2 py-2.5 min-w-0">
-                      <div className="font-medium text-ink dark:text-white truncate max-w-[280px]">{r.store.store_name}</div>
+                      <div className="flex items-center gap-2 max-w-[280px]">
+                        <span className="font-medium text-ink dark:text-white truncate">{r.store.store_name}</span>
+                        {tier && (
+                          <span
+                            title={tier === "Top 20" ? "สาขายอดขาย Top 20 — ดูด่วนก่อน" : "สาขายอดขาย Top 50 (อันดับ 21–50)"}
+                            className={clsx(
+                              "shrink-0 inline-flex items-center h-5 px-2 rounded-full text-[10px] font-bold whitespace-nowrap",
+                              tier === "Top 20" ? "bg-brand text-white" : "border border-brand text-brand"
+                            )}
+                          >
+                            {tier}
+                          </span>
+                        )}
+                      </div>
                       <div className="text-[11px] text-ink-faint truncate max-w-[280px]" title={sub}>
                         {sub}
                       </div>

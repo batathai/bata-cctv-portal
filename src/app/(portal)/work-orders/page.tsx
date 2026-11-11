@@ -46,7 +46,7 @@ const STAGE_DOT: Record<RecoveryStage, string> = {
 const STALE_DAYS = 14;
 
 const GRID =
-  "grid grid-cols-[minmax(220px,1.6fr)_80px_190px_100px_110px_84px_minmax(160px,1.2fr)_20px] gap-x-3 items-center px-4";
+  "grid grid-cols-[minmax(220px,1.6fr)_80px_190px_100px_110px_minmax(160px,1.2fr)_20px] gap-x-3 items-center px-4";
 
 type SortKey = "age" | "name";
 
@@ -228,14 +228,13 @@ export default function WorkOrdersBatchListPage() {
       </div>
 
       <Card className="overflow-x-auto">
-        <div className="min-w-[1070px]">
+        <div className="min-w-[975px]">
           <div className={clsx(GRID, "h-9 bg-surface-muted dark:bg-white/5 border-b border-black/5 dark:border-white/10 text-xs font-semibold text-ink-faint")}>
             <div>Job</div>
             <div>เขต</div>
             <div>ขั้นตอน (Stage)</div>
             <div>เปิดมาแล้ว</div>
             <div>วันที่เข้าซ่อม</div>
-            <div>Open / ทั้งหมด</div>
             <div>หมายเหตุ</div>
             <div />
           </div>
@@ -312,9 +311,6 @@ function JobTableRow({ job }: { job: JobRow }) {
         {closed && batch.closed_at ? `ปิด ${new Date(batch.closed_at).toLocaleDateString("th-TH", { dateStyle: "medium" })}` : `${ageDays} วัน`}
       </div>
       <div className="text-xs text-ink-soft dark:text-white/60 truncate">{formatRepairDate(repairDate)}</div>
-      <div className="text-ink-soft dark:text-white/60">
-        <span className="font-bold text-ink dark:text-white">{open}</span> / {total}
-      </div>
       <div className="truncate text-xs text-ink-soft dark:text-white/60" title={remark ?? undefined}>
         {remark ?? "—"}
       </div>

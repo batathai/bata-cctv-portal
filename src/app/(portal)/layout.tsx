@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import { ShieldAlert } from "lucide-react";
 import { AppDataProvider, useAppData } from "@/components/providers/AppDataProvider";
 import { MonitoringProvider } from "@/components/providers/MonitoringProvider";
@@ -47,15 +48,25 @@ function PortalShell({ children, onMenuClick }: { children: React.ReactNode; onM
 
 export default function PortalLayout({ children }: { children: React.ReactNode }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  // The Dashboard banner runs edge to edge up behind the top bar (owner mock-up,
+  // 2026-11-12). There the bar floats over the picture, see-through until the
+  // page is scrolled, then turns white again.
+  const pathname = usePathname();
+  const heroPage = pathname === "/dashboard";
+  const mainRef = useRef<HTMLElement>(null);
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    setScrolled((mainRef.current?.scrollTop ?? 0) > 8);
+  }, [pathname]);
 
   return (
     <AppDataProvider>
       <MonitoringProvider>
       <div className="flex h-screen overflow-hidden bg-surface-muted dark:bg-surface-dark">
         <Sidebar mobileOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
-        <div className="flex-1 flex flex-col min-w-0">
-          <TopBar onMenuClick={() => setMobileNavOpen(true)} />
-          <main className="flex-1 overflow-y-auto p-4 lg:p-6">
+        <div className="relative flex-1 flex flex-col min-w-0">
+          <TopBar onMenuClick={() => setMobileNavOpen(true)} floating={heroPage} transparent={heroPage && !scrolled} />
+          <main ref={mainRef} onScroll={(e) => setScrolled(e.currentTarget.scrollTop > 8)} className="flex-1 overflow-y-auto p-4 lg:p-6">
             <PortalShell onMenuClick={() => setMobileNavOpen(true)}>{children}</PortalShell>
           </main>
         </div>

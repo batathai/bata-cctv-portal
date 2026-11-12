@@ -6,7 +6,8 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from "recharts";
-import { Activity, MapPin, ListChecks, Search, FileText, Radio } from "lucide-react";
+import { Activity, MapPin, ListChecks, Search, FileText, Radio, Store, Check, AlertTriangle, X, HelpCircle, Wrench } from "lucide-react";
+import { DashboardHero } from "@/components/dashboard/DashboardHero";
 import { useAppData } from "@/components/providers/AppDataProvider";
 import { Card, SectionTitle } from "@/components/ui/Card";
 import { StatCard } from "@/components/ui/StatCard";
@@ -161,28 +162,36 @@ function DashboardContent() {
 
   return (
     <div className="space-y-5">
+      <DashboardHero />
+
       <div className="flex flex-wrap gap-3">
         <StatCard
           label="Stores Total"
           value={counts.total}
+          icon={Store}
+          iconClass="bg-brand-50 text-brand dark:bg-brand/15"
           hint="ทุกสาขาในระบบ"
           onClick={() => setBucket("all")}
           active={bucket === "all"}
         />
-        <StatCard label="Online" value={counts.Online} colorClass="text-status-healthy" onClick={() => setBucket("Online")} active={bucket === "Online"} />
+        <StatCard label="Online" value={counts.Online} colorClass="text-status-healthy" icon={Check} iconClass="bg-status-healthy text-white" onClick={() => setBucket("Online")} active={bucket === "Online"} />
         <StatCard
           label="Partial"
           value={counts.CameraIssue}
           colorClass="text-[#8A5A00] dark:text-status-partial"
+          icon={AlertTriangle}
+          iconClass="bg-status-partial text-white"
           hint="DVR Online แต่ดูกล้องไม่ได้"
           onClick={() => setBucket("CameraIssue")}
           active={bucket === "CameraIssue"}
         />
-        <StatCard label="Offline" value={counts.Offline} colorClass="text-status-offline" onClick={() => setBucket("Offline")} active={bucket === "Offline"} />
+        <StatCard label="Offline" value={counts.Offline} colorClass="text-status-offline" icon={X} iconClass="bg-status-offline text-white" onClick={() => setBucket("Offline")} active={bucket === "Offline"} />
         <StatCard
           label="Not monitored"
           value={counts.NotMonitored}
           colorClass="text-ink dark:text-white"
+          icon={HelpCircle}
+          iconClass="bg-[#9A9A9A] text-white"
           hint="ยังไม่เคย sync เจอใน iVMS"
           onClick={() => setBucket("NotMonitored")}
           active={bucket === "NotMonitored"}
@@ -191,6 +200,8 @@ function DashboardContent() {
           label="Repair"
           value={counts.repair > 0 ? counts.repair : "–"}
           colorClass={counts.repair > 0 ? "text-brand" : "text-ink-faint"}
+          icon={Wrench}
+          iconClass="bg-brand-50 text-brand dark:bg-brand/15"
           hint={counts.repair > 0 ? "ใบงานที่ยังไม่ปิด" : "ยังไม่มีงานซ่อมที่เปิดอยู่"}
           onClick={() => setBucket("repair")}
           active={bucket === "repair"}
@@ -200,16 +211,22 @@ function DashboardContent() {
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
         <Card className="p-4">
           <SectionTitle icon={Activity}>DVR Status</SectionTitle>
-          <ResponsiveContainer width="100%" height={190}>
-            <PieChart>
-              <Pie data={donut} dataKey="value" nameKey="name" innerRadius={45} outerRadius={72} paddingAngle={3}>
-                {donut.map((d) => (
-                  <Cell key={d.name} fill={STATUS_COLORS[d.name]} stroke="none" />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
+          <div className="relative">
+            <ResponsiveContainer width="100%" height={190}>
+              <PieChart>
+                <Pie data={donut} dataKey="value" nameKey="name" innerRadius={52} outerRadius={78} paddingAngle={3}>
+                  {donut.map((d) => (
+                    <Cell key={d.name} fill={STATUS_COLORS[d.name]} stroke="none" />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+              <span className="font-display text-2xl font-bold leading-none text-ink dark:text-white">{counts.total}</span>
+              <span className="text-xs text-ink-soft dark:text-white/60">Stores</span>
+            </div>
+          </div>
           <div className="flex justify-center gap-3 flex-wrap mt-1 text-xs text-ink-soft dark:text-white/60">
             {donut.map((d) => (
               <div key={d.name} className="flex items-center gap-1.5">

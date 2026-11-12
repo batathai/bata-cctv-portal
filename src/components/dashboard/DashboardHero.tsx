@@ -7,20 +7,28 @@
  * the bottom is left clear so the KPI cards can overlap it. A left-to-right
  * fade keeps the title readable in light and dark mode.
  */
+// Wide screens: the whole picture (city + Bata store + camera) is shown at its
+// natural proportions, pinned right, and its left edge melts into the page.
+const maskLeft = {
+  maskImage: "linear-gradient(to right, transparent 0%, black 38%)",
+  WebkitMaskImage: "linear-gradient(to right, transparent 0%, black 38%)",
+} as const;
+
 export function DashboardHero() {
   return (
-    <section className="relative overflow-hidden -mx-4 -mt-4 lg:-mx-6 lg:-mt-6 bg-white dark:bg-[#161616] min-h-[210px] sm:min-h-[320px]">
+    <section className="relative overflow-hidden -mx-4 -mt-4 lg:-mx-6 lg:-mt-6 bg-white dark:bg-[#161616] min-h-[210px] sm:min-h-[360px]">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src="/dashboard-hero.webp"
         alt=""
         aria-hidden="true"
-        className="absolute inset-0 h-full w-full object-cover object-[right_30%] dark:opacity-70"
+        className="absolute top-0 right-0 h-full w-full object-cover object-[right_30%] sm:w-auto sm:max-w-none sm:object-contain dark:opacity-80"
+        style={maskLeft}
       />
       {/* Phones: even wash over the whole picture. Wider screens: solid behind the title, clear over the picture. */}
       <div className="absolute inset-0 bg-white/75 sm:bg-transparent sm:bg-[linear-gradient(to_right,rgba(255,255,255,0.97)_0%,rgba(255,255,255,0.9)_30%,rgba(255,255,255,0)_62%)] dark:bg-[#161616]/80 sm:dark:bg-transparent sm:dark:bg-[linear-gradient(to_right,rgba(22,22,22,0.97)_0%,rgba(22,22,22,0.9)_30%,rgba(22,22,22,0.2)_62%)]" />
       {/* Bottom of the picture melts into the page colour, so there is no hard edge behind the KPI cards. */}
-      <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-surface-muted via-surface-muted/70 to-transparent dark:from-surface-dark dark:via-surface-dark/90" />
+      <div className="absolute inset-x-0 bottom-0 h-20 sm:h-20 bg-gradient-to-t from-surface-muted via-surface-muted/70 to-transparent dark:from-surface-dark dark:via-surface-dark/90" />
       <div className="relative px-5 pt-20 pb-28 sm:px-8 sm:pt-24 sm:pb-28">
         <h1 className="font-display text-3xl sm:text-5xl font-extrabold tracking-tight text-ink dark:text-white">BATA CCTV</h1>
         <p className="mt-2 text-sm sm:text-base font-semibold text-brand dark:text-[#FF7A80]">Smart Surveillance. Connected Stores. Secure Operations.</p>

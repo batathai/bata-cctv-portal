@@ -1,6 +1,6 @@
 /**
  * Banner at the top of the Dashboard. The picture is a static illustration
- * (public/dashboard-hero.jpg, supplied by the owner 2026-11-12) — decorative
+ * (public/dashboard-hero.webp, supplied by the owner 2026-11-12) — decorative
  * only, not live data; the live numbers are the cards right below it. A
  * left-to-right fade keeps the title readable in light and dark mode.
  */
@@ -9,7 +9,7 @@ export function DashboardHero() {
     <section className="relative overflow-hidden rounded-xl border border-black/5 dark:border-white/10 bg-white dark:bg-[#161616] min-h-[150px] sm:min-h-[260px]">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src="/dashboard-hero.jpg"
+        src="/dashboard-hero.webp"
         alt=""
         aria-hidden="true"
         className="absolute inset-0 h-full w-full object-cover object-[right_30%] dark:opacity-70"

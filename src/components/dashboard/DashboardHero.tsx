@@ -1,12 +1,15 @@
 /**
  * Banner at the top of the Dashboard. The picture is a static illustration
  * (public/dashboard-hero.webp, supplied by the owner 2026-11-12) — decorative
- * only, not live data; the live numbers are the cards right below it. A
- * left-to-right fade keeps the title readable in light and dark mode.
+ * only, not live data; the live numbers are the cards right below it. It
+ * cancels the page padding (negative margins) so it runs edge to edge up to
+ * the top of the screen, behind the floating top bar (see PortalLayout), and
+ * the bottom is left clear so the KPI cards can overlap it. A left-to-right
+ * fade keeps the title readable in light and dark mode.
  */
 export function DashboardHero() {
   return (
-    <section className="relative overflow-hidden rounded-xl border border-black/5 dark:border-white/10 bg-white dark:bg-[#161616] min-h-[150px] sm:min-h-[260px]">
+    <section className="relative overflow-hidden -mx-4 -mt-4 lg:-mx-6 lg:-mt-6 bg-white dark:bg-[#161616] min-h-[210px] sm:min-h-[320px]">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src="/dashboard-hero.webp"
@@ -16,7 +19,9 @@ export function DashboardHero() {
       />
       {/* Phones: even wash over the whole picture. Wider screens: solid behind the title, clear over the picture. */}
       <div className="absolute inset-0 bg-white/75 sm:bg-transparent sm:bg-[linear-gradient(to_right,rgba(255,255,255,0.97)_0%,rgba(255,255,255,0.9)_30%,rgba(255,255,255,0)_62%)] dark:bg-[#161616]/80 sm:dark:bg-transparent sm:dark:bg-[linear-gradient(to_right,rgba(22,22,22,0.97)_0%,rgba(22,22,22,0.9)_30%,rgba(22,22,22,0.2)_62%)]" />
-      <div className="relative px-5 py-6 sm:px-8 sm:py-16">
+      {/* Bottom of the picture melts into the page colour, so there is no hard edge behind the KPI cards. */}
+      <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-surface-muted via-surface-muted/70 to-transparent dark:from-surface-dark dark:via-surface-dark/90" />
+      <div className="relative px-5 pt-20 pb-28 sm:px-8 sm:pt-24 sm:pb-28">
         <h1 className="font-display text-3xl sm:text-5xl font-extrabold tracking-tight text-ink dark:text-white">BATA CCTV</h1>
         <p className="mt-2 text-sm sm:text-base font-semibold text-brand dark:text-[#FF7A80]">Smart Surveillance. Connected Stores. Secure Operations.</p>
         <div className="mt-3 h-0.5 w-16 rounded bg-brand" />

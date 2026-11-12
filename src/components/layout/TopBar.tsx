@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { Menu, Sun, Moon, ChevronDown, LogOut } from "lucide-react";
 import { useState } from "react";
+import clsx from "clsx";
 import { useRouter } from "next/navigation";
 import { useTheme } from "@/lib/theme";
 import { useAppData, ROLE_LABELS } from "@/components/providers/AppDataProvider";
@@ -10,7 +11,17 @@ import { Select } from "@/components/ui/Select";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { ZONES } from "@/lib/mockData";
 
-export function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
+export function TopBar({
+  onMenuClick,
+  floating = false,
+  transparent = false,
+}: {
+  onMenuClick: () => void;
+  /** Lie over the page content instead of taking space above it (Dashboard banner). */
+  floating?: boolean;
+  /** No background or border, so the picture behind shows through. */
+  transparent?: boolean;
+}) {
   const { dark, toggle } = useTheme();
   const { role, filters, setFilters } = useAppData();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -25,7 +36,15 @@ export function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
   }
 
   return (
-    <header className="sticky top-0 z-20 bg-white/95 dark:bg-surface-dark/95 backdrop-blur border-b border-black/5 dark:border-white/10">
+    <header
+      className={clsx(
+        "top-0 z-20 border-b transition-colors duration-200",
+        floating ? "absolute inset-x-0" : "sticky",
+        transparent
+          ? "bg-transparent border-transparent"
+          : "bg-white/95 dark:bg-surface-dark/95 backdrop-blur border-black/5 dark:border-white/10"
+      )}
+    >
       <div className="flex items-center gap-3 px-4 lg:px-6 py-3">
         <button onClick={onMenuClick} className="lg:hidden text-ink-soft dark:text-white/70">
           <Menu size={20} />
@@ -47,7 +66,10 @@ export function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
 
         <button
           onClick={toggle}
-          className="w-8 h-8 rounded-md flex items-center justify-center text-ink-soft dark:text-white/70 hover:bg-surface-muted dark:hover:bg-white/5"
+          className={clsx(
+            "w-8 h-8 rounded-md flex items-center justify-center text-ink-soft dark:text-white/70 hover:bg-surface-muted dark:hover:bg-white/5",
+            transparent && "bg-white/80 dark:bg-black/40 backdrop-blur"
+          )}
           aria-label="Toggle dark mode"
         >
           {dark ? <Sun size={16} /> : <Moon size={16} />}
@@ -56,7 +78,10 @@ export function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
         <div className="relative">
           <button
             onClick={() => setMenuOpen((o) => !o)}
-            className="flex items-center gap-2 pl-2 pr-1 py-1.5 rounded-md hover:bg-surface-muted dark:hover:bg-white/5"
+            className={clsx(
+              "flex items-center gap-2 pl-2 pr-1 py-1.5 rounded-md hover:bg-surface-muted dark:hover:bg-white/5",
+              transparent && "bg-white/80 dark:bg-black/40 backdrop-blur"
+            )}
           >
             <div className="w-7 h-7 rounded-full bg-brand-50 text-brand flex items-center justify-center text-xs font-semibold">
               {ROLE_LABELS[role][0]}

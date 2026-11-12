@@ -164,7 +164,7 @@ function DashboardContent() {
     <div className="space-y-5">
       <DashboardHero />
 
-      <div className="flex flex-wrap gap-3">
+      <div className="relative z-10 !-mt-14 sm:!-mt-16 flex flex-wrap gap-3">
         <StatCard
           label="Stores Total"
           value={counts.total}

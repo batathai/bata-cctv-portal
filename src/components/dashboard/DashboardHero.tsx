@@ -1,26 +1,24 @@
 /**
  * Banner at the top of the Dashboard. The picture is a static illustration
- * (public/dashboard-hero.jpg) — decorative only, not live data; the live
- * numbers are the cards right below it. Its left edge fades out (CSS mask)
- * so the title stays readable in light and dark mode.
+ * (public/dashboard-hero.jpg, supplied by the owner 2026-11-12) — decorative
+ * only, not live data; the live numbers are the cards right below it. A
+ * left-to-right fade keeps the title readable in light and dark mode.
  */
 export function DashboardHero() {
   return (
-    <section className="relative overflow-hidden rounded-xl border border-black/5 dark:border-white/10 bg-white dark:bg-[#161616] min-h-[150px] sm:min-h-[190px]">
+    <section className="relative overflow-hidden rounded-xl border border-black/5 dark:border-white/10 bg-white dark:bg-[#161616] min-h-[150px] sm:min-h-[260px]">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src="/dashboard-hero.jpg"
         alt=""
         aria-hidden="true"
-        className="absolute inset-y-0 right-0 h-full w-full sm:w-[62%] object-cover object-right opacity-30 sm:opacity-100 dark:opacity-25 sm:dark:opacity-70"
-        style={{
-          maskImage: "linear-gradient(to right, transparent 0%, black 40%)",
-          WebkitMaskImage: "linear-gradient(to right, transparent 0%, black 40%)",
-        }}
+        className="absolute inset-0 h-full w-full object-cover object-[right_30%] dark:opacity-70"
       />
-      <div className="relative px-5 py-6 sm:px-8 sm:py-9">
+      {/* Phones: even wash over the whole picture. Wider screens: solid behind the title, clear over the picture. */}
+      <div className="absolute inset-0 bg-white/75 sm:bg-transparent sm:bg-[linear-gradient(to_right,rgba(255,255,255,0.97)_0%,rgba(255,255,255,0.9)_30%,rgba(255,255,255,0)_62%)] dark:bg-[#161616]/80 sm:dark:bg-transparent sm:dark:bg-[linear-gradient(to_right,rgba(22,22,22,0.97)_0%,rgba(22,22,22,0.9)_30%,rgba(22,22,22,0.2)_62%)]" />
+      <div className="relative px-5 py-6 sm:px-8 sm:py-16">
         <h1 className="font-display text-3xl sm:text-5xl font-extrabold tracking-tight text-ink dark:text-white">BATA CCTV</h1>
-        <p className="mt-2 text-sm sm:text-base font-medium text-brand">Smart Surveillance. Connected Stores. Secure Operations.</p>
+        <p className="mt-2 text-sm sm:text-base font-semibold text-brand dark:text-[#FF7A80]">Smart Surveillance. Connected Stores. Secure Operations.</p>
         <div className="mt-3 h-0.5 w-16 rounded bg-brand" />
       </div>
     </section>

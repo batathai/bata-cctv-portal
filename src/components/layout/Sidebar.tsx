@@ -91,10 +91,6 @@ export function Sidebar({ mobileOpen, onClose }: { mobileOpen: boolean; onClose:
             );
           })}
         </nav>
-
-        <div className="relative px-4 py-3 text-[11px] text-ink-soft dark:border-t dark:border-white/10 dark:text-ink-faint">
-          <span className="inline-block rounded bg-white/85 px-2 py-1 dark:bg-transparent dark:px-1">Pilot: 50 stores &middot; scaling to 500+</span>
-        </div>
       </aside>
     </>
   );

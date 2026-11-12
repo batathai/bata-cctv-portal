@@ -29,11 +29,24 @@ export function Sidebar({ mobileOpen, onClose }: { mobileOpen: boolean; onClose:
       {mobileOpen && <div onClick={onClose} className="fixed inset-0 bg-black/40 z-30 lg:hidden" />}
       <aside
         className={clsx(
-          "fixed lg:static z-40 top-0 left-0 h-full w-64 bg-white dark:bg-surface-dark border-r border-black/5 dark:border-white/10 flex flex-col transition-transform duration-200 lg:translate-x-0",
+          "fixed lg:relative z-40 top-0 left-0 h-full w-64 overflow-hidden bg-white dark:bg-surface-dark border-r border-black/5 dark:border-white/10 flex flex-col transition-transform duration-200 lg:translate-x-0",
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        <div className="flex items-center justify-between px-5 py-5 border-b border-black/5 dark:border-white/10">
+        {/* Decorative art (owner's image, 2026-11-12) pinned to the bottom, faded out towards the menu. Light mode only. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/sidebar-art.jpg"
+          alt=""
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 bottom-0 w-full max-h-[55%] object-cover object-bottom dark:hidden"
+          style={{
+            maskImage: "linear-gradient(to bottom, transparent 0%, black 35%)",
+            WebkitMaskImage: "linear-gradient(to bottom, transparent 0%, black 35%)",
+          }}
+        />
+
+        <div className="relative flex items-center justify-between px-5 py-5 border-b border-black/5 dark:border-white/10">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-lg bg-brand flex items-center justify-center text-white shrink-0">
               <Camera size={17} />
@@ -48,7 +61,7 @@ export function Sidebar({ mobileOpen, onClose }: { mobileOpen: boolean; onClose:
           </button>
         </div>
 
-        <nav className="flex-1 overflow-y-auto py-3 px-3">
+        <nav className="relative flex-1 overflow-y-auto py-3 px-3">
           {NAV.map((item) => {
             const active = pathname === item.href || pathname.startsWith(item.href + "/");
             const Icon = item.icon;
@@ -79,8 +92,8 @@ export function Sidebar({ mobileOpen, onClose }: { mobileOpen: boolean; onClose:
           })}
         </nav>
 
-        <div className="px-5 py-4 border-t border-black/5 dark:border-white/10 text-[11px] text-ink-faint">
-          Pilot: 50 stores &middot; scaling to 500+
+        <div className="relative px-4 py-3 text-[11px] text-ink-soft dark:border-t dark:border-white/10 dark:text-ink-faint">
+          <span className="inline-block rounded bg-white/85 px-2 py-1 dark:bg-transparent dark:px-1">Pilot: 50 stores &middot; scaling to 500+</span>
         </div>
       </aside>
     </>

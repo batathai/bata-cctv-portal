@@ -7,6 +7,7 @@ import { AppDataProvider, useAppData } from "@/components/providers/AppDataProvi
 import { MonitoringProvider } from "@/components/providers/MonitoringProvider";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TopBar } from "@/components/layout/TopBar";
+import { DashboardHero } from "@/components/dashboard/DashboardHero";
 
 /**
  * Shown instead of the whole app shell when someone is genuinely logged in
@@ -48,11 +49,13 @@ function PortalShell({ children, onMenuClick }: { children: React.ReactNode; onM
 
 export default function PortalLayout({ children }: { children: React.ReactNode }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  // The Dashboard banner runs edge to edge up behind the top bar (owner mock-up,
-  // 2026-11-12). There the bar floats over the picture, see-through until the
-  // page is scrolled, then turns white again.
+  // Every page opens with the banner, edge to edge up behind the top bar (owner
+  // request, 2026-11-12). The bar floats over the picture, see-through until the
+  // page is scrolled, then turns white again. The Dashboard renders its own tall
+  // banner; all other pages get the compact one from here.
   const pathname = usePathname();
-  const heroPage = pathname === "/dashboard";
+  const heroPage = true;
+  const isDashboard = pathname === "/dashboard";
   const mainRef = useRef<HTMLElement>(null);
   const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
@@ -67,7 +70,10 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
         <div className="relative flex-1 flex flex-col min-w-0">
           <TopBar onMenuClick={() => setMobileNavOpen(true)} floating={heroPage} transparent={heroPage && !scrolled} />
           <main ref={mainRef} onScroll={(e) => setScrolled(e.currentTarget.scrollTop > 8)} className="flex-1 overflow-y-auto p-4 lg:p-6">
-            <PortalShell onMenuClick={() => setMobileNavOpen(true)}>{children}</PortalShell>
+            <PortalShell onMenuClick={() => setMobileNavOpen(true)}>
+              {!isDashboard && <DashboardHero compact />}
+              {children}
+            </PortalShell>
           </main>
         </div>
       </div>

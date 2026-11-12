@@ -11,6 +11,7 @@ import { DashboardHero } from "@/components/dashboard/DashboardHero";
 import { useAppData } from "@/components/providers/AppDataProvider";
 import { Card, SectionTitle } from "@/components/ui/Card";
 import { StatCard } from "@/components/ui/StatCard";
+import { Select } from "@/components/ui/Select";
 import { ZONES } from "@/lib/mockData";
 import { useMonitoring } from "@/components/providers/MonitoringProvider";
 import { MonitorStatusPill } from "@/components/status/MonitorStatusPill";
@@ -307,6 +308,10 @@ function DashboardContent() {
       <Card className="p-4">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
           <SectionTitle icon={Radio}>Store List ({sorted.length})</SectionTitle>
+          <div className="flex flex-wrap items-center gap-2">
+          <Select value={filters.region} onChange={(v) => setFilters({ ...filters, region: v })} options={["Bangkok", "Upcountry"]} placeholder="Region" />
+          <Select value={filters.zone} onChange={(v) => setFilters({ ...filters, zone: v })} options={ZONES.map((z) => z.code)} placeholder="Zone" />
+          <Select value={filters.status} onChange={(v) => setFilters({ ...filters, status: v })} options={["Healthy", "Partial", "Offline", "Unknown"]} placeholder="Status" />
           <div className="relative">
             <Search size={13} className="absolute left-2.5 top-2.5 text-ink-faint" />
             <input
@@ -315,6 +320,7 @@ function DashboardContent() {
               placeholder="Search store / store code"
               className="pl-8 pr-3 py-1.5 text-sm rounded-md border border-black/10 dark:border-white/10 bg-surface-muted dark:bg-white/5 outline-none focus:border-brand w-60"
             />
+          </div>
           </div>
         </div>
 

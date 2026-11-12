@@ -15,7 +15,7 @@ import {
   type LiveStatusFilter as StatusFilter, type RegionKey, type LiveRow,
 } from "@/lib/monitoring";
 import { canLogMaintenance } from "@/lib/rbac";
-import { priorityTierByStoreId } from "@/lib/installation";
+import { priorityTierByStoreId, type PriorityTier } from "@/lib/installation";
 import { PriorityBadge } from "@/components/ui/PriorityBadge";
 import { RepairLink, repairReason, CAMERA_ISSUE_REMARK } from "@/components/status/RepairLink";
 import type { StoreWithAssets } from "@/types/database";
@@ -33,6 +33,7 @@ export function LiveStatusTab() {
   const { monitors, settings, stale, unmuteStore } = useMonitoring();
   const [region, setRegion] = useState<"" | RegionKey>("");
   const [zone, setZone] = useState("");
+  const [tier, setTier] = useState<"" | PriorityTier>("");
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("");
   const [muteFor, setMuteFor] = useState<StoreWithAssets | null>(null);
@@ -43,12 +44,15 @@ export function LiveStatusTab() {
 
   const tierByStore = useMemo(() => priorityTierByStoreId(installationProjects), [installationProjects]);
 
-  // KPI cards follow the region / zone chosen below (user request 2026-10-11):
-  // picking BKK shows only BKK numbers. Search text and the status card itself
+  // KPI cards follow the region / zone / Top tier chosen below (user requests
+  // 2026-10-11, 2026-11-12): picking BKK or Top 20 shows only those numbers. Search text and the status card itself
   // don't change the counts.
   const scoped = useMemo(
-    () => rows.filter((r) => (!region || r.region === region) && (!zone || r.zone === zone)),
-    [rows, region, zone]
+    () =>
+      rows.filter(
+        (r) => (!region || r.region === region) && (!zone || r.zone === zone) && (!tier || tierByStore.get(r.store.id) === tier)
+      ),
+    [rows, region, zone, tier, tierByStore]
   );
 
   const counts = useMemo(() => countLiveStatuses(scoped), [scoped]);
@@ -126,6 +130,18 @@ export function LiveStatusTab() {
                   {z}
                 </option>
               ))}
+            </select>
+          </label>
+          <label className="flex items-center gap-1.5 text-sm text-ink-soft dark:text-white/60">
+            Top
+            <select
+              value={tier}
+              onChange={(e) => setTier(e.target.value as "" | PriorityTier)}
+              className="h-9 rounded-md border border-black/10 dark:border-white/15 bg-white dark:bg-white/5 px-2 text-sm"
+            >
+              <option value="">ทั้งหมด</option>
+              <option value="Top 20">Top 20</option>
+              <option value="Top 50">Top 50</option>
             </select>
           </label>
           <div className="relative ml-auto">

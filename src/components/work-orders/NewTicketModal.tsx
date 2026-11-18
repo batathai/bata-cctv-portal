@@ -98,7 +98,7 @@ export function NewTicketModal({ onClose, assignToBatchId }: { onClose: () => vo
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={onClose}>
+    <div className="fixed inset-0 !mt-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={onClose}>
       <div className="bg-white dark:bg-surface-dark rounded-card shadow-card w-full max-w-md p-5" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3">
           <h2 className="font-display text-base font-bold text-ink dark:text-white">Open Work Order</h2>

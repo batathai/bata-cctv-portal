@@ -682,6 +682,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function createTicket(input: TicketFormInput) {
+    const store = allStores.find((s) => s.id === input.store_id);
     if (isSupabaseConfigured) {
       const supabase = createClient();
       await createIncidentTicketDb(supabase, input);
@@ -700,6 +701,12 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         },
         ...prev,
       ]);
+    }
+    // A store whose repair was marked Completed keeps reading as Completed even
+    // with a new Open ticket (isRepairCompleted trusts recovery_stage), so the
+    // follow-up work would never show up as open. Re-open it at the first stage.
+    if (store?.recovery_stage === "Completed") {
+      await updateRecoveryStage(input.store_id, "Waiting Vendor Quote", "เปิดงานใหม่หลังซ่อมเสร็จ (Ticket ใหม่)");
     }
   }
 

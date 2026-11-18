@@ -379,7 +379,7 @@ function NewBatchModal({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+    <div className="fixed inset-0 !mt-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div className="bg-white dark:bg-surface-dark rounded-lg shadow-xl w-full max-w-sm p-5" onClick={(e) => e.stopPropagation()}>
         <h2 className="text-sm font-semibold text-ink dark:text-white mb-3">New Job</h2>
         <label className="text-xs text-ink-faint block mb-1">Job name — พิมพ์รหัสสาขา ระบบจะใส่ชื่อร้านให้</label>

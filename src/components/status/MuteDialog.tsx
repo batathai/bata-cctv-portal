@@ -83,7 +83,7 @@ export function MuteDialog({ store, onClose }: { store: StoreWithAssets; onClose
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+    <div className="fixed inset-0 !mt-0 z-50 flex items-center justify-center bg-black/40 p-4" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div role="dialog" aria-modal="true" aria-labelledby="mute-title" className="w-full max-w-md bg-white dark:bg-surface-dark rounded-card shadow-xl border border-black/5 dark:border-white/10 p-5 space-y-4">
         <div className="flex items-start justify-between gap-3">
           <div>

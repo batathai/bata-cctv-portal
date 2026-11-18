@@ -44,9 +44,19 @@
 }
 @media (prefers-reduced-motion: reduce) { .ls-submit { transition: none; } }
 
-/* Desktop: the baked card has been removed from the background (login-bg-nocard.webp, derived from the approved image),
-   so the real form is a 380-420px card centred where the drawn card used to be. */
+/* Desktop: the approved artwork is shown at ~84% of the viewport height (everything is clearly smaller), anchored to the bottom.
+   The page is full-bleed: login-bg-ext.webp is the same image with its edge pixels extended on every side (700px on top, 1800px on the right),
+   so there are no white bands. The baked card was removed from the artwork; the real form is a 380-420px card. */
 @media (min-width: 701px) {
-  .bata-login-composition { background-image: url('/login/login-bg-nocard.webp'); }
-  .bata-login-form-slot { left: 78.75%; top: 48.95%; transform: translate(-50%, -50%); width: clamp(380px, 22vw, 420px); height: auto; max-height: 92%; padding: 34px 32px 36px; border-radius: 22px; overflow: visible; }
+  .bata-login-stage { display: block; position: relative; width: 100%; height: 100svh; min-height: 0; overflow: hidden; background-color: #fff;
+    --h: min(84svh, calc(100vw / 1.7745));
+    --w: calc(var(--h) * 1.7745);
+    --k: calc(var(--w) / 1670);
+    --top: calc(100svh - var(--h));
+    --extra: max(0px, calc(100vw - var(--w)));
+    background-image: url('/login/login-bg-ext.webp'); background-repeat: no-repeat;
+    background-size: calc(3470 * var(--k)) calc(1641 * var(--k));
+    background-position: 0 calc(var(--top) - 700 * var(--k)); }
+  .bata-login-composition { position: absolute; left: 0; top: var(--top); width: var(--w); height: var(--h); aspect-ratio: auto; background: none; }
+  .bata-login-form-slot { left: calc(78.75% + var(--extra) * .42); top: 48.95%; transform: translate(-50%, -50%); width: clamp(380px, 22vw, 420px); height: auto; max-height: 96%; padding: 34px 32px 36px; border-radius: 22px; overflow: visible; }
 }

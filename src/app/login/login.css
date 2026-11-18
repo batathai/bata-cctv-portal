@@ -1,34 +1,6 @@
-/* Login hero. Desktop: full-bleed (100vw x 100dvh). Artwork lives in a 1670x941 "design box" scaled by --u (never stretched),
-   anchored bottom-left; the card is a fixed 380-420px column on the right. < 1024px / portrait: stacked. */
-.login-root { min-height: 100dvh; background: #fff; overflow: hidden; color: #172033; }
-.login-stage { position: relative; width: 100%; height: 100dvh; overflow: hidden;
-  --u: min(calc(100vw / 1670), calc(100dvh / 941));                 /* px per design px */
-  --card-w: clamp(380px, 21vw, 420px);
-  --shift: max(0px, calc((100vw - max(4vw, 28px) - var(--card-w) - 953 * var(--u)) * .42)); /* centres the hero in the space left of the card */ }
-.ls-comp { position: absolute; left: 0; bottom: 0; width: calc(1670 * var(--u)); height: calc(941 * var(--u)); container-type: inline-size; }
-
-.ls-swoosh { overflow: visible; position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
-.ls-store { position: absolute; left: 0; top: 66.2%; width: 30.6%; height: auto; z-index: 0; pointer-events: none;
-  -webkit-mask-image: linear-gradient(to right, #000 78%, transparent 100%), linear-gradient(to bottom, #000 88%, transparent 100%); -webkit-mask-composite: source-in;
-  mask-image: linear-gradient(to right, #000 78%, transparent 100%), linear-gradient(to bottom, #000 88%, transparent 100%); mask-composite: intersect; }
-.ls-art { position: absolute; inset: 0; pointer-events: none; } /* no z-index: keeps multiply blending against the storefront */
-.ls-scene { position: absolute; left: calc(25.5% + var(--shift)); top: 24.2%; width: 31.6%; height: 61.6%; }
-.ls-canvas, .ls-scene-fallback { width: 100%; height: 100%; display: block; }
-.ls-canvas { opacity: 0; transition: opacity .9s ease; }
-.ls-canvas.is-ready { opacity: 1; }
-.ls-scene-fallback { object-fit: contain; }
-.ls-camera { position: absolute; left: 0; top: 0; width: 22.6%; height: auto; }
-
-.ls-brand { position: absolute; left: calc(17.5% + var(--shift)); top: 4.2%; display: flex; align-items: center; gap: 1.2cqw; z-index: 3; }
-.ls-logo { width: 14.1cqw; height: auto; display: block; }
-.ls-sep { width: 1px; height: 4.6cqw; background: #1c1f2a; }
-.ls-brand-text { display: flex; flex-direction: column; line-height: 1.15; }
-.ls-brand-text strong { font-size: 2.8cqw; font-weight: 700; color: #151a27; letter-spacing: -.01em; }
-.ls-brand-text span { font-size: 1.6cqw; font-weight: 500; color: #4a5468; }
-
-/* card: fixed 380-420px column, vertically centred on the artwork, with comfortable room to the right edge */
-.ls-card { position: absolute; right: max(4vw, 28px); top: calc(100dvh - 470 * var(--u)); transform: translateY(-50%); width: var(--card-w); box-sizing: border-box; padding: 32px 32px 34px; background: #fff; border: 1px solid #eceef4; border-radius: 22px;
-  box-shadow: 0 24px 60px rgba(40,30,70,.11), 0 4px 14px rgba(40,30,70,.06); z-index: 4; font-size: 14px; }
+/* Login form styles only. The background artwork + card frame come from LoginVisualShell (login-visual-shell.css). */
+.bata-login-composition { container-type: inline-size; }
+.bata-login-form-slot .ls-card { width: 100%; margin: 0; padding: 0; background: none; border: 0; box-shadow: none; border-radius: 0; }
 .ls-card-head { display: flex; align-items: center; gap: 14px; margin-bottom: 24px; }
 .ls-card-icon { width: 52px; height: 52px; border-radius: 13px; display: grid; place-items: center; color: #fff; background: linear-gradient(145deg, #ee2833, #c60f18); box-shadow: 0 5px 12px rgba(215,25,32,.28); flex: none; }
 .ls-card-icon svg { width: 54%; height: 54%; }
@@ -53,23 +25,10 @@
 .ls-submit:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.05); }
 .ls-submit:focus-visible { outline: 3px solid rgba(223,21,36,.4); outline-offset: 2px; }
 .ls-submit:disabled { opacity: .45; cursor: not-allowed; }
-
-/* ---------- tablet / phone: stacked ---------- */
-@media (max-width: 1023px), (max-aspect-ratio: 5/4) {
-  .login-root { overflow-x: hidden; overflow-y: auto; }
-  .ls-comp { display: contents; container-type: normal; }
-  .login-stage { width: 100%; height: auto; max-width: none; aspect-ratio: auto; min-height: 100dvh; display: flex; flex-direction: column; align-items: center; padding: 20px 16px 0; box-sizing: border-box; overflow: hidden; }
-  .ls-brand { position: relative; left: auto; top: auto; gap: 12px; margin-bottom: 4px; order: 1; }
-  .ls-logo { width: clamp(110px, 30vw, 150px); }
-  .ls-sep { height: 38px; }
-  .ls-brand-text strong { font-size: clamp(18px, 4.6vw, 24px); }
-  .ls-brand-text span { font-size: clamp(11px, 3vw, 14px); }
-
-  .ls-art { position: relative; inset: auto; width: min(100%, 520px); aspect-ratio: 660 / 725; max-height: 50dvh; margin: 0 auto -2%; order: 2; }
-  .ls-scene { left: 0; top: 0; width: 100%; height: 100%; }
-  .ls-camera { top: 0; left: -3%; width: 46%; }
-
-  .ls-card { position: relative; right: auto; left: auto; top: auto; transform: none; width: min(100%, 440px); padding: 26px 22px 24px; border-radius: 24px; font-size: 14px; order: 3; box-shadow: 0 12px 34px rgba(60,40,60,.14); z-index: 4; }
+@media (max-width: 700px) {
+  /* the reference image has a drawn login card on its right: show only the left ~60% so the real form is the only form */
+  .bata-login-composition::before { height: 93vw; background-size: 165vw auto; background-position: left top; }
+  .bata-login-form-slot .ls-card { font-size: 14px; }
   .ls-card-head { gap: 14px; margin-bottom: 18px; }
   .ls-card-icon { width: 52px; height: 52px; border-radius: 14px; }
   .ls-card h1 { font-size: 22px; }
@@ -82,12 +41,12 @@
   .ls-pass svg { width: 20px; }
   .ls-submit { height: 52px; font-size: 17px; border-radius: 13px; gap: 9px; margin-top: 4px; }
   .ls-note, .ls-error { font-size: 13px; }
+}
+@media (prefers-reduced-motion: reduce) { .ls-submit { transition: none; } }
 
-  .ls-store { position: relative; left: auto; top: auto; width: min(100%, 460px); margin: 18px auto 0; z-index: 0; order: 4; }
-  .ls-swoosh { height: 100%; }
+/* Desktop: the baked card has been removed from the background (login-bg-nocard.webp, derived from the approved image),
+   so the real form is a 380-420px card centred where the drawn card used to be. */
+@media (min-width: 701px) {
+  .bata-login-composition { background-image: url('/login/login-bg-nocard.webp'); }
+  .bata-login-form-slot { left: 78.75%; top: 48.95%; transform: translate(-50%, -50%); width: clamp(380px, 22vw, 420px); height: auto; max-height: 92%; padding: 34px 32px 36px; border-radius: 22px; overflow: visible; }
 }
-@media (max-width: 599px) { .ls-camera { width: 38%; left: -2%; } }
-@media (max-width: 1023px) and (min-width: 768px) and (min-aspect-ratio: 5/4) {
-  .ls-art { max-height: 46dvh; }
-}
-@media (prefers-reduced-motion: reduce) { .ls-canvas { transition: none; } .ls-submit { transition: none; } }

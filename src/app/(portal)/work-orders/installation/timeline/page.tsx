@@ -27,19 +27,32 @@ export default function InstallationTimelinePage() {
   const waves = useMemo(() => Array.from(new Set(installationProjects.map((p) => p.wave))).sort(), [installationProjects]);
   const unsortedProjects = installationProjects.filter((p) => !wave || p.wave === wave);
 
-  // Earliest date first, full stop — whichever of D1/D2/permit/completed is
-  // chronologically soonest puts that row at the top, including dates
-  // already in the past (so an overdue/forgotten row surfaces immediately
-  // instead of hiding at the bottom). Undated rows sort last.
+  // Upcoming installs first, soonest D1 on top, then onward in date order.
+  // Installs already past (today's D2 still counts as upcoming) follow, most
+  // recent first — so a past-due store like 54098 sits right under the
+  // upcoming ones instead of hiding behind the finished Wave 1 rows.
+  // Rows with no install date come last. Ties fall back to store code.
   const projects = useMemo(() => {
-    function earliestRef(p: (typeof unsortedProjects)[number]): number {
-      const candidates = [p.d1_date, p.d2_date, p.permit_submitted_at, p.completed_at]
-        .filter((d): d is string => !!d)
-        .map((d) => new Date(d + "T00:00:00").getTime());
-      return candidates.length === 0 ? Number.POSITIVE_INFINITY : Math.min(...candidates);
-    }
-    return [...unsortedProjects].sort((a, b) => earliestRef(a) - earliestRef(b));
-  }, [unsortedProjects]);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const t = (d: string | null | undefined) => (d ? new Date(d + "T00:00:00").getTime() : null);
+    const start = (p: (typeof unsortedProjects)[number]) => t(p.d1_date) ?? t(p.d2_date);
+    const end = (p: (typeof unsortedProjects)[number]) => t(p.d2_date) ?? t(p.d1_date);
+    const group = (p: (typeof unsortedProjects)[number]) => {
+      const e = end(p);
+      if (e == null) return 2; // no install date
+      return e >= today ? 0 : 1; // upcoming / already past
+    };
+    return [...unsortedProjects].sort((a, b) => {
+      const ga = group(a);
+      const gb = group(b);
+      if (ga !== gb) return ga - gb;
+      const sa = start(a) ?? 0;
+      const sb = start(b) ?? 0;
+      if (sa !== sb) return ga === 1 ? sb - sa : sa - sb;
+      return (storeById.get(a.store_id)?.store_code ?? "").localeCompare(storeById.get(b.store_id)?.store_code ?? "");
+    });
+  }, [unsortedProjects, storeById]);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftD1, setDraftD1] = useState("");

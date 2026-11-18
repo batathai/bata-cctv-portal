@@ -21,7 +21,7 @@ export interface SceneHandle {
 
 // Orbital rings: true = supplied artwork (two layers: back half behind the map, front half in front of it);
 // false = the procedural 3D rotating energy-trail rings (kept below as an alternative).
-const USE_RING_ARTWORK = true;
+const USE_RING_ARTWORK = false;
 const RING_BACK_URL = "/login/rings-back.webp";
 const RING_FRONT_URL = "/login/rings-front.webp";
 const RING_W = 11.2; // world width of the ring artwork plane (1400 x 720 px artwork)
@@ -88,19 +88,31 @@ void main() {
 }`;
 
 const TRAIL_FRAG = /* glsl */ `
-uniform vec3 uCol; uniform float uAlpha; uniform float uFade; uniform float uTime; uniform float uHeads; uniform float uWhite;
+uniform vec3 uCol; uniform float uAlpha; uniform float uFade; uniform float uTime; uniform float uHeads; uniform float uWhite; uniform float uDir;
 varying vec2 vUv; varying vec3 vN; varying vec3 vV;
 void main() {
   float f = clamp(abs(dot(normalize(vN), normalize(vV))), 0.0, 1.0);   // 1 on the centre line of the tube
   float core = pow(f, 7.0);
   float halo = pow(f, 1.5) * 0.4;
   float body = pow(f, 2.2);
-  float h = fract(vUv.x * uHeads - uTime * 0.03);                       // slow drift of the bright heads along the path
-  float energy = 0.3 + 0.7 * exp(-h * 3.4);
+  float h = fract(vUv.x * uHeads - uTime * uDir * 0.3);                       // slow drift of the bright heads along the path
+  float energy = 0.12 + 0.88 * exp(-h * 3.0);   // bright comet head with a long fading tail
   float hot = core * (uWhite + (1.0 - uWhite) * energy);
   vec3 c = mix(uCol, vec3(1.0), clamp(hot, 0.0, 1.0));
-  float a = clamp(halo + body, 0.0, 1.0) * uAlpha * uFade * (0.78 + 0.22 * energy);
+  float a = clamp(halo + body, 0.0, 1.0) * uAlpha * uFade * (0.5 + 0.5 * energy);
   gl_FragColor = vec4(c, a);
+}`;
+
+/** Wide, soft additive bloom around each ring (cheap stand-in for a post-process glow). */
+const HALO_FRAG = /* glsl */ `
+uniform vec3 uCol; uniform float uAlpha; uniform float uFade; uniform float uTime; uniform float uHeads; uniform float uDir;
+varying vec2 vUv; varying vec3 vN; varying vec3 vV;
+void main() {
+  float f = clamp(abs(dot(normalize(vN), normalize(vV))), 0.0, 1.0);
+  float h = fract(vUv.x * uHeads - uTime * uDir * 0.3);
+  float energy = 0.25 + 0.75 * exp(-h * 3.0);
+  float a = pow(f, 2.4) * uAlpha * uFade * energy;
+  gl_FragColor = vec4(uCol * a, a);
 }`;
 
 function radialTexture(stops: Array<[number, string]>, size = 256) {
@@ -453,9 +465,9 @@ export function createLoginScene(canvas: HTMLCanvasElement, opts: SceneOptions):
 
   /* ---------- orbital rings (real 3D meshes) ---------- */
   const ringSpecs: RingSpec[] = USE_RING_ARTWORK ? [] : [
-    { radius: 4.6, tube: 0.115, base: 0xee1420, emissive: 0, hi: 0xffffff, arcs: 3, arcLen: 0, tilt: 1.05, roll: -0.3, spin: 0.55, wobble: 0.05, phase: 0 },
-    { radius: 4.05, tube: 0.095, base: 0x74adff, emissive: 0, hi: 0xffffff, arcs: 2, arcLen: 0, tilt: 1.12, roll: 0.26, spin: -0.4, wobble: 0.06, phase: 1.7 },
-    { radius: 3.5, tube: 0.018, base: 0x9fb4d6, emissive: 0x9fb4d6, hi: 0xffffff, arcs: 0, arcLen: 0, tilt: 0.7, roll: -0.75, spin: 0.28, wobble: 0.08, phase: 3.1, dotted: true },
+    { radius: 4.6, tube: 0.115, base: 0xee1420, emissive: 0, hi: 0xffffff, arcs: 3, arcLen: 0, tilt: 1.05, roll: -0.3, spin: 0.36, wobble: 0.04, phase: 0 },
+    { radius: 4.05, tube: 0.095, base: 0x8cc4ff, emissive: 0, hi: 0xffffff, arcs: 2, arcLen: 0, tilt: 1.12, roll: 0.26, spin: -0.3, wobble: 0.05, phase: 1.9 },
+    { radius: 3.5, tube: 0.018, base: 0x9fb4d6, emissive: 0x9fb4d6, hi: 0xffffff, arcs: 0, arcLen: 0, tilt: 0.7, roll: -0.75, spin: 0.2, wobble: 0.06, phase: 3.1, dotted: true },
   ];
   const glowMats: THREE.ShaderMaterial[] = [];
   const torusSeg = compact ? 120 : 240;
@@ -463,6 +475,7 @@ export function createLoginScene(canvas: HTMLCanvasElement, opts: SceneOptions):
   const rings = ringSpecs.map((s) => {
     const outer = new THREE.Group();
     outer.position.set(0, 0.2, 0);
+    outer.rotation.order = "ZYX"; // roll the axis on screen, then precess the ring about that axis
     outer.rotation.z = s.roll;
     const pivot = new THREE.Group();
     const spin = new THREE.Group();
@@ -494,11 +507,29 @@ export function createLoginScene(canvas: HTMLCanvasElement, opts: SceneOptions):
           uFade: { value: opts.reducedMotion ? 1 : 0 },
           uTime: { value: 0 },
           uHeads: { value: s.arcs },
-          uWhite: { value: s.base === 0xee1420 ? 0.28 : 0.45 },
+          uDir: { value: s.spin < 0 ? -1 : 1 },
+          uWhite: { value: s.base === 0xee1420 ? 0.3 : 0.5 },
         },
       });
       glowMats.push(trail);
       spin.add(new THREE.Mesh(new THREE.TorusGeometry(s.radius, s.tube, 14, torusSeg), trail));
+      const halo = new THREE.ShaderMaterial({
+        vertexShader: TRAIL_VERT,
+        fragmentShader: HALO_FRAG,
+        transparent: true,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        uniforms: {
+          uCol: { value: new THREE.Color(s.base === 0xee1420 ? 0xff3b4a : 0x7fb8ff) },
+          uAlpha: { value: 0.55 },
+          uFade: { value: opts.reducedMotion ? 1 : 0 },
+          uTime: { value: 0 },
+          uHeads: { value: s.arcs },
+          uDir: { value: s.spin < 0 ? -1 : 1 },
+        },
+      });
+      glowMats.push(halo);
+      spin.add(new THREE.Mesh(new THREE.TorusGeometry(s.radius, s.tube * 3.4, 14, torusSeg), halo));
     }
     pivot.add(spin);
     outer.add(pivot);
@@ -620,9 +651,10 @@ export function createLoginScene(canvas: HTMLCanvasElement, opts: SceneOptions):
       for (const m of ringMats) m.opacity = o;
     }
     for (const r of rings) {
-      r.spin.rotation.z = t * r.spec.spin + r.spec.phase + (1 - intro) * 5 * Math.sign(r.spec.spin);
+      // the ring swings about the map's axis (never edge-on) while its light heads race round it
+      r.outer.rotation.y = Math.sin(t * Math.abs(r.spec.spin) * 1.3 + r.spec.phase) * 0.6 * Math.sign(r.spec.spin) + (1 - intro) * 1.5 * Math.sign(r.spec.spin);
       r.pivot.rotation.x = r.spec.tilt + Math.sin(t * 0.5 + r.spec.phase) * r.spec.wobble;
-      r.pivot.rotation.y = Math.sin(t * 0.37 + r.spec.phase * 1.3) * r.spec.wobble;
+      r.spin.rotation.z = t * r.spec.spin * 0.5;
       r.outer.scale.setScalar(0.8 + 0.2 * intro);
     }
     for (const m of glowMats) {

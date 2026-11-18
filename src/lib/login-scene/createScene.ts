@@ -1,14 +1,11 @@
 import * as THREE from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
-import { THAILAND_RINGS } from "./data/thailandOutline";
-import { SCENE_CITIES } from "./cities";
 
 /**
  * Login hero scene.
- *  - Thailand map: bevelled extrusion (Natural Earth outline), glossy top, red-lit sides, image-based reflections
- *  - small illustrative city pins with pulses
- *  - two glossy 3D orbital rings (red / blue) + a faint dotted ring: real meshes with thickness and energy segments,
- *    rotating in opposite directions and wobbling in tilt; depth-tested so they pass in front of / behind the map
+ *  - Thailand map: supplied artwork on a depth-writing cut-out plane (floats and sways in the scene)
+ *  - two luminous 3D orbital trails (red / blue) + a faint dotted ring: real meshes rotating in opposite directions and
+ *    wobbling in tilt; depth-tested so they pass in front of / behind the map
  *  - low silver glass pedestal (lathe geometry) with a thin red plate, lit front slots, contact shadow and a faint rising light
  * No shadow maps / post-processing. One rAF loop that pauses when hidden or off-screen.
  */
@@ -22,18 +19,21 @@ export interface SceneHandle {
   dispose: () => void;
 }
 
-const RED = 0xd71920;
-const WORLD_PER_DEG = 0.63;
-const X_STRETCH = 1.2; // outline is geographically exact; x widened so the shape reads like the approved art at this tilt
-const DEPTH = 0.5;
-const BEVEL = 0.06;
-const MAP_TILT = 0.6;
-const LON_C = 101.0;
-const LAT_C = 13.1;
-const COS_LAT = Math.cos((13 * Math.PI) / 180);
+// Orbital rings: true = supplied artwork (two layers: back half behind the map, front half in front of it);
+// false = the procedural 3D rotating energy-trail rings (kept below as an alternative).
+const USE_RING_ARTWORK = true;
+const RING_BACK_URL = "/login/rings-back.webp";
+const RING_FRONT_URL = "/login/rings-front.webp";
+const RING_W = 11.2; // world width of the ring artwork plane (1400 x 720 px artwork)
+const RING_X = 0.35;
+const RING_Y = 1.7;
+const RING_DEPTH = 0.9; // the two halves sit this far in front of / behind the map plane
 
-const mapX = (lon: number) => (lon - LON_C) * COS_LAT * WORLD_PER_DEG * X_STRETCH;
-const mapY = (lat: number) => (lat - LAT_C) * WORLD_PER_DEG;
+// The map is supplied artwork (pearl-white slab, red walls, glowing pins) placed in the scene as a cut-out plane.
+const MAP_URL = "/login/thailand-map.webp";
+const MAP_H = 8.7; // world height of the map plane (width follows the artwork's aspect)
+const MAP_X = 0.3;
+const MAP_Y = -0.1;
 
 /* ---------- shaders ---------- */
 const GLOW_VERT = /* glsl */ `
@@ -66,13 +66,41 @@ uniform float uTime; uniform float uAlpha; uniform float uFade;
 varying vec2 vUv; varying vec3 vN; varying vec3 vV;
 void main() {
   float h = vUv.y;                                  // 0 at the pedestal, 1 at the top of the light
-  float rise = pow(1.0 - h, 1.5);
+  float rise = pow(1.0 - h, 1.25);
   float ang = vUv.x * 6.2831853;
-  float streak = 0.62 + 0.38 * sin(ang * 13.0 + sin(ang * 5.0) * 1.7 + uTime * 0.18);
+  float wave = 0.5 + 0.5 * sin(ang * 11.0 + sin(ang * 4.0) * 1.7 + uTime * 0.15);
+  float streak = 0.28 + 0.72 * pow(wave, 2.2);
   float facing = pow(abs(dot(normalize(vN), normalize(vV))), 1.3);   // soft silhouette, no hard edge
   vec3 c = mix(vec3(1.0, 0.58, 0.63), vec3(1.0, 0.93, 0.94), (1.0 - h) * 0.75);
   float breathe = 0.93 + 0.07 * sin(uTime * 0.6);
   gl_FragColor = vec4(c, uAlpha * uFade * rise * streak * facing * breathe);
+}`;
+
+/** Luminous energy trail: white-hot core, soft coloured falloff (view-dependent, so it reads as light, not as a solid tube). */
+const TRAIL_VERT = /* glsl */ `
+varying vec2 vUv; varying vec3 vN; varying vec3 vV;
+void main() {
+  vUv = uv;
+  vN = normalMatrix * normal;
+  vec4 mv = modelViewMatrix * vec4(position, 1.0);
+  vV = -mv.xyz;
+  gl_Position = projectionMatrix * mv;
+}`;
+
+const TRAIL_FRAG = /* glsl */ `
+uniform vec3 uCol; uniform float uAlpha; uniform float uFade; uniform float uTime; uniform float uHeads; uniform float uWhite;
+varying vec2 vUv; varying vec3 vN; varying vec3 vV;
+void main() {
+  float f = clamp(abs(dot(normalize(vN), normalize(vV))), 0.0, 1.0);   // 1 on the centre line of the tube
+  float core = pow(f, 7.0);
+  float halo = pow(f, 1.5) * 0.4;
+  float body = pow(f, 2.2);
+  float h = fract(vUv.x * uHeads - uTime * 0.03);                       // slow drift of the bright heads along the path
+  float energy = 0.3 + 0.7 * exp(-h * 3.4);
+  float hot = core * (uWhite + (1.0 - uWhite) * energy);
+  vec3 c = mix(uCol, vec3(1.0), clamp(hot, 0.0, 1.0));
+  float a = clamp(halo + body, 0.0, 1.0) * uAlpha * uFade * (0.78 + 0.22 * energy);
+  gl_FragColor = vec4(c, a);
 }`;
 
 function radialTexture(stops: Array<[number, string]>, size = 256) {
@@ -88,28 +116,19 @@ function radialTexture(stops: Array<[number, string]>, size = 256) {
   return t;
 }
 
-/** Soft shadow of the (tilted) map projected onto the platform, drawn from the real outline. */
-function shadowTexture(worldSide: number, k: number) {
+/** Soft shadow of the map on the pedestal, drawn from the artwork's own alpha (squashed flat and blurred). */
+function shadowFromImage(img: CanvasImageSource & { width: number; height: number }, mapW: number, mapH: number, worldSide: number, k: number) {
   const size = 512;
   const c = document.createElement("canvas");
   c.width = c.height = size;
   const g = c.getContext("2d")!;
   const ppu = size / worldSide;
+  const dw = mapW * k * ppu;
+  const dh = mapH * k * ppu * 0.45;
   g.shadowColor = "rgba(60, 15, 25, 0.95)";
   g.shadowBlur = 34;
-  g.shadowOffsetX = 5000; // draw the shape far off-canvas so only its blurred shadow lands here
-  g.fillStyle = "#000";
-  THAILAND_RINGS.forEach((ring) => {
-    g.beginPath();
-    ring.forEach(([lon, lat], i) => {
-      const x = size / 2 + mapX(lon) * k * ppu - 5000;
-      const y = size / 2 - mapY(lat) * Math.sin(MAP_TILT) * k * ppu;
-      if (i) g.lineTo(x, y);
-      else g.moveTo(x, y);
-    });
-    g.closePath();
-    g.fill();
-  });
+  g.shadowOffsetX = 5000; // draw far off-canvas so only the blurred shadow lands here
+  g.drawImage(img, size / 2 - dw / 2 - 5000, size / 2 - dh / 2, dw, dh);
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
   return t;
@@ -121,6 +140,12 @@ function glossy(compact: boolean, params: THREE.MeshPhysicalMaterialParameters):
   const rest: THREE.MeshPhysicalMaterialParameters = { ...params };
   delete rest.clearcoat;
   delete rest.clearcoatRoughness;
+  delete rest.sheen;
+  delete rest.sheenRoughness;
+  delete rest.sheenColor;
+  delete rest.iridescence;
+  delete rest.iridescenceIOR;
+  delete rest.iridescenceThicknessRange;
   return new THREE.MeshStandardMaterial(rest as THREE.MeshStandardMaterialParameters);
 }
 
@@ -156,7 +181,7 @@ export function createLoginScene(canvas: HTMLCanvasElement, opts: SceneOptions):
 
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 100);
-  camera.position.set(0, 3.19, 23.58); // dolly-out (x1.0625) = map & rings render ~20% smaller than before
+  camera.position.set(0, 2.4, 22.2);
   camera.lookAt(0, -0.6, 0);
 
   // reflections: small procedural studio environment, generated once
@@ -168,7 +193,10 @@ export function createLoginScene(canvas: HTMLCanvasElement, opts: SceneOptions):
   roomEnv.dispose();
   pmrem.dispose();
 
-  scene.add(new THREE.HemisphereLight(0xffffff, 0xaeb8cf, 0.7));
+  scene.add(new THREE.HemisphereLight(0xffffff, 0xf0c6d0, 0.7)); // pink bounce from below
+  const fill = new THREE.DirectionalLight(0xffe4ea, 0.55); // soft studio fill from the left
+  fill.position.set(-6, 3, 8);
+  scene.add(fill);
   const key = new THREE.DirectionalLight(0xffffff, 1.5);
   key.position.set(4, 8, 10);
   scene.add(key);
@@ -182,101 +210,28 @@ export function createLoginScene(canvas: HTMLCanvasElement, opts: SceneOptions):
   const root = new THREE.Group();
   scene.add(root);
 
-  /* ---------- Thailand map ---------- */
+  /* ---------- Thailand map (supplied artwork, filled in once the texture has loaded) ---------- */
   const mapGroup = new THREE.Group();
-  mapGroup.rotation.x = -MAP_TILT;
-  mapGroup.position.set(0, 0.35, 0);
+  mapGroup.position.set(MAP_X, MAP_Y, 0);
+  mapGroup.visible = false;
   root.add(mapGroup);
-
-  const shapes = THAILAND_RINGS.map((ring) => {
-    const shape = new THREE.Shape();
-    ring.forEach(([lon, lat], i) => (i ? shape.lineTo(mapX(lon), mapY(lat)) : shape.moveTo(mapX(lon), mapY(lat))));
-    shape.closePath();
-    return shape;
-  });
-  const mapGeo = new THREE.ExtrudeGeometry(shapes, {
-    depth: DEPTH,
-    bevelEnabled: true,
-    bevelThickness: BEVEL,
-    bevelSize: 0.05,
-    bevelOffset: 0,
-    bevelSegments: compact ? 1 : 2,
-    curveSegments: 1,
-  });
-  const topMat = glossy(compact, {
-    color: 0xd2d9e7,
-    roughness: 0.4,
-    metalness: 0.0,
-    clearcoat: 0.5,
-    clearcoatRoughness: 0.25,
-    envMapIntensity: 0.45,
-  });
-  const sideMat = glossy(compact, {
-    color: 0xd9141c,
-    roughness: 0.28,
-    metalness: 0.25,
-    clearcoat: 0.6,
-    clearcoatRoughness: 0.2,
-    emissive: 0xff1f2b,
-    emissiveIntensity: 0.2,
-    envMapIntensity: 0.9,
-  });
-  mapGroup.add(new THREE.Mesh(mapGeo, [topMat, sideMat]));
-
-  // soft red-lit rim on the top face
-  const edgeMat = new THREE.LineBasicMaterial({ color: 0xff7d85, transparent: true, opacity: 0.6 });
-  const edgeGeos: THREE.BufferGeometry[] = [];
-  THAILAND_RINGS.forEach((ring) => {
-    const pts = ring.map(([lon, lat]) => new THREE.Vector3(mapX(lon), mapY(lat), DEPTH + BEVEL + 0.004));
-    const g = new THREE.BufferGeometry().setFromPoints(pts);
-    edgeGeos.push(g);
-    mapGroup.add(new THREE.LineLoop(g, edgeMat));
-  });
-
-  /* ---------- pins (small) ---------- */
-  const seg = compact ? 12 : 20;
-  const headGeo = new THREE.SphereGeometry(0.2, seg, seg);
-  const tipGeo = new THREE.ConeGeometry(0.17, 0.46, seg);
-  tipGeo.rotateX(Math.PI);
-  tipGeo.translate(0, 0.23, 0);
-  headGeo.translate(0, 0.6, 0);
-  const dotGeo = new THREE.SphereGeometry(0.07, 10, 10);
-  dotGeo.translate(0, 0.62, 0.14);
-  const pinMat = new THREE.MeshStandardMaterial({ color: 0xe0161e, roughness: 0.28, metalness: 0.1, emissive: 0xb3000a, emissiveIntensity: 0.8 });
-  const dotMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-  const pulseGeo = new THREE.RingGeometry(0.12, 0.16, 36);
-  const PIN_SCALE = 0.4;
-  const PIN_Z = DEPTH + BEVEL;
-
-  interface Pin { group: THREE.Group; pulse: THREE.Mesh; pulseMat: THREE.MeshBasicMaterial; phase: number }
-  const pins: Pin[] = SCENE_CITIES.map((c, i) => {
-    const group = new THREE.Group();
-    group.position.set(mapX(c.lon), mapY(c.lat), PIN_Z);
-    const body = new THREE.Group();
-    body.rotation.x = Math.PI / 2;
-    body.scale.setScalar(PIN_SCALE);
-    body.add(new THREE.Mesh(tipGeo, pinMat), new THREE.Mesh(headGeo, pinMat), new THREE.Mesh(dotGeo, dotMat));
-    group.add(body);
-    const pulseMat = new THREE.MeshBasicMaterial({ color: RED, transparent: true, opacity: 0, depthWrite: false });
-    const pulse = new THREE.Mesh(pulseGeo, pulseMat);
-    pulse.position.set(group.position.x, group.position.y, PIN_Z + 0.012);
-    mapGroup.add(group, pulse);
-    return { group, pulse, pulseMat, phase: (i * 0.173) % 1 };
-  });
+  let mapLoadedAt = -1;
+  const mapDisposables: Array<{ dispose: () => void }> = [];
 
   /* ---------- holographic pedestal (real geometry) ---------- */
   // Low, thick silver drum with rounded edges, a frosted-glass top, three lit slots on the front wall,
   // a thin red plate underneath, soft contact shadow and a faint rising light. Sized to ~64% of the map width.
-  const PLATFORM_Y = -5.3;
-  const PLATFORM_SCALE = 0.875; // x0.8 camera dolly => ~30% smaller on screen than before // sits well below the map so the map floats above it, as in the reference
-  const PED_R = 1.95; // pedestal radius
-  const PED_H = 0.56; // pedestal height
-  const PLATE_H = 0.05;
-  const PLATE_R = PED_R + 0.19; // red plate only peeks out as a thin rim
+  const PLATFORM_Y = -5.4;
+  const PLATFORM_SCALE = 1; // sits well below the map so the map floats above it, as in the reference
+  const PED_R = 2.2; // pedestal radius
+  const PED_H = 0.5; // pedestal height
+  const PLATE_H = 0.06;
+  const PLATE_R = PED_R * 1.27; // thin red plate, ~27% wider than the pedestal like the reference
   const radial = compact ? 64 : 128;
   const platform = new THREE.Group();
   platform.position.set(0.5, PLATFORM_Y, 0);
   platform.scale.setScalar(PLATFORM_SCALE);
+  platform.rotation.x = -0.2; // lean back ~11 deg: the pedestal is seen from a lower angle than the map, as in the reference
   root.add(platform);
 
   // body: lathe profile with rounded bottom/top shoulders and a shallow recess for the glass
@@ -294,16 +249,34 @@ export function createLoginScene(canvas: HTMLCanvasElement, opts: SceneOptions):
   profile.push(new THREE.Vector2(PED_R - 0.3, PLATE_H + PED_H));
   profile.push(new THREE.Vector2(PED_R - 0.3, PLATE_H + PED_H - 0.05));
   profile.push(new THREE.Vector2(0, PLATE_H + PED_H - 0.05));
-  const bodyMat = glossy(compact, { color: 0xd3d8e1, roughness: 0.27, metalness: 0.68, clearcoat: 0.7, clearcoatRoughness: 0.2, emissive: 0x1b212c, emissiveIntensity: 0.15, envMapIntensity: 1.2 });
+  const wallCanvas = document.createElement("canvas");
+  wallCanvas.width = 256;
+  wallCanvas.height = 4;
+  const wg = wallCanvas.getContext("2d")!;
+  for (let x = 0; x < 256; x++) {
+    const u = x / 255; // 0 = front centre, 0.25 = right, 0.75 = left (LatheGeometry)
+    const k = 0.5 + 0.5 * Math.cos((u - 0.74) * Math.PI * 2); // brightest on the left
+    const v = Math.round(150 + 100 * k);
+    wg.fillStyle = `rgb(${v},${v + 2},${Math.min(255, v + 8)})`;
+    wg.fillRect(x, 0, 1, 4);
+  }
+  const wallTex = new THREE.CanvasTexture(wallCanvas);
+  wallTex.colorSpace = THREE.SRGBColorSpace;
+  wallTex.wrapS = THREE.RepeatWrapping;
+  const bodyMat = glossy(compact, { map: wallTex, color: 0xffffff, roughness: 0.24, metalness: 0.6, clearcoat: 0.8, clearcoatRoughness: 0.15, emissive: 0x222833, emissiveIntensity: 0.12, envMapIntensity: 1.25 });
   const body = new THREE.Mesh(new THREE.LatheGeometry(profile, radial), bodyMat);
   const TOP = PLATE_H + PED_H;
 
   // thin Bata-red plate under the pedestal (lit lightly so it glows without a hard outline)
   const plate = new THREE.Mesh(
     new THREE.CylinderGeometry(PLATE_R, PLATE_R + 0.02, PLATE_H, radial),
-    glossy(compact, { color: 0xd4131b, roughness: 0.32, metalness: 0.1, clearcoat: 0.8, clearcoatRoughness: 0.15, emissive: 0xe0101a, emissiveIntensity: 0.16 }),
+    glossy(compact, { color: 0xc9101a, roughness: 0.22, metalness: 0.15, clearcoat: 1, clearcoatRoughness: 0.08, emissive: 0xd8101a, emissiveIntensity: 0.22 }),
   );
   plate.position.y = PLATE_H / 2;
+  // thin lit edge on the plate (pink-white highlight, like the reference)
+  const plateEdge = new THREE.Mesh(new THREE.TorusGeometry(PLATE_R + 0.005, 0.018, 6, radial), new THREE.MeshBasicMaterial({ color: 0xff8d95 }));
+  plateEdge.rotation.x = Math.PI / 2;
+  plateEdge.position.y = PLATE_H - 0.004;
 
   // recessed groove ring (slightly darker metal) between the bezel and the glass
   const groove = new THREE.Mesh(
@@ -332,32 +305,34 @@ export function createLoginScene(canvas: HTMLCanvasElement, opts: SceneOptions):
 
   // three softly lit slots on the front wall
   const slotMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.95 });
-  const slotDefs: Array<[number, number]> = [[0, 0.5], [-0.78, 0.3], [0.78, 0.3]]; // [centre angle, length]
+  const slotDefs: Array<[number, number]> = [[0, 0.62], [-1.02, 0.4], [1.02, 0.4]]; // [centre angle, length]
   const slots = slotDefs.map(([a, len]) => {
-    const m = new THREE.Mesh(new THREE.CylinderGeometry(PED_R + 0.004, PED_R + 0.004, 0.075, 24, 1, true, a - len / 2, len), slotMat);
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(PED_R + 0.004, PED_R + 0.004, 0.1, 24, 1, true, a - len / 2, len), slotMat);
     m.position.y = PLATE_H + PED_H * 0.42;
     return m;
   });
-  const slotGlowTex = radialTexture([[0, "rgba(255,255,255,0.9)"], [0.4, "rgba(255,170,178,0.35)"], [1, "rgba(255,120,130,0)"]], 128);
-  const slotGlowMat = new THREE.SpriteMaterial({ map: slotGlowTex, transparent: true, depthWrite: false });
+  const slotGlowTex = radialTexture([[0, "rgba(255,255,255,0.95)"], [0.3, "rgba(255,200,206,0.6)"], [0.65, "rgba(255,120,130,0.18)"], [1, "rgba(255,120,130,0)"]], 128);
+  const slotGlowMat = new THREE.SpriteMaterial({ map: slotGlowTex, transparent: true, depthWrite: false, depthTest: false });
   const slotGlows = slotDefs.map(([a, len]) => {
     const s = new THREE.Sprite(slotGlowMat);
-    s.scale.set(len * 2.4, 0.4, 1);
+    s.scale.set(len * 3.4, 0.62, 1);
     s.position.set(Math.sin(a) * (PED_R + 0.06), PLATE_H + PED_H * 0.42, Math.cos(a) * (PED_R + 0.06));
-    s.renderOrder = 3;
+    s.renderOrder = 5;
     return s;
   });
-  platform.add(plate, body, groove, glass, ...slots, ...slotGlows);
+  platform.add(plate, plateEdge, body, groove, glass, ...slots, ...slotGlows);
 
   // soft pink-white glow on the glass: bright centre, no hard edge, no rings
   const poolTex = radialTexture([
-    [0, "rgba(255,255,255,0.9)"],
-    [0.28, "rgba(255,206,211,0.5)"],
-    [0.6, "rgba(255,130,140,0.14)"],
-    [1, "rgba(255,110,120,0)"],
+    [0, "rgba(255,255,255,0.95)"],
+    [0.1, "rgba(255,240,242,0.9)"],
+    [0.24, "rgba(255,112,122,0.72)"],
+    [0.42, "rgba(255,70,82,0.38)"],
+    [0.72, "rgba(255,100,110,0.08)"],
+    [1, "rgba(255,100,110,0)"],
   ]);
   const poolMat = new THREE.MeshBasicMaterial({ map: poolTex, transparent: true, depthWrite: false });
-  const pool = new THREE.Mesh(new THREE.PlaneGeometry(2.7, 2.7), poolMat);
+  const pool = new THREE.Mesh(new THREE.PlaneGeometry(3.1, 3.1), poolMat);
   pool.rotation.x = -Math.PI / 2;
   pool.position.y = TOP + 0.004;
   pool.renderOrder = 2;
@@ -369,7 +344,7 @@ export function createLoginScene(canvas: HTMLCanvasElement, opts: SceneOptions):
     transparent: true,
     depthWrite: false,
   });
-  const ambient = new THREE.Mesh(new THREE.PlaneGeometry(7.2, 7.2), ambientMat);
+  const ambient = new THREE.Mesh(new THREE.PlaneGeometry(8.6, 8.6), ambientMat);
   ambient.rotation.x = -Math.PI / 2;
   ambient.position.y = 0.002;
   const contactMat = new THREE.MeshBasicMaterial({
@@ -377,7 +352,7 @@ export function createLoginScene(canvas: HTMLCanvasElement, opts: SceneOptions):
     transparent: true,
     depthWrite: false,
   });
-  const contact = new THREE.Mesh(new THREE.PlaneGeometry(5.6, 5.6), contactMat);
+  const contact = new THREE.Mesh(new THREE.PlaneGeometry(6.8, 6.8), contactMat);
   contact.rotation.x = -Math.PI / 2;
   contact.position.y = 0.004;
   ambient.renderOrder = 0;
@@ -385,14 +360,41 @@ export function createLoginScene(canvas: HTMLCanvasElement, opts: SceneOptions):
   platform.add(ambient, contact);
 
   // soft projected shadow of the map, drawn from the real outline onto the glass
-  const SHADOW_K = 0.36;
-  const shadowTex = shadowTexture(7, SHADOW_K);
-  const shadowMat = new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, opacity: 0.3, depthWrite: false });
+  const SHADOW_K = 0.42;
+  const shadowMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false });
   const shadow = new THREE.Mesh(new THREE.PlaneGeometry(7, 7), shadowMat);
   shadow.rotation.x = -Math.PI / 2;
   shadow.position.set(0, TOP + 0.006, 0.05);
   shadow.renderOrder = 2;
   platform.add(shadow);
+
+  new THREE.TextureLoader().load(MAP_URL, (tex) => {
+    if (disposed) {
+      tex.dispose();
+      return;
+    }
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+    const img = tex.image as HTMLImageElement;
+    const w = MAP_H * (img.width / img.height);
+    const plane = new THREE.PlaneGeometry(w, MAP_H);
+    // opaque cut-out: writes depth, so the orbital rings pass behind it and in front of it correctly
+    const solid = new THREE.Mesh(plane, new THREE.MeshBasicMaterial({ map: tex, alphaTest: 0.5, alphaToCoverage: true, toneMapped: false }));
+    // translucent fringe (soft glow around pins / edges), just behind the cut-out
+    const soft = new THREE.Mesh(plane, new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, toneMapped: false }));
+    soft.position.z = -0.01;
+    mapGroup.add(soft, solid);
+    const shTex = shadowFromImage(img, w, MAP_H, 7, SHADOW_K);
+    shadowMat.map = shTex;
+    shadowMat.needsUpdate = true;
+    mapDisposables.push(tex, plane, solid.material as THREE.Material, soft.material as THREE.Material, shTex);
+    mapGroup.visible = true;
+    mapLoadedAt = timer.getElapsed();
+    if (opts.reducedMotion) {
+      shadowMat.opacity = 0.16;
+      renderer.render(scene, camera);
+    }
+  });
 
   // faint rising light (pale pink / white vertical streaks that fade out toward the map)
   const beamMat = new THREE.ShaderMaterial({
@@ -401,21 +403,62 @@ export function createLoginScene(canvas: HTMLCanvasElement, opts: SceneOptions):
     transparent: true,
     depthWrite: false,
     side: THREE.DoubleSide,
-    uniforms: { uTime: { value: 0 }, uAlpha: { value: 0.22 }, uFade: { value: opts.reducedMotion ? 1 : 0 } },
+    uniforms: { uTime: { value: 0 }, uAlpha: { value: 0.6 }, uFade: { value: opts.reducedMotion ? 1 : 0 } },
   });
-  const beam = new THREE.Mesh(new THREE.CylinderGeometry(1.75, 1.2, 3.0, compact ? 32 : 64, 1, true), beamMat);
+  const beam = new THREE.Mesh(new THREE.CylinderGeometry(1.7, 1.45, 3.0, compact ? 32 : 64, 1, true), beamMat);
   beam.position.y = TOP + 1.5;
   beam.renderOrder = 4;
   platform.add(beam);
 
+  // soft reflection of the lit slots / red plate on the glossy floor
+  const refCanvas = document.createElement("canvas");
+  refCanvas.width = 512;
+  refCanvas.height = 160;
+  const rg = refCanvas.getContext("2d")!;
+  const band = rg.createLinearGradient(0, 0, 0, 160);
+  band.addColorStop(0, "rgba(225,30,40,0.5)");
+  band.addColorStop(0.5, "rgba(235,70,80,0.16)");
+  band.addColorStop(1, "rgba(235,70,80,0)");
+  rg.fillStyle = band;
+  rg.fillRect(60, 0, 392, 160);
+  [[256, 78], [128, 34], [384, 34]].forEach(([cx, hw]) => {
+    const sg = rg.createLinearGradient(0, 0, 0, 160);
+    sg.addColorStop(0, "rgba(255,255,255,0.75)");
+    sg.addColorStop(0.45, "rgba(255,170,178,0.22)");
+    sg.addColorStop(1, "rgba(255,170,178,0)");
+    rg.fillStyle = sg;
+    rg.fillRect(cx - hw, 0, hw * 2, 160);
+  });
+  rg.globalCompositeOperation = "destination-in"; // feather the left/right ends
+  const feather = rg.createLinearGradient(0, 0, 512, 0);
+  feather.addColorStop(0, "rgba(0,0,0,0)");
+  feather.addColorStop(0.15, "rgba(0,0,0,1)");
+  feather.addColorStop(0.85, "rgba(0,0,0,1)");
+  feather.addColorStop(1, "rgba(0,0,0,0)");
+  rg.fillStyle = feather;
+  rg.fillRect(0, 0, 512, 160);
+  const topFade = rg.createLinearGradient(0, 0, 0, 160); // no hard top edge
+  topFade.addColorStop(0, "rgba(0,0,0,0)");
+  topFade.addColorStop(0.16, "rgba(0,0,0,1)");
+  topFade.addColorStop(1, "rgba(0,0,0,1)");
+  rg.fillStyle = topFade;
+  rg.fillRect(0, 0, 512, 160);
+  const refTex = new THREE.CanvasTexture(refCanvas);
+  refTex.colorSpace = THREE.SRGBColorSpace;
+  const reflectMat = new THREE.MeshBasicMaterial({ map: refTex, transparent: true, depthWrite: false });
+  const reflection = new THREE.Mesh(new THREE.PlaneGeometry(PLATE_R * 1.55, 0.56), reflectMat);
+  reflection.position.set(0.5, PLATFORM_Y + PLATE_R * 0.2 - 0.2, PLATE_R * 0.94);
+  reflection.renderOrder = 0;
+  root.add(reflection);
+
   /* ---------- orbital rings (real 3D meshes) ---------- */
-  const ringSpecs: RingSpec[] = [
-    { radius: 4.6, tube: 0.06, base: 0xd71920, emissive: 0x8a0008, hi: 0xffffff, arcs: 3, arcLen: 0.95, tilt: 1.05, roll: -0.3, spin: 0.55, wobble: 0.05, phase: 0 },
-    { radius: 4.05, tube: 0.041, base: 0x4f9bf0, emissive: 0x1a4c99, hi: 0xffffff, arcs: 2, arcLen: 0.75, tilt: 1.12, roll: 0.26, spin: -0.4, wobble: 0.06, phase: 1.7 },
-    { radius: 3.5, tube: 0.015, base: 0x9fb4d6, emissive: 0x9fb4d6, hi: 0xffffff, arcs: 0, arcLen: 0, tilt: 0.7, roll: -0.75, spin: 0.28, wobble: 0.08, phase: 3.1, dotted: true },
+  const ringSpecs: RingSpec[] = USE_RING_ARTWORK ? [] : [
+    { radius: 4.6, tube: 0.115, base: 0xee1420, emissive: 0, hi: 0xffffff, arcs: 3, arcLen: 0, tilt: 1.05, roll: -0.3, spin: 0.55, wobble: 0.05, phase: 0 },
+    { radius: 4.05, tube: 0.095, base: 0x74adff, emissive: 0, hi: 0xffffff, arcs: 2, arcLen: 0, tilt: 1.12, roll: 0.26, spin: -0.4, wobble: 0.06, phase: 1.7 },
+    { radius: 3.5, tube: 0.018, base: 0x9fb4d6, emissive: 0x9fb4d6, hi: 0xffffff, arcs: 0, arcLen: 0, tilt: 0.7, roll: -0.75, spin: 0.28, wobble: 0.08, phase: 3.1, dotted: true },
   ];
   const glowMats: THREE.ShaderMaterial[] = [];
-  const torusSeg = compact ? 90 : 180;
+  const torusSeg = compact ? 120 : 240;
 
   const rings = ringSpecs.map((s) => {
     const outer = new THREE.Group();
@@ -432,50 +475,78 @@ export function createLoginScene(canvas: HTMLCanvasElement, opts: SceneOptions):
         depthWrite: false,
         uniforms: {
           uBase: { value: new THREE.Color(s.base) }, uHi: { value: new THREE.Color(s.hi) },
-          uAlpha: { value: 0.75 }, uFade: { value: opts.reducedMotion ? 1 : 0 },
+          uAlpha: { value: 0.55 }, uFade: { value: opts.reducedMotion ? 1 : 0 },
           uCount: { value: 18 }, uSharp: { value: 1 }, uDash: { value: 1 },
         },
       });
       glowMats.push(m);
       spin.add(new THREE.Mesh(new THREE.TorusGeometry(s.radius, s.tube, 6, torusSeg), m));
     } else {
-      const bodyMat = new THREE.MeshStandardMaterial({ color: s.base, roughness: 0.22, metalness: 0.35, emissive: s.emissive, emissiveIntensity: 0.55, envMapIntensity: 1.2 });
-      spin.add(new THREE.Mesh(new THREE.TorusGeometry(s.radius, s.tube, 16, torusSeg), bodyMat));
-      // thicker bright energy segments: make the rotation read in 3D
-      const segMat = new THREE.MeshStandardMaterial({ color: s.hi, roughness: 0.2, metalness: 0.1, emissive: s.base, emissiveIntensity: 0.9, envMapIntensity: 1 });
-      const segGeo = new THREE.TorusGeometry(s.radius, s.tube * 1.8, 12, 48, s.arcLen);
-      for (let i = 0; i < s.arcs; i++) {
-        const segMesh = new THREE.Mesh(segGeo, segMat);
-        segMesh.rotation.z = (i / s.arcs) * Math.PI * 2;
-        spin.add(segMesh);
-      }
-      // soft glow shell
-      const glow = new THREE.ShaderMaterial({
-        vertexShader: GLOW_VERT,
-        fragmentShader: GLOW_FRAG,
+      // one translucent tube whose shading is computed from the view angle: bright white core, coloured soft falloff
+      const trail = new THREE.ShaderMaterial({
+        vertexShader: TRAIL_VERT,
+        fragmentShader: TRAIL_FRAG,
         transparent: true,
-        depthWrite: false,
+        depthWrite: false, // depth *test* stays on: the map still hides the far side of each ring
         uniforms: {
-          uBase: { value: new THREE.Color(s.base) }, uHi: { value: new THREE.Color(s.hi) },
-          uAlpha: { value: 0.07 }, uFade: { value: opts.reducedMotion ? 1 : 0 },
-          uCount: { value: s.arcs || 1 }, uSharp: { value: 2 }, uDash: { value: 0 },
+          uCol: { value: new THREE.Color(s.base) },
+          uAlpha: { value: 0.95 },
+          uFade: { value: opts.reducedMotion ? 1 : 0 },
+          uTime: { value: 0 },
+          uHeads: { value: s.arcs },
+          uWhite: { value: s.base === 0xee1420 ? 0.28 : 0.45 },
         },
       });
-      glowMats.push(glow);
-      spin.add(new THREE.Mesh(new THREE.TorusGeometry(s.radius, s.tube * 2.6, 8, torusSeg), glow));
-      // satellite
-      const sat = new THREE.Mesh(
-        new THREE.SphereGeometry(s.tube * 2.4, 20, 20),
-        new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.15, emissive: s.base, emissiveIntensity: 0.9 }),
-      );
-      sat.position.set(s.radius, 0, 0);
-      spin.add(sat);
+      glowMats.push(trail);
+      spin.add(new THREE.Mesh(new THREE.TorusGeometry(s.radius, s.tube, 14, torusSeg), trail));
     }
     pivot.add(spin);
     outer.add(pivot);
     root.add(outer);
     return { spec: s, outer, pivot, spin };
   });
+
+  /* ---------- orbital ring artwork: back half behind the map, front half in front ---------- */
+  interface RingLayer { mesh: THREE.Mesh; depth: number }
+  const ringLayers: RingLayer[] = [];
+  const ringMats: THREE.MeshBasicMaterial[] = [];
+  if (USE_RING_ARTWORK) {
+    const loader = new THREE.TextureLoader();
+    const addLayer = (url: string, depth: number, order: number) => {
+      loader.load(url, (tex) => {
+        if (disposed) {
+          tex.dispose();
+          return;
+        }
+        tex.colorSpace = THREE.SRGBColorSpace;
+        tex.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+        const img = tex.image as HTMLImageElement;
+        const geo = new THREE.PlaneGeometry(RING_W, RING_W * (img.height / img.width));
+        const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, toneMapped: false, opacity: opts.reducedMotion ? 1 : 0 });
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.renderOrder = order;
+        root.add(mesh);
+        ringLayers.push({ mesh, depth });
+        ringMats.push(mat);
+        mapDisposables.push(tex, geo, mat);
+        layoutRings(0, 1);
+        if (opts.reducedMotion) renderer.render(scene, camera);
+      });
+    };
+    addLayer(RING_BACK_URL, -RING_DEPTH, 1);
+    addLayer(RING_FRONT_URL, RING_DEPTH, 6);
+  }
+  /** Places each half at its own depth but scaled/shifted along the camera ray, so both halves line up exactly on screen. */
+  function layoutRings(roll: number, scale: number) {
+    const camZ = camera.position.z;
+    const camY = camera.position.y;
+    for (const l of ringLayers) {
+      const k = (camZ - l.depth) / camZ;
+      l.mesh.position.set(RING_X * k, camY + (RING_Y - camY) * k, l.depth);
+      l.mesh.scale.setScalar(k * scale);
+      l.mesh.rotation.z = roll;
+    }
+  }
 
   /* ---------- sparkles ---------- */
   const N = compact ? 36 : 80;
@@ -534,21 +605,30 @@ export function createLoginScene(canvas: HTMLCanvasElement, opts: SceneOptions):
     root.rotation.x += (py * 0.04 - root.rotation.x) * 0.05;
 
     const bob = Math.sin(t * 0.9);
-    mapGroup.scale.setScalar(0.86 + 0.14 * intro);
-    mapGroup.position.y = 0.35 + bob * 0.1;
+    const mi = mapLoadedAt < 0 ? 0 : easeOut(Math.min(1, (t - mapLoadedAt) / 1.1));
+    mapGroup.scale.setScalar(0.86 + 0.14 * mi);
+    mapGroup.position.y = MAP_Y + bob * 0.1;
     mapGroup.rotation.z = Math.sin(t * 0.35) * 0.03;
 
     // shadow / light pool react to the floating map
     shadow.scale.setScalar(1 - bob * 0.03);
-    shadowMat.opacity = (0.3 - bob * 0.02) * intro;
+    shadowMat.opacity = (0.16 - bob * 0.015) * mi;
 
+    if (ringLayers.length) {
+      layoutRings(Math.sin(t * 0.3) * 0.012, 1 + Math.sin(t * 0.5) * 0.012);
+      const o = (0.94 + 0.06 * (0.5 + 0.5 * Math.sin(t * 0.7))) * intro;
+      for (const m of ringMats) m.opacity = o;
+    }
     for (const r of rings) {
       r.spin.rotation.z = t * r.spec.spin + r.spec.phase + (1 - intro) * 5 * Math.sign(r.spec.spin);
       r.pivot.rotation.x = r.spec.tilt + Math.sin(t * 0.5 + r.spec.phase) * r.spec.wobble;
       r.pivot.rotation.y = Math.sin(t * 0.37 + r.spec.phase * 1.3) * r.spec.wobble;
       r.outer.scale.setScalar(0.8 + 0.2 * intro);
     }
-    for (const m of glowMats) m.uniforms.uFade.value = intro;
+    for (const m of glowMats) {
+      m.uniforms.uFade.value = intro;
+      if (m.uniforms.uTime) m.uniforms.uTime.value = t;
+    }
     beamMat.uniforms.uTime.value = t;
     beamMat.uniforms.uFade.value = intro;
 
@@ -558,12 +638,6 @@ export function createLoginScene(canvas: HTMLCanvasElement, opts: SceneOptions):
     slotMat.opacity = (0.88 + 0.1 * breath) * intro;
     slotGlowMat.opacity = (0.7 + 0.2 * breath) * intro;
 
-    for (const p of pins) {
-      const k = (t * 0.55 + p.phase) % 1;
-      p.pulse.scale.setScalar(0.8 + k * 1.6);
-      p.pulseMat.opacity = (1 - k) * 0.22 * intro;
-      p.group.position.z = PIN_Z + Math.sin(t * 1.6 + p.phase * 6.28) * 0.02;
-    }
     sparkles.rotation.y = t * 0.05;
     sparkles.position.y = Math.sin(t * 0.4) * 0.08;
 
@@ -598,7 +672,7 @@ export function createLoginScene(canvas: HTMLCanvasElement, opts: SceneOptions):
   if (opts.reducedMotion) {
     for (const m of glowMats) m.uniforms.uFade.value = 1;
     beamMat.uniforms.uFade.value = 1;
-    shadowMat.opacity = 0.3;
+    shadowMat.opacity = 0.16;
     renderer.render(scene, camera);
   } else {
     kick();
@@ -623,7 +697,7 @@ export function createLoginScene(canvas: HTMLCanvasElement, opts: SceneOptions):
           x.dispose();
         });
       });
-      edgeGeos.forEach((g) => g.dispose());
+      mapDisposables.forEach((d) => d.dispose());
       envTex.dispose();
       renderer.dispose();
       renderer.forceContextLoss();

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
-import { Camera, Eye, EyeOff, Loader2, LogIn, Lock, Mail } from "lucide-react";
+import { Cctv, Eye, EyeOff, Loader2, LogIn, Lock, Mail } from "lucide-react";
 
 /** Sign-in form. Authentication logic is unchanged from the previous login page (Supabase password sign-in). */
 export default function LoginForm() {
@@ -32,7 +32,7 @@ export default function LoginForm() {
     <section className="ls-card" aria-labelledby="login-title">
       <div className="ls-card-head">
         <div className="ls-card-icon" aria-hidden="true">
-          <Camera strokeWidth={2.2} />
+          <Cctv strokeWidth={2.2} />
         </div>
         <div>
           <h1 id="login-title">BATA CCTV</h1>

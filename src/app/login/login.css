@@ -1,46 +1,64 @@
-/* Login hero. Desktop: positioned in % of a 1670x941 stage (matches the approved reference). < 1024px: stacked. */
-.login-root { min-height: 100dvh; background: #fff; display: flex; align-items: flex-end; justify-content: center; overflow-x: hidden; color: #172033; }
-.login-stage { position: relative; width: min(100vw, calc(100dvh * 1.7745)); max-width: 2000px; aspect-ratio: 1670 / 941; container-type: inline-size; }
+/* Login hero. Desktop: two columns (visual ~60% / login ~40%). The visual is laid out in a 1000 x 800 design box
+   (1cqw = 10 units) centred in its column; the 3D scene is framed by its own Three.js camera.
+   < 1024px or a squarish window: stacked. */
+.login-root { min-height: 100dvh; background: #fff; overflow-x: hidden; color: #172033; }
+.login-stage { position: relative; min-height: 100dvh; max-width: 2200px; margin: 0 auto; display: grid; grid-template-columns: 60fr 40fr; align-items: center; }
 
-.ls-swoosh { overflow: visible; position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
-.ls-store { position: absolute; left: 0; top: 60.8%; width: 38.3%; height: auto; z-index: 0; pointer-events: none; }
-.ls-art { position: absolute; inset: 0; pointer-events: none; } /* no z-index: keeps multiply blending against the storefront */
-.ls-scene { position: absolute; left: 21.6%; top: 17%; width: 39.5%; height: 77%; }
+.ls-left { display: grid; place-items: center; padding: 28px 0; }
+.ls-visual { --sx: 13.5cqw; /* shifts the artwork so its real bounds (camera/store .. rings) sit centred in the column */
+  position: relative; width: min(98%, calc((100dvh - 56px) * 1.25)); aspect-ratio: 1000 / 800; container-type: inline-size; }
+
+.ls-store { position: absolute; left: var(--sx); bottom: 10cqw; width: 48cqw; height: auto; pointer-events: none;
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 9%, #000 74%, transparent 100%), linear-gradient(to bottom, #000 86%, transparent 100%);
+  -webkit-mask-composite: source-in;
+  mask-image: linear-gradient(to right, transparent 0, #000 9%, #000 74%, transparent 100%), linear-gradient(to bottom, #000 86%, transparent 100%);
+  mask-composite: intersect; }
+.ls-art { position: absolute; inset: 0; pointer-events: none; }
+.ls-scene { position: absolute; left: calc(21cqw + var(--sx)); top: 15cqw; width: 58cqw; height: 62cqw; }
 .ls-canvas, .ls-scene-fallback { width: 100%; height: 100%; display: block; }
 .ls-canvas { opacity: 0; transition: opacity .9s ease; }
 .ls-canvas.is-ready { opacity: 1; }
 .ls-scene-fallback { object-fit: contain; }
-.ls-camera { position: absolute; left: 0; top: 0; width: 30.2%; height: auto; }
+.ls-camera { position: absolute; left: var(--sx); top: 12cqw; width: 34.3cqw; height: auto;
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 7%), linear-gradient(to bottom, transparent 0, #000 9%); -webkit-mask-composite: source-in;
+  mask-image: linear-gradient(to right, transparent 0, #000 7%), linear-gradient(to bottom, transparent 0, #000 9%); mask-composite: intersect; }
 
-.ls-brand { position: absolute; left: 15.3%; top: 3.4%; display: flex; align-items: center; gap: 1.5cqw; z-index: 3; }
-.ls-logo { width: 17.6cqw; height: auto; display: block; }
-.ls-sep { width: 1px; height: 5.8cqw; background: #1c1f2a; }
+.ls-brand { position: absolute; left: 0; right: 0; top: 1.5cqw; display: flex; align-items: center; justify-content: center; gap: 1.9cqw; z-index: 3; }
+.ls-logo { width: 22cqw; height: auto; display: block; }
+.ls-sep { width: 1px; height: 7.3cqw; background: #1c1f2a; }
 .ls-brand-text { display: flex; flex-direction: column; line-height: 1.15; }
-.ls-brand-text strong { font-size: 3.5cqw; font-weight: 700; color: #151a27; letter-spacing: -.01em; }
-.ls-brand-text span { font-size: 2cqw; font-weight: 500; color: #4a5468; }
+.ls-brand-text strong { font-size: 4.4cqw; font-weight: 700; color: #151a27; letter-spacing: -.01em; }
+.ls-brand-text span { font-size: 2.5cqw; font-weight: 500; color: #4a5468; }
 
-.ls-card { position: absolute; left: 62%; top: 20.5%; width: 33.6%; box-sizing: border-box; padding: 3.2cqw 3.3cqw 3.4cqw; background: #fff; border: 1px solid #eceef4; border-radius: 2.4cqw;
-  box-shadow: 0 2.2cqw 5.5cqw rgba(40,30,70,.11), 0 .4cqw 1.2cqw rgba(40,30,70,.06); z-index: 4; font-size: max(14px, 1.25cqw); }
-.ls-card-head { display: flex; align-items: center; gap: 1.4cqw; margin-bottom: 2.5cqw; }
-.ls-card-icon { width: 4.8cqw; height: 4.8cqw; border-radius: 1.2cqw; display: grid; place-items: center; color: #fff; background: linear-gradient(145deg, #ee2833, #c60f18); box-shadow: 0 .45cqw 1.1cqw rgba(215,25,32,.28); flex: none; }
+.ls-right { display: grid; place-items: center; padding: 28px clamp(16px, 3vw, 56px); }
+
+/* very subtle bottom accent */
+.ls-accent { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; pointer-events: none;
+  background: linear-gradient(90deg, rgba(215,25,32,0) 0%, rgba(226,51,61,.85) 32%, rgba(242,106,113,.9) 50%, rgba(226,51,61,.85) 68%, rgba(215,25,32,0) 100%); }
+
+/* ---------- login card: fixed 400px ---------- */
+.ls-card { box-sizing: border-box; width: 400px; max-width: 100%; padding: 32px 32px 34px; background: #fff; border: 1px solid #eceef4; border-radius: 24px;
+  box-shadow: 0 22px 54px rgba(40,30,70,.10), 0 4px 14px rgba(40,30,70,.06); z-index: 4; font-size: 14px; }
+.ls-card-head { display: flex; align-items: center; gap: 14px; margin-bottom: 26px; }
+.ls-card-icon { width: 52px; height: 52px; border-radius: 14px; display: grid; place-items: center; color: #fff; background: linear-gradient(145deg, #ee2833, #c60f18); box-shadow: 0 5px 12px rgba(215,25,32,.26); flex: none; }
 .ls-card-icon svg { width: 54%; height: 54%; }
-.ls-card h1 { margin: 0; font-size: max(20px, 2.35cqw); line-height: 1.1; font-weight: 700; color: #151a27; letter-spacing: -.015em; }
-.ls-card-head p { margin: .4cqw 0 0; font-size: max(12px, 1.35cqw); color: #5a6478; font-weight: 500; letter-spacing: .07em; }
-.ls-note { margin: 0 0 1.2cqw; font-size: max(12px, 1cqw); color: #b01319; background: #fff4f4; border: 1px solid rgba(215,25,32,.18); border-radius: .8cqw; padding: .9cqw 1.1cqw; }
-.ls-form { display: flex; flex-direction: column; gap: 1.45cqw; }
-.ls-field label { display: flex; align-items: center; gap: .65cqw; font-size: max(13px, 1.12cqw); font-weight: 600; color: #2b3345; margin-bottom: .6cqw; }
+.ls-card h1 { margin: 0; font-size: 24px; line-height: 1.1; font-weight: 700; color: #151a27; letter-spacing: -.015em; }
+.ls-card-head p { margin: 4px 0 0; font-size: 12.5px; color: #5a6478; font-weight: 500; letter-spacing: .08em; }
+.ls-note { margin: 0 0 14px; font-size: 12.5px; color: #b01319; background: #fff4f4; border: 1px solid rgba(215,25,32,.18); border-radius: 10px; padding: 10px 12px; }
+.ls-form { display: flex; flex-direction: column; gap: 16px; }
+.ls-field label { display: flex; align-items: center; gap: 7px; font-size: 13.5px; font-weight: 600; color: #2b3345; margin-bottom: 7px; }
 .ls-field label svg { width: 1.3em; height: 1.3em; stroke-width: 2; color: #5a6478; }
-.ls-field input { width: 100%; box-sizing: border-box; height: max(46px, 3.5cqw); padding: 0 1.15cqw; border: 1px solid #dbe3f3; border-radius: .9cqw; background: #f4f7fe; color: #172033; font: inherit; font-size: max(15px, 1.2cqw); outline: none; transition: border-color .15s, box-shadow .15s, background .15s; }
+.ls-field input { width: 100%; box-sizing: border-box; height: 46px; padding: 0 14px; border: 1px solid #dbe3f3; border-radius: 12px; background: #f4f7fe; color: #172033; font: inherit; font-size: 15px; outline: none; transition: border-color .15s, box-shadow .15s, background .15s; }
 .ls-field input::placeholder { color: #6b7385; }
 .ls-field input:focus { border-color: #df1524; background: #fff; box-shadow: 0 0 0 3px rgba(223,21,36,.12); }
 .ls-pass { position: relative; }
-.ls-pass input { padding-right: 4.2cqw; }
-.ls-pass button { position: absolute; right: .55cqw; top: 50%; transform: translateY(-50%); width: max(40px, 2.9cqw); height: max(40px, 2.9cqw); border: 0; background: transparent; color: #5a6478; cursor: pointer; display: grid; place-items: center; border-radius: .7cqw; }
+.ls-pass input { padding-right: 50px; }
+.ls-pass button { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 40px; height: 40px; border: 0; background: transparent; color: #5a6478; cursor: pointer; display: grid; place-items: center; border-radius: 9px; }
 .ls-pass button:hover { background: rgba(0,0,0,.05); }
 .ls-pass button:focus-visible { outline: 2px solid #df1524; }
-.ls-pass svg { width: 1.6cqw; min-width: 20px; height: auto; }
-.ls-error { margin: 0; font-size: max(13px, 1.05cqw); color: #b01319; }
-.ls-submit { margin-top: .9cqw; width: 100%; height: max(50px, 3.8cqw); border: 0; border-radius: .95cqw; background: linear-gradient(180deg, #ee2630, #d1121b); color: #fff; font: inherit; font-size: max(16px, 1.5cqw); font-weight: 700; letter-spacing: .01em; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: .8cqw; box-shadow: 0 .55cqw 1.3cqw rgba(215,25,32,.28); transition: transform .15s, box-shadow .15s, filter .15s; }
+.ls-pass svg { width: 20px; height: auto; }
+.ls-error { margin: 0; font-size: 13px; color: #b01319; }
+.ls-submit { margin-top: 6px; width: 100%; height: 50px; border: 0; border-radius: 12px; background: linear-gradient(180deg, #ee2630, #d1121b); color: #fff; font: inherit; font-size: 16px; font-weight: 700; letter-spacing: .01em; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 9px; box-shadow: 0 8px 18px rgba(215,25,32,.26); transition: transform .15s, box-shadow .15s, filter .15s; }
 .ls-submit svg { width: 1.2em; height: 1.2em; }
 .ls-submit:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.05); }
 .ls-submit:focus-visible { outline: 3px solid rgba(223,21,36,.4); outline-offset: 2px; }
@@ -48,37 +66,29 @@
 
 /* ---------- tablet / phone: stacked ---------- */
 @media (max-width: 1023px), (max-aspect-ratio: 5/4) {
-  .login-root { align-items: flex-start; }
-  .login-stage { width: 100%; max-width: none; aspect-ratio: auto; container-type: normal; min-height: 100dvh; display: flex; flex-direction: column; align-items: center; padding: 20px 16px 0; box-sizing: border-box; overflow: hidden; }
-  .ls-brand { position: relative; left: auto; top: auto; gap: 12px; margin-bottom: 4px; order: 1; }
-  .ls-logo { width: clamp(110px, 30vw, 150px); }
-  .ls-sep { height: 38px; }
-  .ls-brand-text strong { font-size: clamp(18px, 4.6vw, 24px); }
-  .ls-brand-text span { font-size: clamp(11px, 3vw, 14px); }
+  .login-stage { display: flex; flex-direction: column; align-items: center; padding: 20px 16px 28px; box-sizing: border-box; overflow: hidden; }
+  .ls-left, .ls-visual, .ls-right { display: contents; }
+  .ls-brand { position: relative; left: auto; right: auto; top: auto; gap: 12px; margin-bottom: 4px; order: 1; }
+  .ls-logo { width: clamp(100px, 27vw, 130px); }
+  .ls-sep { height: 34px; }
+  .ls-brand-text strong { font-size: clamp(17px, 4.2vw, 22px); }
+  .ls-brand-text span { font-size: clamp(10px, 2.8vw, 13px); }
 
-  .ls-art { position: relative; inset: auto; width: min(100%, 520px); aspect-ratio: 660 / 725; max-height: 50dvh; margin: 0 auto -2%; order: 2; }
+  .ls-art { position: relative; inset: auto; width: min(100%, 460px); aspect-ratio: 580 / 620; max-height: 46dvh; margin: 0 auto 8px; order: 2; }
   .ls-scene { left: 0; top: 0; width: 100%; height: 100%; }
-  .ls-camera { top: 0; left: -3%; width: 46%; }
+  .ls-camera { top: 0; left: -3%; width: 42%; }
 
-  .ls-card { position: relative; left: auto; top: auto; width: min(100%, 440px); padding: 26px 22px 24px; border-radius: 24px; font-size: 14px; order: 3; box-shadow: 0 12px 34px rgba(60,40,60,.14); z-index: 4; }
-  .ls-card-head { gap: 14px; margin-bottom: 18px; }
-  .ls-card-icon { width: 52px; height: 52px; border-radius: 14px; }
-  .ls-card h1 { font-size: 22px; }
-  .ls-card-head p { font-size: 14px; margin-top: 3px; }
+  .ls-card { position: relative; width: min(100%, 400px); padding: 26px 22px 24px; border-radius: 24px; order: 3; box-shadow: 0 12px 34px rgba(60,40,60,.14); }
+  .ls-card-head { margin-bottom: 18px; }
   .ls-form { gap: 14px; }
-  .ls-field label { font-size: 14px; margin-bottom: 6px; gap: 7px; }
-  .ls-field input { height: 48px; font-size: 16px; border-radius: 12px; padding: 0 14px; }
-  .ls-pass input { padding-right: 52px; }
-  .ls-pass button { width: 44px; height: 44px; right: 3px; }
-  .ls-pass svg { width: 20px; }
-  .ls-submit { height: 52px; font-size: 17px; border-radius: 13px; gap: 9px; margin-top: 4px; }
-  .ls-note, .ls-error { font-size: 13px; }
+  .ls-field label { font-size: 14px; margin-bottom: 6px; }
+  .ls-field input { font-size: 16px; }
+  .ls-submit { height: 52px; font-size: 17px; margin-top: 4px; }
 
-  .ls-store { position: relative; left: auto; top: auto; width: min(100%, 460px); margin: 18px auto 0; z-index: 0; order: 4; }
-  .ls-swoosh { height: 100%; }
+  .ls-store { position: relative; left: auto; bottom: auto; width: min(82%, 380px); margin: 22px auto 0; order: 4; }
 }
-@media (max-width: 599px) { .ls-camera { width: 38%; left: -2%; } }
+@media (max-width: 599px) { .ls-camera { width: 36%; left: -2%; } }
 @media (max-width: 1023px) and (min-width: 768px) and (min-aspect-ratio: 5/4) {
-  .ls-art { max-height: 46dvh; }
+  .ls-art { max-height: 42dvh; }
 }
 @media (prefers-reduced-motion: reduce) { .ls-canvas { transition: none; } .ls-submit { transition: none; } }

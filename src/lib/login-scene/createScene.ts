@@ -9,7 +9,7 @@ import { SCENE_CITIES } from "./cities";
  *  - small illustrative city pins with pulses
  *  - two glossy 3D orbital rings (red / blue) + a faint dotted ring: real meshes with thickness and energy segments,
  *    rotating in opposite directions and wobbling in tilt; depth-tested so they pass in front of / behind the map
- *  - compact holographic platform with a soft red/white light pool, a projected soft shadow of the map and a beam
+ *  - low silver glass pedestal (lathe geometry) with a thin red plate, lit front slots, contact shadow and a faint rising light
  * No shadow maps / post-processing. One rAF loop that pauses when hidden or off-screen.
  */
 
@@ -25,7 +25,7 @@ export interface SceneHandle {
 const RED = 0xd71920;
 const WORLD_PER_DEG = 0.63;
 const X_STRETCH = 1.2; // outline is geographically exact; x widened so the shape reads like the approved art at this tilt
-const DEPTH = 0.62;
+const DEPTH = 0.5;
 const BEVEL = 0.06;
 const MAP_TILT = 0.6;
 const LON_C = 101.0;
@@ -51,15 +51,28 @@ void main() {
   gl_FragColor = vec4(mix(uBase, uHi, arc), uAlpha * uFade * (0.6 + 0.4 * arc));
 }`;
 
+const BEAM_VERT = /* glsl */ `
+varying vec2 vUv; varying vec3 vN; varying vec3 vV;
+void main() {
+  vUv = uv;
+  vN = normalMatrix * normal;
+  vec4 mv = modelViewMatrix * vec4(position, 1.0);
+  vV = -mv.xyz;
+  gl_Position = projectionMatrix * mv;
+}`;
+
 const BEAM_FRAG = /* glsl */ `
 uniform float uTime; uniform float uAlpha; uniform float uFade;
-varying vec2 vUv;
+varying vec2 vUv; varying vec3 vN; varying vec3 vV;
 void main() {
-  float h = vUv.y;                         // 1 at the top of the cylinder, 0 at the platform
-  float fall = pow(1.0 - h, 1.8);
-  float bands = 0.82 + 0.18 * sin(h * 70.0 - uTime * 2.2);
-  vec3 c = mix(vec3(1.0, 0.25, 0.3), vec3(1.0), (1.0 - h) * 0.55);
-  gl_FragColor = vec4(c, uAlpha * uFade * fall * bands);
+  float h = vUv.y;                                  // 0 at the pedestal, 1 at the top of the light
+  float rise = pow(1.0 - h, 1.5);
+  float ang = vUv.x * 6.2831853;
+  float streak = 0.62 + 0.38 * sin(ang * 13.0 + sin(ang * 5.0) * 1.7 + uTime * 0.18);
+  float facing = pow(abs(dot(normalize(vN), normalize(vV))), 1.3);   // soft silhouette, no hard edge
+  vec3 c = mix(vec3(1.0, 0.58, 0.63), vec3(1.0, 0.93, 0.94), (1.0 - h) * 0.75);
+  float breathe = 0.93 + 0.07 * sin(uTime * 0.6);
+  gl_FragColor = vec4(c, uAlpha * uFade * rise * streak * facing * breathe);
 }`;
 
 function radialTexture(stops: Array<[number, string]>, size = 256) {
@@ -143,7 +156,7 @@ export function createLoginScene(canvas: HTMLCanvasElement, opts: SceneOptions):
 
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 100);
-  camera.position.set(0, 2.4, 22.2);
+  camera.position.set(0, 3.19, 23.58); // dolly-out (x1.0625) = map & rings render ~20% smaller than before
   camera.lookAt(0, -0.6, 0);
 
   // reflections: small procedural studio environment, generated once
@@ -191,12 +204,12 @@ export function createLoginScene(canvas: HTMLCanvasElement, opts: SceneOptions):
     curveSegments: 1,
   });
   const topMat = glossy(compact, {
-    color: 0xa4aec2,
-    roughness: 0.38,
+    color: 0xd2d9e7,
+    roughness: 0.4,
     metalness: 0.0,
-    clearcoat: 0.45,
+    clearcoat: 0.5,
     clearcoatRoughness: 0.25,
-    envMapIntensity: 0.5,
+    envMapIntensity: 0.45,
   });
   const sideMat = glossy(compact, {
     color: 0xd9141c,
@@ -205,13 +218,13 @@ export function createLoginScene(canvas: HTMLCanvasElement, opts: SceneOptions):
     clearcoat: 0.6,
     clearcoatRoughness: 0.2,
     emissive: 0xff1f2b,
-    emissiveIntensity: 0.32,
+    emissiveIntensity: 0.2,
     envMapIntensity: 0.9,
   });
   mapGroup.add(new THREE.Mesh(mapGeo, [topMat, sideMat]));
 
   // soft red-lit rim on the top face
-  const edgeMat = new THREE.LineBasicMaterial({ color: 0xff7d85, transparent: true, opacity: 0.75 });
+  const edgeMat = new THREE.LineBasicMaterial({ color: 0xff7d85, transparent: true, opacity: 0.6 });
   const edgeGeos: THREE.BufferGeometry[] = [];
   THAILAND_RINGS.forEach((ring) => {
     const pts = ring.map(([lon, lat]) => new THREE.Vector3(mapX(lon), mapY(lat), DEPTH + BEVEL + 0.004));
@@ -232,7 +245,7 @@ export function createLoginScene(canvas: HTMLCanvasElement, opts: SceneOptions):
   const pinMat = new THREE.MeshStandardMaterial({ color: 0xe0161e, roughness: 0.28, metalness: 0.1, emissive: 0xb3000a, emissiveIntensity: 0.8 });
   const dotMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
   const pulseGeo = new THREE.RingGeometry(0.12, 0.16, 36);
-  const PIN_SCALE = 0.55;
+  const PIN_SCALE = 0.4;
   const PIN_Z = DEPTH + BEVEL;
 
   interface Pin { group: THREE.Group; pulse: THREE.Mesh; pulseMat: THREE.MeshBasicMaterial; phase: number }
@@ -251,76 +264,155 @@ export function createLoginScene(canvas: HTMLCanvasElement, opts: SceneOptions):
     return { group, pulse, pulseMat, phase: (i * 0.173) % 1 };
   });
 
-  /* ---------- holographic platform ---------- */
-  const PLATFORM_Y = -4.7;
+  /* ---------- holographic pedestal (real geometry) ---------- */
+  // Low, thick silver drum with rounded edges, a frosted-glass top, three lit slots on the front wall,
+  // a thin red plate underneath, soft contact shadow and a faint rising light. Sized to ~64% of the map width.
+  const PLATFORM_Y = -5.3;
+  const PLATFORM_SCALE = 0.875; // x0.8 camera dolly => ~30% smaller on screen than before // sits well below the map so the map floats above it, as in the reference
+  const PED_R = 1.95; // pedestal radius
+  const PED_H = 0.56; // pedestal height
+  const PLATE_H = 0.05;
+  const PLATE_R = PED_R + 0.19; // red plate only peeks out as a thin rim
+  const radial = compact ? 64 : 128;
   const platform = new THREE.Group();
   platform.position.set(0.5, PLATFORM_Y, 0);
+  platform.scale.setScalar(PLATFORM_SCALE);
   root.add(platform);
 
-  const baseMat = glossy(compact, { color: 0xc9d0de, roughness: 0.32, metalness: 0.45, clearcoat: 0.8, clearcoatRoughness: 0.2, envMapIntensity: 0.9 });
-  const baseDisc = new THREE.Mesh(new THREE.CylinderGeometry(2.75, 2.95, 0.24, compact ? 48 : 96), baseMat);
-  const topDisc = new THREE.Mesh(
-    new THREE.CylinderGeometry(2.4, 2.5, 0.07, compact ? 48 : 96),
-    glossy(compact, { color: 0xe6eaf3, roughness: 0.14, metalness: 0.2, clearcoat: 1, clearcoatRoughness: 0.08, envMapIntensity: 0.9 }),
-  );
-  topDisc.position.y = 0.155;
-  const rimMat = new THREE.MeshBasicMaterial({ color: 0xff2d38 });
-  const rimRing = new THREE.Mesh(new THREE.TorusGeometry(2.86, 0.04, 8, compact ? 72 : 144), rimMat);
-  rimRing.rotation.x = Math.PI / 2;
-  rimRing.position.y = 0.08;
-  const innerRing = new THREE.Mesh(new THREE.TorusGeometry(1.9, 0.014, 6, compact ? 64 : 128), new THREE.MeshBasicMaterial({ color: 0xff6a72, transparent: true, opacity: 0.75 }));
-  innerRing.rotation.x = Math.PI / 2;
-  innerRing.position.y = 0.2;
-  const innerRing2 = new THREE.Mesh(new THREE.TorusGeometry(1.2, 0.012, 6, compact ? 48 : 96), new THREE.MeshBasicMaterial({ color: 0xb9c6dc, transparent: true, opacity: 0.8 }));
-  innerRing2.rotation.x = Math.PI / 2;
-  innerRing2.position.y = 0.2;
-  platform.add(baseDisc, topDisc, rimRing, innerRing, innerRing2);
+  // body: lathe profile with rounded bottom/top shoulders and a shallow recess for the glass
+  const profile: THREE.Vector2[] = [];
+  const arc = (cx: number, cy: number, r: number, a0: number, a1: number, n: number) => {
+    for (let i = 0; i <= n; i++) {
+      const a = a0 + ((a1 - a0) * i) / n;
+      profile.push(new THREE.Vector2(cx + Math.cos(a) * r, cy + Math.sin(a) * r));
+    }
+  };
+  const rs = compact ? 3 : 6;
+  profile.push(new THREE.Vector2(0, PLATE_H));
+  arc(PED_R - 0.06, PLATE_H + 0.06, 0.06, -Math.PI / 2, 0, rs); // bottom shoulder
+  arc(PED_R - 0.12, PLATE_H + PED_H - 0.12, 0.12, 0, Math.PI / 2, rs); // top shoulder
+  profile.push(new THREE.Vector2(PED_R - 0.3, PLATE_H + PED_H));
+  profile.push(new THREE.Vector2(PED_R - 0.3, PLATE_H + PED_H - 0.05));
+  profile.push(new THREE.Vector2(0, PLATE_H + PED_H - 0.05));
+  const bodyMat = glossy(compact, { color: 0xd3d8e1, roughness: 0.27, metalness: 0.68, clearcoat: 0.7, clearcoatRoughness: 0.2, emissive: 0x1b212c, emissiveIntensity: 0.15, envMapIntensity: 1.2 });
+  const body = new THREE.Mesh(new THREE.LatheGeometry(profile, radial), bodyMat);
+  const TOP = PLATE_H + PED_H;
 
-  // soft red + white light pool on the platform (gradient texture, no hard edge)
+  // thin Bata-red plate under the pedestal (lit lightly so it glows without a hard outline)
+  const plate = new THREE.Mesh(
+    new THREE.CylinderGeometry(PLATE_R, PLATE_R + 0.02, PLATE_H, radial),
+    glossy(compact, { color: 0xd4131b, roughness: 0.32, metalness: 0.1, clearcoat: 0.8, clearcoatRoughness: 0.15, emissive: 0xe0101a, emissiveIntensity: 0.16 }),
+  );
+  plate.position.y = PLATE_H / 2;
+
+  // recessed groove ring (slightly darker metal) between the bezel and the glass
+  const groove = new THREE.Mesh(
+    new THREE.RingGeometry(PED_R - 0.4, PED_R - 0.3, radial),
+    new THREE.MeshStandardMaterial({ color: 0x8f98aa, roughness: 0.5, metalness: 0.6 }),
+  );
+  groove.rotation.x = -Math.PI / 2;
+  groove.position.y = TOP - 0.048;
+
+  // frosted-white glass top (translucent, soft reflections; no transmission pass so it stays cheap)
+  const glassMat = glossy(compact, {
+    color: 0xf6f8fc,
+    roughness: 0.42,
+    metalness: 0,
+    clearcoat: 1,
+    clearcoatRoughness: 0.1,
+    transparent: true,
+    opacity: 0.9,
+    emissive: 0xffe9ec,
+    emissiveIntensity: 0.28,
+    envMapIntensity: 1.1,
+  });
+  const glass = new THREE.Mesh(new THREE.CylinderGeometry(PED_R - 0.4, PED_R - 0.4, 0.045, radial), glassMat);
+  glass.position.y = TOP - 0.026;
+  glass.renderOrder = 1;
+
+  // three softly lit slots on the front wall
+  const slotMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.95 });
+  const slotDefs: Array<[number, number]> = [[0, 0.5], [-0.78, 0.3], [0.78, 0.3]]; // [centre angle, length]
+  const slots = slotDefs.map(([a, len]) => {
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(PED_R + 0.004, PED_R + 0.004, 0.075, 24, 1, true, a - len / 2, len), slotMat);
+    m.position.y = PLATE_H + PED_H * 0.42;
+    return m;
+  });
+  const slotGlowTex = radialTexture([[0, "rgba(255,255,255,0.9)"], [0.4, "rgba(255,170,178,0.35)"], [1, "rgba(255,120,130,0)"]], 128);
+  const slotGlowMat = new THREE.SpriteMaterial({ map: slotGlowTex, transparent: true, depthWrite: false });
+  const slotGlows = slotDefs.map(([a, len]) => {
+    const s = new THREE.Sprite(slotGlowMat);
+    s.scale.set(len * 2.4, 0.4, 1);
+    s.position.set(Math.sin(a) * (PED_R + 0.06), PLATE_H + PED_H * 0.42, Math.cos(a) * (PED_R + 0.06));
+    s.renderOrder = 3;
+    return s;
+  });
+  platform.add(plate, body, groove, glass, ...slots, ...slotGlows);
+
+  // soft pink-white glow on the glass: bright centre, no hard edge, no rings
   const poolTex = radialTexture([
-    [0, "rgba(255,255,255,0.95)"],
-    [0.3, "rgba(255,150,156,0.55)"],
-    [0.65, "rgba(255,70,82,0.2)"],
-    [1, "rgba(255,60,70,0)"],
+    [0, "rgba(255,255,255,0.9)"],
+    [0.28, "rgba(255,206,211,0.5)"],
+    [0.6, "rgba(255,130,140,0.14)"],
+    [1, "rgba(255,110,120,0)"],
   ]);
-  const pool = new THREE.Mesh(new THREE.PlaneGeometry(6.4, 6.4), new THREE.MeshBasicMaterial({ map: poolTex, transparent: true, depthWrite: false }));
+  const poolMat = new THREE.MeshBasicMaterial({ map: poolTex, transparent: true, depthWrite: false });
+  const pool = new THREE.Mesh(new THREE.PlaneGeometry(2.7, 2.7), poolMat);
   pool.rotation.x = -Math.PI / 2;
-  pool.position.y = 0.205;
+  pool.position.y = TOP + 0.004;
+  pool.renderOrder = 2;
   platform.add(pool);
 
-  // soft projected shadow of the map (built from the real outline)
-  const SHADOW_K = 0.5;
+  // ambient pink wash + contact shadow on the ground around the pedestal
+  const ambientMat = new THREE.MeshBasicMaterial({
+    map: radialTexture([[0, "rgba(255,120,130,0.3)"], [0.55, "rgba(255,150,160,0.12)"], [1, "rgba(255,150,160,0)"]]),
+    transparent: true,
+    depthWrite: false,
+  });
+  const ambient = new THREE.Mesh(new THREE.PlaneGeometry(7.2, 7.2), ambientMat);
+  ambient.rotation.x = -Math.PI / 2;
+  ambient.position.y = 0.002;
+  const contactMat = new THREE.MeshBasicMaterial({
+    map: radialTexture([[0, "rgba(70,25,35,0.5)"], [0.5, "rgba(70,25,35,0.32)"], [0.78, "rgba(70,25,35,0.1)"], [1, "rgba(70,25,35,0)"]]),
+    transparent: true,
+    depthWrite: false,
+  });
+  const contact = new THREE.Mesh(new THREE.PlaneGeometry(5.6, 5.6), contactMat);
+  contact.rotation.x = -Math.PI / 2;
+  contact.position.y = 0.004;
+  ambient.renderOrder = 0;
+  contact.renderOrder = 0;
+  platform.add(ambient, contact);
+
+  // soft projected shadow of the map, drawn from the real outline onto the glass
+  const SHADOW_K = 0.36;
   const shadowTex = shadowTexture(7, SHADOW_K);
-  const shadowMat = new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, opacity: 0.42, depthWrite: false });
+  const shadowMat = new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, opacity: 0.3, depthWrite: false });
   const shadow = new THREE.Mesh(new THREE.PlaneGeometry(7, 7), shadowMat);
   shadow.rotation.x = -Math.PI / 2;
-  shadow.position.set(0, 0.21, 0.1);
+  shadow.position.set(0, TOP + 0.006, 0.05);
+  shadow.renderOrder = 2;
   platform.add(shadow);
 
-  // hologram ripple + beam
-  const rippleMat = new THREE.MeshBasicMaterial({ color: 0xff5560, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide });
-  const ripple = new THREE.Mesh(new THREE.RingGeometry(0.98, 1.0, 96), rippleMat);
-  ripple.rotation.x = -Math.PI / 2;
-  ripple.position.y = 0.215;
-  platform.add(ripple);
-
+  // faint rising light (pale pink / white vertical streaks that fade out toward the map)
   const beamMat = new THREE.ShaderMaterial({
-    vertexShader: GLOW_VERT,
+    vertexShader: BEAM_VERT,
     fragmentShader: BEAM_FRAG,
     transparent: true,
     depthWrite: false,
     side: THREE.DoubleSide,
-    uniforms: { uTime: { value: 0 }, uAlpha: { value: 0.28 }, uFade: { value: opts.reducedMotion ? 1 : 0 } },
+    uniforms: { uTime: { value: 0 }, uAlpha: { value: 0.22 }, uFade: { value: opts.reducedMotion ? 1 : 0 } },
   });
-  const beam = new THREE.Mesh(new THREE.CylinderGeometry(2.0, 2.25, 3.3, compact ? 32 : 64, 1, true), beamMat);
-  beam.position.y = 1.85;
+  const beam = new THREE.Mesh(new THREE.CylinderGeometry(1.75, 1.2, 3.0, compact ? 32 : 64, 1, true), beamMat);
+  beam.position.y = TOP + 1.5;
+  beam.renderOrder = 4;
   platform.add(beam);
 
   /* ---------- orbital rings (real 3D meshes) ---------- */
   const ringSpecs: RingSpec[] = [
-    { radius: 4.6, tube: 0.08, base: 0xd71920, emissive: 0x8a0008, hi: 0xffffff, arcs: 3, arcLen: 0.95, tilt: 1.05, roll: -0.3, spin: 0.55, wobble: 0.05, phase: 0 },
-    { radius: 4.05, tube: 0.055, base: 0x4f9bf0, emissive: 0x1a4c99, hi: 0xffffff, arcs: 2, arcLen: 0.75, tilt: 1.12, roll: 0.26, spin: -0.4, wobble: 0.06, phase: 1.7 },
-    { radius: 3.5, tube: 0.02, base: 0x9fb4d6, emissive: 0x9fb4d6, hi: 0xffffff, arcs: 0, arcLen: 0, tilt: 0.7, roll: -0.75, spin: 0.28, wobble: 0.08, phase: 3.1, dotted: true },
+    { radius: 4.6, tube: 0.06, base: 0xd71920, emissive: 0x8a0008, hi: 0xffffff, arcs: 3, arcLen: 0.95, tilt: 1.05, roll: -0.3, spin: 0.55, wobble: 0.05, phase: 0 },
+    { radius: 4.05, tube: 0.041, base: 0x4f9bf0, emissive: 0x1a4c99, hi: 0xffffff, arcs: 2, arcLen: 0.75, tilt: 1.12, roll: 0.26, spin: -0.4, wobble: 0.06, phase: 1.7 },
+    { radius: 3.5, tube: 0.015, base: 0x9fb4d6, emissive: 0x9fb4d6, hi: 0xffffff, arcs: 0, arcLen: 0, tilt: 0.7, roll: -0.75, spin: 0.28, wobble: 0.08, phase: 3.1, dotted: true },
   ];
   const glowMats: THREE.ShaderMaterial[] = [];
   const torusSeg = compact ? 90 : 180;
@@ -365,7 +457,7 @@ export function createLoginScene(canvas: HTMLCanvasElement, opts: SceneOptions):
         depthWrite: false,
         uniforms: {
           uBase: { value: new THREE.Color(s.base) }, uHi: { value: new THREE.Color(s.hi) },
-          uAlpha: { value: 0.1 }, uFade: { value: opts.reducedMotion ? 1 : 0 },
+          uAlpha: { value: 0.07 }, uFade: { value: opts.reducedMotion ? 1 : 0 },
           uCount: { value: s.arcs || 1 }, uSharp: { value: 2 }, uDash: { value: 0 },
         },
       });
@@ -447,9 +539,8 @@ export function createLoginScene(canvas: HTMLCanvasElement, opts: SceneOptions):
     mapGroup.rotation.z = Math.sin(t * 0.35) * 0.03;
 
     // shadow / light pool react to the floating map
-    shadow.scale.setScalar(1 - bob * 0.04);
-    shadowMat.opacity = (0.42 - bob * 0.03) * intro;
-    pool.scale.setScalar(1 + bob * 0.03);
+    shadow.scale.setScalar(1 - bob * 0.03);
+    shadowMat.opacity = (0.3 - bob * 0.02) * intro;
 
     for (const r of rings) {
       r.spin.rotation.z = t * r.spec.spin + r.spec.phase + (1 - intro) * 5 * Math.sign(r.spec.spin);
@@ -461,14 +552,16 @@ export function createLoginScene(canvas: HTMLCanvasElement, opts: SceneOptions):
     beamMat.uniforms.uTime.value = t;
     beamMat.uniforms.uFade.value = intro;
 
-    const rk = (t * 0.35) % 1;
-    ripple.scale.setScalar(1 + rk * 1.55);
-    rippleMat.opacity = (1 - rk) * 0.4 * intro;
+    // restrained light breathing on the pedestal
+    const breath = 0.5 + 0.5 * Math.sin(t * 0.6);
+    poolMat.opacity = (0.88 + 0.12 * breath) * intro;
+    slotMat.opacity = (0.88 + 0.1 * breath) * intro;
+    slotGlowMat.opacity = (0.7 + 0.2 * breath) * intro;
 
     for (const p of pins) {
       const k = (t * 0.55 + p.phase) % 1;
       p.pulse.scale.setScalar(0.8 + k * 1.6);
-      p.pulseMat.opacity = (1 - k) * 0.4 * intro;
+      p.pulseMat.opacity = (1 - k) * 0.22 * intro;
       p.group.position.z = PIN_Z + Math.sin(t * 1.6 + p.phase * 6.28) * 0.02;
     }
     sparkles.rotation.y = t * 0.05;
@@ -505,8 +598,7 @@ export function createLoginScene(canvas: HTMLCanvasElement, opts: SceneOptions):
   if (opts.reducedMotion) {
     for (const m of glowMats) m.uniforms.uFade.value = 1;
     beamMat.uniforms.uFade.value = 1;
-    shadowMat.opacity = 0.42;
-    rippleMat.opacity = 0;
+    shadowMat.opacity = 0.3;
     renderer.render(scene, camera);
   } else {
     kick();

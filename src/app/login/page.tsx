@@ -11,21 +11,21 @@ export default function LoginPage() {
         <svg className="ls-swoosh" viewBox="0 0 1670 941" preserveAspectRatio="xMidYMax slice" overflow="visible" aria-hidden="true">
           <defs>
             <linearGradient id="lsRedL" x1="0" y1="1" x2="1" y2="0">
-              <stop offset="0" stopColor="#c4101a" />
-              <stop offset="1" stopColor="#ef3a42" />
+              <stop offset="0" stopColor="#d8222b" />
+              <stop offset="1" stopColor="#f26a71" />
             </linearGradient>
             <linearGradient id="lsRedR" x1="1" y1="1" x2="0" y2="0">
-              <stop offset="0" stopColor="#c4101a" />
-              <stop offset="1" stopColor="#ef3a42" />
+              <stop offset="0" stopColor="#d8222b" />
+              <stop offset="1" stopColor="#f26a71" />
             </linearGradient>
           </defs>
-          <path d="M-4000 782 L0 782 C 130 838 290 900 440 941 L-4000 941 Z" fill="url(#lsRedL)" />
-          <path d="M-4000 800 L0 800 C 120 850 270 905 380 941" fill="none" stroke="#fff" strokeWidth="3" opacity=".85" />
-          <path d="M5670 792 L1670 792 C 1500 826 1260 905 1070 941 L5670 941 Z" fill="url(#lsRedR)" />
-          <path d="M5670 812 L1670 812 C 1500 846 1290 912 1150 941" fill="none" stroke="#fff" strokeWidth="3" opacity=".85" />
+          <path d="M-4000 872 L0 872 C 120 894 230 918 335 941 L-4000 941 Z" fill="url(#lsRedL)" />
+          <path d="M-4000 860 L0 860 C 125 884 240 910 350 941" fill="none" stroke="#e85560" strokeWidth="2" opacity=".55" />
+          <path d="M5670 880 L1670 880 C 1520 896 1340 920 1235 941 L5670 941 Z" fill="url(#lsRedR)" />
+          <path d="M5670 868 L1670 868 C 1525 886 1350 912 1250 941" fill="none" stroke="#e85560" strokeWidth="2" opacity=".55" />
         </svg>
 
-        <img className="ls-store" src="/login/storefront.webp" alt="" width={625} height={220} />
+        <img className="ls-store" src="/login/storefront.webp" alt="" width={640} height={254} />
 
         <div className="ls-art">
           <ThailandScene />

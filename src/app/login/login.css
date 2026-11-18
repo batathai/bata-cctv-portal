@@ -1,0 +1,87 @@
+/* Login hero. Desktop: positioned in % of a 1670x941 stage (matches the approved reference). < 1024px: stacked. */
+.login-root { min-height: 100dvh; background: #fff; display: flex; align-items: flex-end; justify-content: center; overflow-x: hidden; color: #172033; }
+.login-stage { position: relative; width: min(100vw, calc(100dvh * 1.7745)); max-width: 2000px; aspect-ratio: 1670 / 941; container-type: inline-size; }
+
+.ls-swoosh { overflow: visible; position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
+.ls-store { position: absolute; left: 0; top: 60.8%; width: 37.4%; height: auto; z-index: 0; pointer-events: none;
+  -webkit-mask-image: linear-gradient(to bottom, #000 80%, transparent), linear-gradient(to right, #000 88%, transparent); -webkit-mask-composite: source-in; mask-image: linear-gradient(to bottom, #000 80%, transparent), linear-gradient(to right, #000 88%, transparent); mask-composite: intersect; }
+.ls-art { position: absolute; inset: 0; pointer-events: none; } /* no z-index: keeps multiply blending against the storefront */
+.ls-scene { position: absolute; left: 21.6%; top: 17%; width: 39.5%; height: 77%; }
+.ls-canvas, .ls-scene-fallback { width: 100%; height: 100%; display: block; }
+.ls-canvas { opacity: 0; transition: opacity .9s ease; }
+.ls-canvas.is-ready { opacity: 1; }
+.ls-scene-fallback { object-fit: contain; }
+.ls-camera { position: absolute; left: 0; top: 0; width: 30.2%; height: auto;
+  -webkit-mask-image: linear-gradient(to bottom, #000 82%, transparent), linear-gradient(to right, transparent, #000 6%, #000 80%, transparent); -webkit-mask-composite: source-in;
+  mask-image: linear-gradient(to bottom, #000 82%, transparent), linear-gradient(to right, transparent, #000 6%, #000 80%, transparent); mask-composite: intersect; }
+
+.ls-brand { position: absolute; left: 15.3%; top: 3.4%; display: flex; align-items: center; gap: 1.5cqw; z-index: 3; }
+.ls-logo { width: 17.6cqw; height: auto; display: block; }
+.ls-sep { width: 1px; height: 5.8cqw; background: #1c1f2a; }
+.ls-brand-text { display: flex; flex-direction: column; line-height: 1.15; }
+.ls-brand-text strong { font-size: 3.5cqw; font-weight: 700; color: #151a27; letter-spacing: -.01em; }
+.ls-brand-text span { font-size: 2cqw; font-weight: 500; color: #4a5468; }
+
+.ls-card { position: absolute; left: 61.8%; top: 19.8%; width: 34%; box-sizing: border-box; padding: 3.1cqw 3.3cqw 3.3cqw; background: #fff; border: 1px solid #eef0f5; border-radius: 2.6cqw;
+  box-shadow: 0 1.2cqw 3.4cqw rgba(60,40,60,.13), 0 .15cqw .5cqw rgba(60,40,60,.06); z-index: 4; font-size: max(14px, 1.3cqw); }
+.ls-card-head { display: flex; align-items: center; gap: 1.5cqw; margin-bottom: 2.4cqw; }
+.ls-card-icon { width: 5.2cqw; height: 5.2cqw; border-radius: 1.3cqw; display: grid; place-items: center; color: #fff; background: linear-gradient(145deg, #ec2530, #c40f18); box-shadow: 0 .5cqw 1.2cqw rgba(215,25,32,.3); flex: none; }
+.ls-card-icon svg { width: 55%; height: 55%; }
+.ls-card h1 { margin: 0; font-size: max(20px, 2.55cqw); line-height: 1.1; font-weight: 700; color: #151a27; letter-spacing: -.01em; }
+.ls-card-head p { margin: .35cqw 0 0; font-size: max(13px, 1.75cqw); color: #4a5468; font-weight: 500; }
+.ls-note { margin: 0 0 1.2cqw; font-size: max(12px, 1cqw); color: #b01319; background: #fff1f1; border: 1px solid rgba(215,25,32,.2); border-radius: .8cqw; padding: .9cqw 1.1cqw; }
+.ls-form { display: flex; flex-direction: column; gap: 1.5cqw; }
+.ls-field label { display: flex; align-items: center; gap: .7cqw; font-size: max(13px, 1.22cqw); font-weight: 700; color: #151a27; margin-bottom: .7cqw; }
+.ls-field label svg { width: 1.45em; height: 1.45em; stroke-width: 2.2; }
+.ls-field input { width: 100%; box-sizing: border-box; height: max(46px, 3.7cqw); padding: 0 1.2cqw; border: 1px solid #cdd8f1; border-radius: .95cqw; background: #edf2ff; color: #172033; font: inherit; font-size: max(15px, 1.25cqw); outline: none; transition: border-color .15s, box-shadow .15s, background .15s; }
+.ls-field input::placeholder { color: #6b7385; }
+.ls-field input:focus { border-color: #df1524; background: #fff; box-shadow: 0 0 0 3px rgba(223,21,36,.14); }
+.ls-pass { position: relative; }
+.ls-pass input { padding-right: 4.4cqw; }
+.ls-pass button { position: absolute; right: .6cqw; top: 50%; transform: translateY(-50%); width: max(40px, 3cqw); height: max(40px, 3cqw); border: 0; background: transparent; color: #4a5468; cursor: pointer; display: grid; place-items: center; border-radius: .7cqw; }
+.ls-pass button:hover { background: rgba(0,0,0,.05); }
+.ls-pass button:focus-visible { outline: 2px solid #df1524; }
+.ls-pass svg { width: 1.7cqw; min-width: 20px; height: auto; }
+.ls-error { margin: 0; font-size: max(13px, 1.05cqw); color: #b01319; }
+.ls-submit { margin-top: .6cqw; width: 100%; height: max(50px, 4cqw); border: 0; border-radius: 1cqw; background: linear-gradient(180deg, #ee2630, #d1121b); color: #fff; font: inherit; font-size: max(16px, 1.6cqw); font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: .9cqw; box-shadow: 0 .6cqw 1.4cqw rgba(215,25,32,.32); transition: transform .15s, box-shadow .15s, filter .15s; }
+.ls-submit svg { width: 1.2em; height: 1.2em; }
+.ls-submit:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.05); }
+.ls-submit:focus-visible { outline: 3px solid rgba(223,21,36,.4); outline-offset: 2px; }
+.ls-submit:disabled { opacity: .45; cursor: not-allowed; }
+
+/* ---------- tablet / phone: stacked ---------- */
+@media (max-width: 1023px), (max-aspect-ratio: 5/4) {
+  .login-root { align-items: flex-start; }
+  .login-stage { width: 100%; max-width: none; aspect-ratio: auto; container-type: normal; min-height: 100dvh; display: flex; flex-direction: column; align-items: center; padding: 20px 16px 0; box-sizing: border-box; overflow: hidden; }
+  .ls-brand { position: relative; left: auto; top: auto; gap: 12px; margin-bottom: 4px; order: 1; }
+  .ls-logo { width: clamp(110px, 30vw, 150px); }
+  .ls-sep { height: 38px; }
+  .ls-brand-text strong { font-size: clamp(18px, 4.6vw, 24px); }
+  .ls-brand-text span { font-size: clamp(11px, 3vw, 14px); }
+
+  .ls-art { position: relative; inset: auto; width: min(100%, 520px); aspect-ratio: 660 / 725; max-height: 50dvh; margin: 0 auto -2%; order: 2; }
+  .ls-scene { left: 0; top: 0; width: 100%; height: 100%; }
+  .ls-camera { top: 0; left: -3%; width: 46%; }
+
+  .ls-card { position: relative; left: auto; top: auto; width: min(100%, 440px); padding: 26px 22px 24px; border-radius: 24px; font-size: 14px; order: 3; box-shadow: 0 12px 34px rgba(60,40,60,.14); z-index: 4; }
+  .ls-card-head { gap: 14px; margin-bottom: 18px; }
+  .ls-card-icon { width: 52px; height: 52px; border-radius: 14px; }
+  .ls-card h1 { font-size: 22px; }
+  .ls-card-head p { font-size: 14px; margin-top: 3px; }
+  .ls-form { gap: 14px; }
+  .ls-field label { font-size: 14px; margin-bottom: 6px; gap: 7px; }
+  .ls-field input { height: 48px; font-size: 16px; border-radius: 12px; padding: 0 14px; }
+  .ls-pass input { padding-right: 52px; }
+  .ls-pass button { width: 44px; height: 44px; right: 3px; }
+  .ls-pass svg { width: 20px; }
+  .ls-submit { height: 52px; font-size: 17px; border-radius: 13px; gap: 9px; margin-top: 4px; }
+  .ls-note, .ls-error { font-size: 13px; }
+
+  .ls-store { position: relative; left: auto; top: auto; width: min(100%, 460px); margin: 18px auto 0; z-index: 0; order: 4; }
+  .ls-swoosh { height: 100%; }
+}
+@media (max-width: 599px) { .ls-camera { width: 38%; left: -2%; } }
+@media (max-width: 1023px) and (min-width: 768px) and (min-aspect-ratio: 5/4) {
+  .ls-art { max-height: 46dvh; }
+}
+@media (prefers-reduced-motion: reduce) { .ls-canvas { transition: none; } .ls-submit { transition: none; } }

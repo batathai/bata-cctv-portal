@@ -705,8 +705,26 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     // A store whose repair was marked Completed keeps reading as Completed even
     // with a new Open ticket (isRepairCompleted trusts recovery_stage), so the
     // follow-up work would never show up as open. Re-open it at the first stage.
-    if (store?.recovery_stage === "Completed") {
-      await updateRecoveryStage(input.store_id, "Waiting Vendor Quote", "เปิดงานใหม่หลังซ่อมเสร็จ (Ticket ใหม่)");
+    //
+    // The ticket's own Description is only shown on the store's Tickets card, never
+    // on the Job page or Work Orders list — those show the latest stage-history note
+    // ("Remark"). So log the description as that note too, or what the person typed
+    // appears to vanish. Both writes come after the ticket exists, so a failure here
+    // must not read as "ticket not created" (a retry would open a duplicate).
+    const desc = input.description?.trim() || "";
+    try {
+      if (store?.recovery_stage === "Completed") {
+        await updateRecoveryStage(
+          input.store_id,
+          "Waiting Vendor Quote",
+          desc ? `เปิดงานใหม่หลังซ่อมเสร็จ: ${desc}` : "เปิดงานใหม่หลังซ่อมเสร็จ (Ticket ใหม่)"
+        );
+      } else if (desc) {
+        await addRecoveryRemark(input.store_id, store?.recovery_stage ?? "Waiting Vendor Quote", desc);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      throw new Error(`เปิด Ticket แล้ว (อย่ากดซ้ำ) แต่บันทึกรายละเอียด/ย้อนสถานะไม่สำเร็จ: ${msg}`);
     }
   }
 

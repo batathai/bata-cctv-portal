@@ -22,10 +22,10 @@ import type { StoreWithAssets, TicketIssueType } from "@/types/database";
  * current job members (a fresh job has none yet); it searches every store,
  * with a warning if the picked one already belongs to a different active job.
  */
-export function NewTicketModal({ onClose, assignToBatchId }: { onClose: () => void; assignToBatchId?: string }) {
+export function NewTicketModal({ onClose, assignToBatchId, initialStoreCode }: { onClose: () => void; assignToBatchId?: string; initialStoreCode?: string }) {
   const { stores, tickets, workOrderBatches, createTicket, assignStoreToBatch } = useAppData();
   const [query, setQuery] = useState("");
-  const [selectedStore, setSelectedStore] = useState<StoreWithAssets | null>(null);
+  const [selectedStore, setSelectedStore] = useState<StoreWithAssets | null>(() => (initialStoreCode ? stores.find((s) => s.store_code === initialStoreCode) ?? null : null));
   const [issueType, setIssueType] = useState<TicketIssueType>("Camera Failure");
   const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);

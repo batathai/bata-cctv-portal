@@ -363,7 +363,10 @@ function NewBatchModal({ onClose }: { onClose: () => void }) {
       const batch = await createWorkOrderBatch(name.trim());
       // Client-side navigation: the new job is already in the shared state, so
       // there is no need to reload the whole app and refetch every table.
-      router.push(`/work-orders/${batch.id}`);
+      // Named after a store ("54045 - …")? Open the job with that store ready in
+      // the Open Work Order dialog, so the new job is not an empty page.
+      const code = name.trim().match(/^(\d{4,6})\b/)?.[1];
+      router.push(`/work-orders/${batch.id}${code && byCode.has(code) ? `?store=${code}` : ""}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not create job.");
       setSaving(false);

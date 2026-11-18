@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, ClipboardList, Search, FileText, Plus, Archive, RotateCcw, Pencil, Check, X } from "lucide-react";
 import Link from "next/link";
@@ -28,6 +28,7 @@ export default function WorkOrderBatchDetailPage() {
   const [showDone, setShowDone] = useState(false);
   const [q, setQ] = useState("");
   const [showNewTicket, setShowNewTicket] = useState(false);
+  const [presetStoreCode, setPresetStoreCode] = useState<string | undefined>();
   const [busy, setBusy] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [draftName, setDraftName] = useState("");
@@ -36,6 +37,20 @@ export default function WorkOrderBatchDetailPage() {
   const canManage = canLogMaintenance(role);
 
   const batch = workOrderBatches.find((b) => b.id === batchId);
+
+  // Coming from New Job with a store code (?store=54045): open the Open Work Order
+  // dialog with that store already picked, then drop the param so a refresh doesn't reopen it.
+  useEffect(() => {
+    if (loading) return;
+    const code = new URLSearchParams(window.location.search).get("store");
+    if (!code) return;
+    window.history.replaceState(null, "", window.location.pathname);
+    if (canLogMaintenance(role)) {
+      setPresetStoreCode(code);
+      setShowNewTicket(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
 
   const workOrderStores = useMemo(() => stores.filter((s) => s.batch_id === batchId && needsRepair(s, tickets)), [stores, tickets, batchId]);
 
@@ -223,7 +238,7 @@ export default function WorkOrderBatchDetailPage() {
         </div>
       </div>
 
-      {showNewTicket && <NewTicketModal onClose={() => setShowNewTicket(false)} assignToBatchId={batch.id} />}
+      {showNewTicket && <NewTicketModal onClose={() => setShowNewTicket(false)} assignToBatchId={batch.id} initialStoreCode={presetStoreCode} />}
 
       <div className="flex flex-wrap gap-3">
         <StatCard

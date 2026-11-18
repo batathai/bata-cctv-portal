@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import clsx from "clsx";
 import { Plus, Search, ChevronRight, Loader2, AlertCircle } from "lucide-react";
 import { useAppData } from "@/components/providers/AppDataProvider";
@@ -319,11 +320,40 @@ function JobTableRow({ job }: { job: JobRow }) {
   );
 }
 
+// Job names are "<รหัสสาขา> - <ชื่อสาขา>" so the list reads the same everywhere.
+function jobNameFor(s: Pick<StoreWithAssets, "store_code" | "store_name">) {
+  return `${s.store_code} - ${s.store_name}`;
+}
+
 function NewBatchModal({ onClose }: { onClose: () => void }) {
-  const { createWorkOrderBatch } = useAppData();
+  const { createWorkOrderBatch, allStores } = useAppData();
+  const router = useRouter();
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const byCode = useMemo(() => new Map(allStores.map((s) => [s.store_code, s])), [allStores]);
+
+  // Typing a store code (or part of a code / name) lists the matching stores;
+  // an exact code is filled in as "code - name" straight away (see onChange).
+  const suggestions = useMemo(() => {
+    const words = name.toLowerCase().split(/[\s\-·]+/).filter(Boolean);
+    if (!words.length || name.trim().length < 2) return [];
+    const exact = allStores.find((s) => jobNameFor(s).toLowerCase() === name.trim().toLowerCase());
+    if (exact) return [];
+    return allStores
+      .filter((s) => {
+        const hay = `${s.store_code} ${s.store_name}`.toLowerCase();
+        return words.every((w) => hay.includes(w));
+      })
+      .slice(0, 6);
+  }, [name, allStores]);
+
+  function onNameChange(value: string) {
+    const typed = value.trim();
+    const store = /^\d{4,6}$/.test(typed) ? byCode.get(typed) : undefined;
+    setName(store ? jobNameFor(store) : value);
+  }
 
   async function save() {
     if (!name.trim()) return;
@@ -331,25 +361,52 @@ function NewBatchModal({ onClose }: { onClose: () => void }) {
     setError(null);
     try {
       const batch = await createWorkOrderBatch(name.trim());
-      window.location.href = `/work-orders/${batch.id}`;
+      // Client-side navigation: the new job is already in the shared state, so
+      // there is no need to reload the whole app and refetch every table.
+      router.push(`/work-orders/${batch.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not create job.");
       setSaving(false);
     }
   }
 
+  function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key !== "Enter" || saving) return;
+    e.preventDefault();
+    // One clear match: Enter takes it; otherwise Enter creates the job.
+    if (suggestions.length === 1) setName(jobNameFor(suggestions[0]));
+    else save();
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div className="bg-white dark:bg-surface-dark rounded-lg shadow-xl w-full max-w-sm p-5" onClick={(e) => e.stopPropagation()}>
         <h2 className="text-sm font-semibold text-ink dark:text-white mb-3">New Job</h2>
-        <label className="text-xs text-ink-faint block mb-1">Job name</label>
+        <label className="text-xs text-ink-faint block mb-1">Job name — พิมพ์รหัสสาขา ระบบจะใส่ชื่อร้านให้</label>
         <input
           autoFocus
           value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder='e.g. "Job 2: Q3 Round"'
+          onChange={(e) => onNameChange(e.target.value)}
+          onKeyDown={onKeyDown}
+          placeholder='e.g. "54045" or "Job 2: Q3 Round"'
           className="w-full text-sm border border-black/10 dark:border-white/10 rounded-md px-3 py-2 bg-surface-muted dark:bg-white/5 outline-none focus:border-brand"
         />
+        {suggestions.length > 0 && (
+          <ul className="mt-1 border border-black/10 dark:border-white/10 rounded-md overflow-hidden divide-y divide-black/5 dark:divide-white/10">
+            {suggestions.map((s) => (
+              <li key={s.id}>
+                <button
+                  type="button"
+                  onClick={() => setName(jobNameFor(s))}
+                  className="w-full text-left text-xs px-3 py-1.5 hover:bg-surface-muted dark:hover:bg-white/5"
+                >
+                  <span className="font-mono text-ink-soft dark:text-white/60">{s.store_code}</span>{" "}
+                  <span className="text-ink dark:text-white">{s.store_name}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
         {error && (
           <p className="text-xs text-brand flex items-start gap-1.5 mt-2">
             <AlertCircle size={12} className="shrink-0 mt-0.5" /> {error}

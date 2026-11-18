@@ -115,7 +115,7 @@ export function EditAssetModal({ store, onClose }: Props) {
   }
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+    <div className="fixed inset-0 !mt-0 z-[60] flex items-center justify-center p-4">
       <div onClick={onClose} className="absolute inset-0 bg-black/50" />
       <div className="relative w-full max-w-2xl bg-white dark:bg-surface-dark rounded-card shadow-card max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-5 py-4 border-b border-black/5 dark:border-white/10 sticky top-0 bg-white dark:bg-surface-dark z-10">

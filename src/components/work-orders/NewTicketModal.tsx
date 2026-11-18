@@ -22,10 +22,10 @@ import type { StoreWithAssets, TicketIssueType } from "@/types/database";
  * current job members (a fresh job has none yet); it searches every store,
  * with a warning if the picked one already belongs to a different active job.
  */
-export function NewTicketModal({ onClose, assignToBatchId }: { onClose: () => void; assignToBatchId?: string }) {
+export function NewTicketModal({ onClose, assignToBatchId, initialStoreCode }: { onClose: () => void; assignToBatchId?: string; initialStoreCode?: string }) {
   const { stores, tickets, workOrderBatches, createTicket, assignStoreToBatch } = useAppData();
   const [query, setQuery] = useState("");
-  const [selectedStore, setSelectedStore] = useState<StoreWithAssets | null>(null);
+  const [selectedStore, setSelectedStore] = useState<StoreWithAssets | null>(() => (initialStoreCode ? stores.find((s) => s.store_code === initialStoreCode) ?? null : null));
   const [issueType, setIssueType] = useState<TicketIssueType>("Camera Failure");
   const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
@@ -98,7 +98,7 @@ export function NewTicketModal({ onClose, assignToBatchId }: { onClose: () => vo
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={onClose}>
+    <div className="fixed inset-0 !mt-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={onClose}>
       <div className="bg-white dark:bg-surface-dark rounded-card shadow-card w-full max-w-md p-5" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3">
           <h2 className="font-display text-base font-bold text-ink dark:text-white">Open Work Order</h2>

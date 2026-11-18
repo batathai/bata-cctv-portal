@@ -326,13 +326,24 @@ function jobNameFor(s: Pick<StoreWithAssets, "store_code" | "store_name">) {
 }
 
 function NewBatchModal({ onClose }: { onClose: () => void }) {
-  const { createWorkOrderBatch, allStores } = useAppData();
+  const { createWorkOrderBatch, assignStoreToBatch, workOrderBatches, allStores } = useAppData();
   const router = useRouter();
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const byCode = useMemo(() => new Map(allStores.map((s) => [s.store_code, s])), [allStores]);
+
+  // A name that starts with a store code ("54045 - …") makes this a job for that store:
+  // the store is attached to the job as soon as it is created.
+  const matchedStore = useMemo(() => {
+    const code = name.trim().match(/^(\d{4,6})\b/)?.[1];
+    return code ? byCode.get(code) : undefined;
+  }, [name, byCode]);
+  // A store sits in one job at a time — say so before it is moved out of another active one.
+  const conflictBatch = matchedStore?.batch_id
+    ? workOrderBatches.find((b) => b.id === matchedStore.batch_id && b.status === "Active")
+    : undefined;
 
   // Typing a store code (or part of a code / name) lists the matching stores;
   // an exact code is filled in as "code - name" straight away (see onChange).
@@ -363,7 +374,18 @@ function NewBatchModal({ onClose }: { onClose: () => void }) {
       const batch = await createWorkOrderBatch(name.trim());
       // Client-side navigation: the new job is already in the shared state, so
       // there is no need to reload the whole app and refetch every table.
-      router.push(`/work-orders/${batch.id}`);
+      // Named after a store ("54045 - …")? Open the job with that store ready in
+      // the Open Work Order dialog, so the new job is not an empty page.
+      if (matchedStore) {
+        // The job is already created; if attaching fails the Open Work Order dialog
+        // on the next page attaches the store again when the ticket is opened.
+        try {
+          await assignStoreToBatch(matchedStore.id, batch.id);
+        } catch (e) {
+          console.error("Could not attach store to new job:", e);
+        }
+      }
+      router.push(`/work-orders/${batch.id}${matchedStore ? `?store=${matchedStore.store_code}` : ""}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not create job.");
       setSaving(false);
@@ -379,7 +401,7 @@ function NewBatchModal({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+    <div className="fixed inset-0 !mt-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div className="bg-white dark:bg-surface-dark rounded-lg shadow-xl w-full max-w-sm p-5" onClick={(e) => e.stopPropagation()}>
         <h2 className="text-sm font-semibold text-ink dark:text-white mb-3">New Job</h2>
         <label className="text-xs text-ink-faint block mb-1">Job name — พิมพ์รหัสสาขา ระบบจะใส่ชื่อร้านให้</label>
@@ -406,6 +428,16 @@ function NewBatchModal({ onClose }: { onClose: () => void }) {
               </li>
             ))}
           </ul>
+        )}
+        {matchedStore && (
+          <p className="text-[11px] text-ink-soft dark:text-white/60 mt-1.5">
+            สาขา {matchedStore.store_code} · {matchedStore.store_name} · เขต {zoneCode(matchedStore.zone)} จะถูกผูกเข้า Job นี้
+          </p>
+        )}
+        {conflictBatch && (
+          <p className="text-[11px] text-status-partial mt-1">
+            สาขานี้อยู่ใน &quot;{conflictBatch.name}&quot; ที่ยัง Active — สร้าง Job นี้แล้วสาขาจะย้ายมาที่ Job ใหม่
+          </p>
         )}
         {error && (
           <p className="text-xs text-brand flex items-start gap-1.5 mt-2">
